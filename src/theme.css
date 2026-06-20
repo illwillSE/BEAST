@@ -1,0 +1,64 @@
+/* ---------------------------------------------------------------------------
+   BEAST color palette — carried over from BLAST, the single source of truth
+   for every color. Semantic tokens defined as Tailwind v4 `@theme` colors:
+   each generates utilities (`bg-surface`, `text-muted`, `border-edge`, …) AND
+   is exposed as a CSS custom property on :root for canvas/SVG code via
+   `getColor()`. Change a value here and it propagates everywhere.
+   --------------------------------------------------------------------------- */
+
+@theme {
+  /* surfaces (dark → light) */
+  --color-bg: #0b0d11;            /* page background */
+  --color-well: #020617;          /* recessed/inset: canvases, popups, switches */
+  --color-panel: #0f172a;         /* chrome: header, sidebar, inspector, modals */
+  --color-surface: #1e293b;       /* raised: chips, cards, buttons */
+  --color-surface-hover: #334155; /* surface hover */
+
+  /* borders (subtle → strong) */
+  --color-divider: #334155;       /* structural lines between regions */
+  --color-edge: #475569;          /* default element borders */
+  --color-edge-2: #64748b;        /* emphasized borders */
+  --color-edge-hover: #94a3b8;    /* hovered borders */
+
+  /* text (brightest → dimmest) */
+  --color-ink: #f1f5f9;           /* primary readouts, names, values */
+  --color-ink-soft: #e2e8f0;      /* secondary primary */
+  --color-text: #cbd5e1;          /* standard body text */
+  --color-muted: #94a3b8;         /* labels, secondary */
+  --color-faint: #64748b;         /* dim readouts, hints, connectors */
+  --color-dim: #475569;           /* faintest */
+
+  /* accent (amber) */
+  --color-accent: #fbbf24;        /* brand, active tool */
+  --color-accent-bright: #fcd34d; /* active text */
+  --color-accent-soft: #fde68a;   /* selected text */
+  --color-accent-deep: #f59e0b;   /* selection rings, focus, slider fill */
+  --color-accent-dim: #b45309;    /* amber-700: muted dashed outline */
+
+  /* state / secondary — emerald (on), red (danger), sky (info) */
+  --color-on: #34d399;            /* emerald-400: enabled borders/fills */
+  --color-on-bright: #6ee7b7;     /* emerald-300: enabled text */
+  --color-danger: #f87171;        /* red-400: errors */
+  --color-danger-deep: #ef4444;   /* red-500: danger button */
+  --color-danger-bright: #fca5a5; /* red-300: danger text */
+  --color-info: #38bdf8;          /* sky-400: info */
+  --color-info-bright: #7dd3fc;   /* sky-300: info text/hover */
+  --color-info-deep: #0ea5e9;     /* sky-500: info edit hover */
+
+  /* control chrome (sliders, scrollbars) */
+  --color-track: #2a3140;          /* slider empty track */
+  --color-thumb: #e2e8f0;          /* slider thumb */
+  --color-scrollbar: #3a4558;
+  --color-scrollbar-hover: #4a566e;
+}
+
+/* Drawing-only hues consumed by canvas/SVG via getColor(), never as utility
+   classes. `@theme static` forces Tailwind v4 to always emit them as :root
+   variables even when no utility references them. */
+@theme static {
+  --color-checker-a: #1a2030;     /* transparency checkerboard — dark square */
+  --color-checker-b: #232b3d;     /* transparency checkerboard — light square */
+  --color-grid: #334155;          /* pixel grid lines */
+  --color-onion-prev: #f87171;    /* onion skin — previous frame tint */
+  --color-onion-next: #34d399;    /* onion skin — next frame tint */
+}

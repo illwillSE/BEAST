@@ -1,0 +1,79 @@
+@import "tailwindcss";
+@import "./theme.css"; /* all colors live here — semantic @theme tokens */
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink-soft);
+  font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tactile slider: amber fill up to the current value, square thumb. */
+.beast-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  background: transparent;
+  cursor: ew-resize;
+}
+.beast-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--color-accent-deep) var(--fill, 50%), var(--color-track) var(--fill, 50%));
+}
+.beast-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -5px;
+  height: 14px;
+  width: 7px;
+  border-radius: 2px;
+  background: var(--color-thumb);
+  border: 1px solid var(--color-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.beast-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--color-accent-deep) var(--fill, 50%), var(--color-track) var(--fill, 50%));
+}
+.beast-slider::-moz-range-thumb {
+  height: 14px;
+  width: 7px;
+  border-radius: 2px;
+  background: var(--color-thumb);
+  border: 1px solid var(--color-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+/* Transparency checkerboard for the canvas backdrop (mockup placeholder). */
+.beast-checker {
+  background-image:
+    linear-gradient(45deg, var(--color-checker-a) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-checker-a) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-checker-a) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-checker-a) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-color: var(--color-checker-b);
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scrollbar-hover);
+}
