@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const PRESETS = [16, 32, 64, 128]
 const MIN_SIZE = 1
@@ -9,6 +9,14 @@ const MAX_SIZE = 256
 export default function NewSpriteDialog({ open, onCreate, onClose }) {
   const [w, setW] = useState(32)
   const [h, setH] = useState(32)
+  const firstInputRef = useRef(null)
+
+  // Opening the dialog doesn't move focus on its own, so without this Enter
+  // would activate whatever still has focus from before the dialog opened
+  // (e.g. the "+" button), never reaching the form.
+  useEffect(() => {
+    if (open) firstInputRef.current?.focus()
+  }, [open])
 
   if (!open) return null
 
@@ -59,6 +67,7 @@ export default function NewSpriteDialog({ open, onCreate, onClose }) {
           <label className="flex items-center gap-1.5 text-xs text-faint">
             W
             <input
+              ref={firstInputRef}
               type="number"
               min={MIN_SIZE}
               max={MAX_SIZE}
