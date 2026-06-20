@@ -11,6 +11,14 @@
 //                            cell, `drag` is onStart's return value.
 //   onEnd(ctx, drag)         pointer up after a drag.
 //   cursor                   CSS cursor while the tool is active.
+//   key                      single-letter keyboard shortcut that selects this
+//                            tool (see src/shortcuts/registry.js). Pressing it
+//                            again while the tool is already active cycles
+//                            `variants` instead of a no-op re-select.
+//   variants                 optional [label, value][] of sub-options shown
+//                            as a flyout in ToolRail and cycled by repeat
+//                            presses of `key` (e.g. rect/ellipse Outline ↔
+//                            Filled).
 //
 // ctx = {
 //   x, y, target, color, dispatch, setColor, sampleColor, w, h, filled,
@@ -61,10 +69,11 @@ function normalizeRect(x0, y0, x1, y1) {
 }
 
 export const tools = {
-  pencil: strokeTool((ctx) => hexToRgba(ctx.color)),
-  eraser: strokeTool(() => [0, 0, 0, 0]),
+  pencil: { key: 'b', ...strokeTool((ctx) => hexToRgba(ctx.color)) },
+  eraser: { key: 'e', ...strokeTool(() => [0, 0, 0, 0]) },
 
   fill: {
+    key: 'g',
     cursor: 'crosshair',
     onStart(ctx) {
       commitBracketed(ctx, { type: 'FILL', ...ctx.target, x: ctx.x, y: ctx.y, rgba: hexToRgba(ctx.color) })
@@ -74,6 +83,7 @@ export const tools = {
   // Gradient: drag from full color (start) to transparent (end), filling the
   // flood-connected region from the start pixel — same region rule as Fill.
   gradient: {
+    key: 'n',
     cursor: 'crosshair',
     onStart(ctx) {
       return { x0: ctx.x, y0: ctx.y }
@@ -92,6 +102,7 @@ export const tools = {
   },
 
   eyedropper: {
+    key: 'i',
     cursor: 'copy',
     onStart(ctx) {
       const hex = ctx.sampleColor(ctx.x, ctx.y)
@@ -100,6 +111,7 @@ export const tools = {
   },
 
   line: {
+    key: 'l',
     cursor: 'crosshair',
     onStart(ctx) {
       return { x0: ctx.x, y0: ctx.y }
@@ -118,6 +130,8 @@ export const tools = {
   },
 
   rect: {
+    key: 'r',
+    variants: [['Outline', false], ['Filled', true]],
     cursor: 'crosshair',
     onStart(ctx) {
       return { x0: ctx.x, y0: ctx.y }
@@ -136,6 +150,8 @@ export const tools = {
   },
 
   ellipse: {
+    key: 'o',
+    variants: [['Outline', false], ['Filled', true]],
     cursor: 'crosshair',
     onStart(ctx) {
       return { x0: ctx.x, y0: ctx.y }
@@ -156,6 +172,7 @@ export const tools = {
   // Rectangular marquee. Starting a new selection flushes any pending
   // move/paste first, since a selection only makes sense for one at a time.
   select: {
+    key: 'm',
     cursor: 'crosshair',
     onStart(ctx) {
       ctx.commitFloating()
@@ -174,6 +191,7 @@ export const tools = {
   // buffer (clearing the source in the layer); it stays floating — movable by
   // further drags — until something commits it (see App's commitFloating).
   move: {
+    key: 'v',
     cursor: 'move',
     onStart(ctx) {
       if (ctx.floating) {

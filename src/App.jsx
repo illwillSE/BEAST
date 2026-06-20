@@ -10,6 +10,7 @@ import { createDocument, copyRegion } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { projectToZipBlob, projectFromZipFile, downloadBlob } from './persist/zip.js'
+import { matchShortcut, isTypingTarget } from './shortcuts/registry.js'
 
 // BEAST shell. The pixel document lives behind the history reducer; the pencil
 // draws into the active sprite/layer/frame with undo/redo. Sprite/layer/frame
@@ -28,6 +29,7 @@ export default function App() {
   const [mirrorV, setMirrorV] = useState(false)
   const [mirrorH, setMirrorH] = useState(false)
   const [filled, setFilled] = useState({ rect: false, ellipse: false })
+  const setToolVariant = (id, v) => setFilled((f) => ({ ...f, [id]: v }))
 
   const [state, dispatch] = useReducer(historyReducer, undefined, () => initHistory(createDocument()))
   const doc = state.present
@@ -128,25 +130,25 @@ export default function App() {
     prevSpriteIdsRef.current = new Set(ids)
   }, [doc.sprites])
 
-  // Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo, Cmd/Ctrl+C/X/V for the
-  // selection clipboard, Escape to commit a floating move/paste and deselect.
+  // Routes keydown through the shortcut registry: Cmd/Ctrl+Z undo,
+  // Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo, Cmd/Ctrl+C/X/V for the selection
+  // clipboard, Escape to commit a floating move/paste and deselect, and a
+  // letter per tool (see each tool's `key` in tools/registry.js).
   useEffect(() => {
+    const ctx = {
+      dispatch, setTool, tool, filled, setVariant: setToolVariant,
+      copySelection, cutSelection, pasteClipboard, commitFloating, setSelection,
+    }
     const onKey = (e) => {
-      const mod = e.metaKey || e.ctrlKey
-      if (mod) {
-        const k = e.key.toLowerCase()
-        if (k === 'z') { e.preventDefault(); dispatch({ type: e.shiftKey ? 'REDO' : 'UNDO' }) }
-        else if (k === 'y') { e.preventDefault(); dispatch({ type: 'REDO' }) }
-        else if (k === 'c') { e.preventDefault(); copySelection() }
-        else if (k === 'x') { e.preventDefault(); cutSelection() }
-        else if (k === 'v') { e.preventDefault(); pasteClipboard() }
-        return
-      }
-      if (e.key === 'Escape') { commitFloating(); setSelection(null) }
+      if (isTypingTarget(e.target)) return
+      const shortcut = matchShortcut(e)
+      if (!shortcut) return
+      e.preventDefault()
+      shortcut.run(ctx)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [floating, selection, clipboard, activeSprite, safeLayerId, safeFrame, tool])
+  }, [floating, selection, clipboard, activeSprite, safeLayerId, safeFrame, tool, filled])
 
   // Restore the autosaved project on mount, then enable autosaving.
   const [ready, setReady] = useState(false)
@@ -193,7 +195,7 @@ export default function App() {
           active={tool}
           onPick={setTool}
           filled={filled}
-          onFilled={(id, v) => setFilled((f) => ({ ...f, [id]: v }))}
+          onFilled={setToolVariant}
           mirrorV={mirrorV}
           mirrorH={mirrorH}
           onMirrorV={() => setMirrorV((v) => !v)}

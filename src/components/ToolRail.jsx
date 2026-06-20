@@ -2,10 +2,12 @@ import {
   Pencil, Eraser, PaintBucket, Pipette, Minus, Square, Circle,
   BoxSelect, Move, FlipHorizontal, FlipVertical, Blend,
 } from 'lucide-react'
+import { tools } from '../tools/registry.js'
 
 // v1 tool set, rendered from a static list (see src/tools/registry.js for the
-// behavior side of each entry). Mirror is a toggle layered on other tools
-// rather than its own tool, so it lives outside this list.
+// behavior side of each entry, including each tool's shortcut `key`). Mirror
+// is a toggle layered on other tools rather than its own tool, so it lives
+// outside this list.
 const TOOLS = [
   { id: 'pencil', label: 'Pencil', Icon: Pencil },
   { id: 'eraser', label: 'Eraser', Icon: Eraser },
@@ -14,8 +16,8 @@ const TOOLS = [
   { id: 'eyedropper', label: 'Eyedropper', Icon: Pipette },
   null, // divider
   { id: 'line', label: 'Line', Icon: Minus },
-  { id: 'rect', label: 'Rectangle', Icon: Square, hasFillOption: true },
-  { id: 'ellipse', label: 'Ellipse', Icon: Circle, hasFillOption: true },
+  { id: 'rect', label: 'Rectangle', Icon: Square },
+  { id: 'ellipse', label: 'Ellipse', Icon: Circle },
   null,
   { id: 'select', label: 'Select', Icon: BoxSelect },
   { id: 'move', label: 'Move', Icon: Move },
@@ -30,7 +32,7 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
         ) : (
           <div key={t.id} className="relative">
             <button
-              title={t.label}
+              title={tools[t.id].key ? `${t.label} (${tools[t.id].key.toUpperCase()})` : t.label}
               onClick={() => onPick(t.id)}
               className={
                 'grid place-items-center w-10 h-10 rounded border ' +
@@ -42,9 +44,9 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
               <t.Icon size={18} />
             </button>
 
-            {t.hasFillOption && active === t.id && (
+            {tools[t.id].variants && active === t.id && (
               <div className="absolute left-full top-0 ml-1 z-10 flex flex-col gap-0.5 p-1 bg-panel border border-divider rounded shadow-lg">
-                {[['Outline', false], ['Filled', true]].map(([label, val]) => (
+                {tools[t.id].variants.map(([label, val]) => (
                   <button
                     key={label}
                     onClick={() => onFilled(t.id, val)}
