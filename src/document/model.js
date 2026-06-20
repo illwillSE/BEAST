@@ -99,6 +99,26 @@ export function paintLine(cell, w, h, x0, y0, x1, y1, rgba) {
   }
 }
 
+// 4-connected flood fill from (x,y): replace the contiguous region matching the
+// clicked pixel's RGBA with `rgba`. Mutates the cell in place.
+export function floodFill(cell, w, h, x, y, rgba) {
+  if (x < 0 || y < 0 || x >= w || y >= h) return
+  const at = (px, py) => (py * w + px) * 4
+  const t = at(x, y)
+  const tr = cell[t], tg = cell[t + 1], tb = cell[t + 2], ta = cell[t + 3]
+  const [fr, fg, fb, fa] = rgba
+  if (tr === fr && tg === fg && tb === fb && ta === fa) return // already that color
+  const stack = [[x, y]]
+  while (stack.length) {
+    const [cx, cy] = stack.pop()
+    if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue
+    const i = at(cx, cy)
+    if (cell[i] !== tr || cell[i + 1] !== tg || cell[i + 2] !== tb || cell[i + 3] !== ta) continue
+    cell[i] = fr; cell[i + 1] = fg; cell[i + 2] = fb; cell[i + 3] = fa
+    stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1])
+  }
+}
+
 // ── rendering ────────────────────────────────────────────────────────────
 // Composite a sprite's frame across its visible layers into `imageData`
 // (which must be w*h). src-over, honoring per-layer opacity.
@@ -128,4 +148,9 @@ export function hexToRgba(hex) {
   let h = hex.replace('#', '')
   if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16), 255]
+}
+
+export function rgbaToHex([r, g, b]) {
+  const c = (n) => n.toString(16).padStart(2, '0')
+  return '#' + c(r) + c(g) + c(b)
 }

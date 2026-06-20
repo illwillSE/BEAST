@@ -5,7 +5,7 @@ import PixelCanvas from './PixelCanvas.jsx'
 // Center stage hosting the working pixel canvas. Document size comes from the
 // active sprite; zoom is local. The pencil draws (see PixelCanvas) and the
 // checkerboard shows through transparent pixels.
-export default function CanvasStage({ tool, color, sprite, target, dispatch }) {
+export default function CanvasStage({ tool, color, onColor, sprite, target, dispatch }) {
   const [scale, setScale] = useState(16)
   const [pos, setPos] = useState(null)
 
@@ -21,6 +21,7 @@ export default function CanvasStage({ tool, color, sprite, target, dispatch }) {
             dispatch={dispatch}
             scale={scale}
             color={color}
+            onColor={onColor}
             tool={tool}
             onHover={setPos}
           />

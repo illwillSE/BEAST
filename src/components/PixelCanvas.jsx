@@ -1,20 +1,21 @@
 import { useEffect, useRef } from 'react'
-import { compositeFrame, hexToRgba } from '../document/model.js'
+import { compositeFrame, rgbaToHex } from '../document/model.js'
+import { getTool } from '../tools/registry.js'
 
-// Interactive pixel canvas, driven by the document model. It renders the active
-// sprite frame (composited across visible layers) into a native-resolution
-// <canvas> scaled up with image-rendering:pixelated, and translates pointer
-// input into paint actions on the history reducer. The pencil brackets each
-// drag with STROKE_BEGIN / STROKE_END so a stroke is a single undo step; drags
-// dispatch PAINT_LINE (Bresenham in the reducer) so fast strokes leave no gaps.
-// Only the pencil draws for now.
-export default function PixelCanvas({ sprite, frameIndex, target, dispatch, scale, color, tool, onHover }) {
+// Interactive pixel canvas, driven by the document model + tool registry. It
+// renders the active sprite frame (composited across visible layers) into a
+// native-resolution <canvas> scaled up with image-rendering:pixelated, owns the
+// pointer gesture loop, and delegates behavior to the active tool. Stroke tools
+// return true from onStart to begin a drag; one-shot tools (fill, eyedropper)
+// act on the click alone.
+export default function PixelCanvas({ sprite, frameIndex, target, dispatch, scale, color, tool, onColor, onHover }) {
   const canvasRef = useRef(null)
   const imageRef = useRef(null)
-  const drawingRef = useRef(false)
+  const draggingRef = useRef(false)
   const lastRef = useRef(null)
 
   const { w, h } = sprite
+  const activeTool = getTool(tool)
 
   // Re-composite and blit whenever the sprite content or frame changes.
   useEffect(() => {
@@ -33,34 +34,45 @@ export default function PixelCanvas({ sprite, frameIndex, target, dispatch, scal
     return { x, y }
   }
 
-  const paintLine = (x0, y0, x1, y1) => {
-    dispatch({ type: 'PAINT_LINE', ...target, x0, y0, x1, y1, rgba: hexToRgba(color) })
+  const inBounds = (x, y) => x >= 0 && y >= 0 && x < w && y < h
+
+  // Read a composited pixel's color (for the eyedropper); null if transparent.
+  const sampleColor = (x, y) => {
+    const img = imageRef.current
+    if (!img || !inBounds(x, y)) return null
+    const i = (y * w + x) * 4
+    if (img.data[i + 3] === 0) return null
+    return rgbaToHex([img.data[i], img.data[i + 1], img.data[i + 2]])
   }
 
+  const ctxFor = (x, y) => ({ x, y, target, color, dispatch, setColor: onColor, sampleColor })
+
   const handleDown = (e) => {
-    if (tool !== 'pencil') return
+    if (!activeTool) return
     const { x, y } = cellFromEvent(e)
-    drawingRef.current = true
-    lastRef.current = { x, y }
-    dispatch({ type: 'STROKE_BEGIN' })
-    paintLine(x, y, x, y)
-    canvasRef.current.setPointerCapture(e.pointerId)
+    if (!inBounds(x, y)) return
+    const dragging = activeTool.onStart?.(ctxFor(x, y))
+    if (dragging) {
+      draggingRef.current = true
+      lastRef.current = { x, y }
+      canvasRef.current.setPointerCapture(e.pointerId)
+    }
   }
 
   const handleMove = (e) => {
     const { x, y } = cellFromEvent(e)
-    onHover?.(x >= 0 && y >= 0 && x < w && y < h ? { x, y } : null)
-    if (!drawingRef.current) return
-    const last = lastRef.current
-    paintLine(last.x, last.y, x, y)
+    onHover?.(inBounds(x, y) ? { x, y } : null)
+    if (!draggingRef.current) return
+    activeTool.onDrag?.(ctxFor(x, y), lastRef.current)
     lastRef.current = { x, y }
   }
 
   const handleUp = () => {
-    if (!drawingRef.current) return
-    drawingRef.current = false
+    if (!draggingRef.current) return
+    const last = lastRef.current
+    draggingRef.current = false
     lastRef.current = null
-    dispatch({ type: 'STROKE_END' })
+    activeTool?.onEnd?.(ctxFor(last.x, last.y))
   }
 
   return (
@@ -76,7 +88,7 @@ export default function PixelCanvas({ sprite, frameIndex, target, dispatch, scal
         width: w * scale,
         height: h * scale,
         imageRendering: 'pixelated',
-        cursor: tool === 'pencil' ? 'crosshair' : 'default',
+        cursor: activeTool?.cursor ?? 'default',
         touchAction: 'none',
         display: 'block',
       }}

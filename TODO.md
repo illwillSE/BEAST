@@ -22,9 +22,12 @@ still cosmetic; painting targets the first of each.
 - [ ] Sane max canvas size cap for performance.
 
 ## Tools (v1 registry)
-- [ ] Tool registry (one entry per tool — BLAST block-registry translation).
+- [x] Tool registry (`src/tools/registry.js`) — one entry per tool; PixelCanvas
+      drives the gesture loop and delegates behavior. ToolRail still has its own
+      static icon list (render the rail from the registry later).
 - [~] Brush (incl. 1px pencil) — pencil drawing wired; brush sizes TBD.
-- [ ] Eraser, Fill/bucket, Eyedropper.
+- [x] Eraser, Fill/bucket, Eyedropper.
+      (Eyedropper samples the composited/visible pixel; ignores transparent.)
 - [ ] Line, Rectangle, Ellipse (outline + filled).
 - [ ] Rect/lasso select, Move, Cut/Copy/Paste of regions.
 - [ ] Symmetry/mirror (vertical + horizontal axis).
@@ -50,8 +53,26 @@ still cosmetic; painting targets the first of each.
 - [ ] Global FPS for the whole animation.
 
 ## Persistence
-- [ ] ZIP project save/load.
-- [ ] Autosave (localStorage + IndexedDB, content-addressed blobs).
+- [x] Serialization layer — manifest + content-addressed cell blobs (`persist/serialize.js`).
+- [x] ZIP project save/load (`persist/zip.js`; Header Open/Save buttons).
+- [x] Autosave (localStorage manifest + IndexedDB blobs) with restore on load
+      (`persist/autosave.js`).
+- [ ] Cell-hash is cyrb53 (non-crypto) — fine for in-project dedup, but revisit
+      if collisions ever matter.
+- [ ] Autosave never GCs orphan blobs in IndexedDB — old cell versions accumulate.
+      Add cleanup (e.g. prune hashes not in the current manifest).
+- [ ] `uid` seq isn't reseeded after loading a project, so future add-sprite/
+      layer/frame ids could collide with loaded ids. Reseed past the loaded max
+      when CRUD lands (`document/model.js`).
+- [ ] No "save before discard" guard: Open replaces the current project without
+      confirmation; autosave overwrites the previous autosave.
+
+## Import
+- [ ] Open a PNG as a new sprite — draw it to a canvas, read pixels into a cell.
+      Decide sizing: use the PNG's native dimensions (no resampling), and which
+      layer/frame it lands on.
+- [ ] (maybe) Open an animated GIF — one frame per GIF frame. Needs a GIF
+      decoder; coalesce disposal/transparency. Bigger lift than PNG.
 
 ## Export
 - [ ] PNG with pixel-art upscaling (1×/2×/4×/8×).
