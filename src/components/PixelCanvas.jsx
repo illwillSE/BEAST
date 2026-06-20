@@ -76,19 +76,41 @@ export default function PixelCanvas({
     }
   }, [floating, preview, w, h])
 
-  // Re-draw the selection marquee — a thin dashed rect at CSS-pixel resolution
-  // (not the pixel-art grid), so it stays a 1px line at any zoom level. Also
-  // doubles as the pending crop window's outline (live while it's moved).
+  // Re-draw the selection marquee and mirror axis guides — both thin dashed
+  // lines at CSS-pixel resolution (not the pixel-art grid), so they stay 1px
+  // at any zoom level. The marquee also doubles as the pending crop window's
+  // outline (live while it's moved).
   useEffect(() => {
     const ctx = marqueeRef.current.getContext('2d')
     ctx.clearRect(0, 0, w * scale, h * scale)
+
+    if (mirrorV || mirrorH) {
+      ctx.strokeStyle = getColor('on', '99')
+      ctx.lineWidth = 1
+      ctx.setLineDash([4, 3])
+      if (mirrorV) {
+        const x = Math.round((w / 2) * scale) + 0.5
+        ctx.beginPath()
+        ctx.moveTo(x, 0)
+        ctx.lineTo(x, h * scale)
+        ctx.stroke()
+      }
+      if (mirrorH) {
+        const y = Math.round((h / 2) * scale) + 0.5
+        ctx.beginPath()
+        ctx.moveTo(0, y)
+        ctx.lineTo(w * scale, y)
+        ctx.stroke()
+      }
+    }
+
     const rect = preview?.kind === 'marquee' ? preview.rect : !floating && (selection || cropPending) ? (selection || cropPending) : null
     if (!rect) return
     ctx.strokeStyle = getColor('accent-bright')
     ctx.lineWidth = 1
     ctx.setLineDash([4, 3])
     ctx.strokeRect(rect.x * scale + 0.5, rect.y * scale + 0.5, rect.w * scale - 1, rect.h * scale - 1)
-  }, [floating, selection, cropPending, preview, w, h, scale])
+  }, [floating, selection, cropPending, preview, w, h, scale, mirrorV, mirrorH])
 
   const cellFromEvent = (e) => {
     const rect = canvasRef.current.getBoundingClientRect()

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Pencil, Eraser, PaintBucket, Pipette, Minus, Square, Circle,
   BoxSelect, Move, FlipHorizontal, FlipVertical, Blend, Crop,
@@ -26,6 +27,7 @@ const TOOLS = [
 ]
 
 export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mirrorH, onMirrorV, onMirrorH }) {
+  const [mirrorMenuOpen, setMirrorMenuOpen] = useState(false)
   return (
     <div className="flex flex-col items-center gap-1 p-2 bg-panel border-r border-divider shrink-0">
       {TOOLS.map((t, i) =>
@@ -69,26 +71,43 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
       )}
 
       <div className="h-px w-7 bg-divider my-1" />
-      <button
-        title="Mirror vertical axis (left/right)"
-        onClick={onMirrorV}
-        className={
-          'grid place-items-center w-10 h-10 rounded border ' +
-          (mirrorV ? 'bg-on/20 border-on text-on-bright' : 'border-transparent text-muted hover:text-ink hover:bg-surface-hover')
-        }
-      >
-        <FlipHorizontal size={18} />
-      </button>
-      <button
-        title="Mirror horizontal axis (top/bottom)"
-        onClick={onMirrorH}
-        className={
-          'grid place-items-center w-10 h-10 rounded border ' +
-          (mirrorH ? 'bg-on/20 border-on text-on-bright' : 'border-transparent text-muted hover:text-ink hover:bg-surface-hover')
-        }
-      >
-        <FlipVertical size={18} />
-      </button>
+      <div className="relative">
+        <button
+          title="Mirror"
+          onClick={() => setMirrorMenuOpen((o) => !o)}
+          className={
+            'grid place-items-center w-10 h-10 rounded border ' +
+            (mirrorV || mirrorH
+              ? 'bg-on/20 border-on text-on-bright'
+              : 'border-transparent text-muted hover:text-ink hover:bg-surface-hover')
+          }
+        >
+          <FlipHorizontal size={18} />
+        </button>
+
+        {mirrorMenuOpen && (
+          <div className="absolute left-full top-0 ml-1 z-10 flex flex-col gap-0.5 p-1 bg-panel border border-divider rounded shadow-lg">
+            <button
+              onClick={onMirrorV}
+              className={
+                'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] whitespace-nowrap text-left ' +
+                (mirrorV ? 'bg-on/20 text-on-bright' : 'text-muted hover:text-ink hover:bg-surface-hover')
+              }
+            >
+              <FlipHorizontal size={13} /> Vertical axis
+            </button>
+            <button
+              onClick={onMirrorH}
+              className={
+                'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] whitespace-nowrap text-left ' +
+                (mirrorH ? 'bg-on/20 text-on-bright' : 'text-muted hover:text-ink hover:bg-surface-hover')
+              }
+            >
+              <FlipVertical size={13} /> Horizontal axis
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
