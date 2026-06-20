@@ -1,71 +1,40 @@
 import { useEffect, useRef } from 'react'
+import { compositeFrame, hexToRgba } from '../document/model.js'
 
-// Interactive pixel canvas. Holds a flat color buffer (one entry per pixel,
-// `null` = transparent) and paints it onto a native-resolution <canvas> scaled
-// up with image-rendering:pixelated. Only the pencil tool draws for now; drags
-// are interpolated (Bresenham) so fast strokes don't leave gaps.
-//
-// This is a single standalone buffer — not yet the per-sprite / per-layer /
-// per-frame document model. Switching sprites/frames in the mockup does not
-// swap what's drawn here.
-export default function PixelCanvas({ width, height, scale, color, tool, onHover }) {
+// Interactive pixel canvas, driven by the document model. It renders the active
+// sprite frame (composited across visible layers) into a native-resolution
+// <canvas> scaled up with image-rendering:pixelated, and translates pointer
+// input into paint actions on the history reducer. The pencil brackets each
+// drag with STROKE_BEGIN / STROKE_END so a stroke is a single undo step; drags
+// dispatch PAINT_LINE (Bresenham in the reducer) so fast strokes leave no gaps.
+// Only the pencil draws for now.
+export default function PixelCanvas({ sprite, frameIndex, target, dispatch, scale, color, tool, onHover }) {
   const canvasRef = useRef(null)
-  const bufRef = useRef(null)
+  const imageRef = useRef(null)
   const drawingRef = useRef(false)
   const lastRef = useRef(null)
 
-  // (re)allocate the buffer when the document size changes
-  if (!bufRef.current || bufRef.current.length !== width * height) {
-    bufRef.current = new Array(width * height).fill(null)
-  }
+  const { w, h } = sprite
 
-  // repaint the whole canvas from the buffer (on mount / size change)
+  // Re-composite and blit whenever the sprite content or frame changes.
   useEffect(() => {
     const ctx = canvasRef.current.getContext('2d')
-    ctx.clearRect(0, 0, width, height)
-    const buf = bufRef.current
-    for (let i = 0; i < buf.length; i++) {
-      if (buf[i] == null) continue
-      ctx.fillStyle = buf[i]
-      ctx.fillRect(i % width, Math.floor(i / width), 1, 1)
+    if (!imageRef.current || imageRef.current.width !== w || imageRef.current.height !== h) {
+      imageRef.current = ctx.createImageData(w, h)
     }
-  }, [width, height])
-
-  const paintCell = (x, y, c) => {
-    if (x < 0 || y < 0 || x >= width || y >= height) return
-    const buf = bufRef.current
-    const i = y * width + x
-    if (buf[i] === c) return
-    buf[i] = c
-    const ctx = canvasRef.current.getContext('2d')
-    if (c == null) ctx.clearRect(x, y, 1, 1)
-    else {
-      ctx.fillStyle = c
-      ctx.fillRect(x, y, 1, 1)
-    }
-  }
-
-  // paint every cell along the line from (x0,y0) to (x1,y1)
-  const paintLine = (x0, y0, x1, y1, c) => {
-    const dx = Math.abs(x1 - x0)
-    const dy = Math.abs(y1 - y0)
-    const sx = x0 < x1 ? 1 : -1
-    const sy = y0 < y1 ? 1 : -1
-    let err = dx - dy
-    for (;;) {
-      paintCell(x0, y0, c)
-      if (x0 === x1 && y0 === y1) break
-      const e2 = 2 * err
-      if (e2 > -dy) { err -= dy; x0 += sx }
-      if (e2 < dx) { err += dx; y0 += sy }
-    }
-  }
+    compositeFrame(sprite, frameIndex, imageRef.current)
+    ctx.putImageData(imageRef.current, 0, 0)
+  }, [sprite, frameIndex, w, h])
 
   const cellFromEvent = (e) => {
     const rect = canvasRef.current.getBoundingClientRect()
-    const x = Math.floor(((e.clientX - rect.left) / rect.width) * width)
-    const y = Math.floor(((e.clientY - rect.top) / rect.height) * height)
+    const x = Math.floor(((e.clientX - rect.left) / rect.width) * w)
+    const y = Math.floor(((e.clientY - rect.top) / rect.height) * h)
     return { x, y }
+  }
+
+  const paintLine = (x0, y0, x1, y1) => {
+    dispatch({ type: 'PAINT_LINE', ...target, x0, y0, x1, y1, rgba: hexToRgba(color) })
   }
 
   const handleDown = (e) => {
@@ -73,36 +42,39 @@ export default function PixelCanvas({ width, height, scale, color, tool, onHover
     const { x, y } = cellFromEvent(e)
     drawingRef.current = true
     lastRef.current = { x, y }
-    paintCell(x, y, color)
+    dispatch({ type: 'STROKE_BEGIN' })
+    paintLine(x, y, x, y)
     canvasRef.current.setPointerCapture(e.pointerId)
   }
 
   const handleMove = (e) => {
     const { x, y } = cellFromEvent(e)
-    onHover?.(x >= 0 && y >= 0 && x < width && y < height ? { x, y } : null)
+    onHover?.(x >= 0 && y >= 0 && x < w && y < h ? { x, y } : null)
     if (!drawingRef.current) return
     const last = lastRef.current
-    paintLine(last.x, last.y, x, y, color)
+    paintLine(last.x, last.y, x, y)
     lastRef.current = { x, y }
   }
 
   const handleUp = () => {
+    if (!drawingRef.current) return
     drawingRef.current = false
     lastRef.current = null
+    dispatch({ type: 'STROKE_END' })
   }
 
   return (
     <canvas
       ref={canvasRef}
-      width={width}
-      height={height}
+      width={w}
+      height={h}
       onPointerDown={handleDown}
       onPointerMove={handleMove}
       onPointerUp={handleUp}
       onPointerLeave={() => { handleUp(); onHover?.(null) }}
       style={{
-        width: width * scale,
-        height: height * scale,
+        width: w * scale,
+        height: h * scale,
         imageRendering: 'pixelated',
         cursor: tool === 'pencil' ? 'crosshair' : 'default',
         touchAction: 'none',

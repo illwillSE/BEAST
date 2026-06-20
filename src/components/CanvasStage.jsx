@@ -2,13 +2,10 @@ import { useState } from 'react'
 import { ZoomIn, ZoomOut } from 'lucide-react'
 import PixelCanvas from './PixelCanvas.jsx'
 
-// Center stage hosting the working pixel canvas. Document size + zoom are fixed
-// for the mockup; the pencil draws (see PixelCanvas). The checkerboard shows
-// through transparent pixels.
-const WIDTH = 32
-const HEIGHT = 32
-
-export default function CanvasStage({ tool, color }) {
+// Center stage hosting the working pixel canvas. Document size comes from the
+// active sprite; zoom is local. The pencil draws (see PixelCanvas) and the
+// checkerboard shows through transparent pixels.
+export default function CanvasStage({ tool, color, sprite, target, dispatch }) {
   const [scale, setScale] = useState(16)
   const [pos, setPos] = useState(null)
 
@@ -18,8 +15,10 @@ export default function CanvasStage({ tool, color }) {
       <div className="flex-1 grid place-items-center overflow-auto p-6">
         <div className="beast-checker rounded shadow-2xl border border-edge">
           <PixelCanvas
-            width={WIDTH}
-            height={HEIGHT}
+            sprite={sprite}
+            frameIndex={target.frameIndex}
+            target={target}
+            dispatch={dispatch}
             scale={scale}
             color={color}
             tool={tool}
@@ -30,7 +29,7 @@ export default function CanvasStage({ tool, color }) {
 
       {/* status bar */}
       <div className="flex items-center gap-4 px-3 h-8 bg-panel border-t border-divider text-[11px] text-faint shrink-0">
-        <span>{WIDTH} × {HEIGHT}</span>
+        <span>{sprite.w} × {sprite.h}</span>
         <span className="text-muted capitalize">{tool}</span>
         <span className="tabular-nums">{pos ? `${pos.x}, ${pos.y}` : '–'}</span>
         <div className="flex-1" />

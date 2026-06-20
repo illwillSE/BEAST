@@ -1,14 +1,10 @@
 import { Plus, Copy, Trash2, Eye, EyeOff } from 'lucide-react'
 
-// Layer stack for the selected sprite/frame. Composited top-down. Placeholder
-// data; opacity slider is static.
-const LAYERS = [
-  { id: 'l3', name: 'Highlights', visible: true },
-  { id: 'l2', name: 'Character', visible: true, selected: true },
-  { id: 'l1', name: 'Background', visible: false },
-]
-
-export default function LayersPanel() {
+// Layer stack for the selected sprite. Listed top-of-stack first (the model
+// stores bottom-to-top). Selecting a layer makes it the paint target. The
+// visibility eye and opacity slider are still static (see TODO).
+export default function LayersPanel({ layers, selectedId, onSelect }) {
+  const ordered = [...layers].reverse()
   return (
     <div className="flex flex-col border-b border-divider">
       <div className="flex items-center justify-between px-3 h-9 border-b border-divider">
@@ -21,23 +17,27 @@ export default function LayersPanel() {
       </div>
 
       <div className="p-2 flex flex-col gap-1 max-h-44 overflow-y-auto">
-        {LAYERS.map((l) => (
-          <div
-            key={l.id}
-            className={
-              'flex items-center gap-2 p-1.5 rounded border ' +
-              (l.selected ? 'bg-accent-deep/15 border-accent-deep/50' : 'border-transparent hover:bg-surface-hover')
-            }
-          >
-            <button className={l.visible ? 'text-ink-soft' : 'text-dim'}>
-              {l.visible ? <Eye size={15} /> : <EyeOff size={15} />}
+        {ordered.map((l) => {
+          const selected = l.id === selectedId
+          return (
+            <button
+              key={l.id}
+              onClick={() => onSelect(l.id)}
+              className={
+                'flex items-center gap-2 p-1.5 rounded border text-left ' +
+                (selected ? 'bg-accent-deep/15 border-accent-deep/50' : 'border-transparent hover:bg-surface-hover')
+              }
+            >
+              <span className={l.visible ? 'text-ink-soft' : 'text-dim'}>
+                {l.visible ? <Eye size={15} /> : <EyeOff size={15} />}
+              </span>
+              <span className="beast-checker w-7 h-7 rounded border border-edge shrink-0" />
+              <span className={'flex-1 text-sm truncate ' + (selected ? 'text-accent-soft' : 'text-ink-soft')}>
+                {l.name}
+              </span>
             </button>
-            <span className="beast-checker w-7 h-7 rounded border border-edge shrink-0" />
-            <span className={'flex-1 text-sm truncate ' + (l.selected ? 'text-accent-soft' : 'text-ink-soft')}>
-              {l.name}
-            </span>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       <div className="px-3 pb-2 flex items-center gap-2">

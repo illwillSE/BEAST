@@ -1,10 +1,9 @@
 import { Play, Plus, Copy, Trash2, Eye } from 'lucide-react'
 
 // Bottom timeline: animation frames + playback controls (loop), global FPS, and
-// an onion-skin toggle. Mockup — playback/onion are static visuals.
-const FRAMES = [1, 2, 3, 4, 5, 6]
-
-export default function FramesTimeline({ active, onPick }) {
+// an onion-skin toggle. Selecting a frame makes it the paint target. Playback,
+// FPS, onion-skin and the add/dup/delete buttons are still static (see TODO).
+export default function FramesTimeline({ frameCount, active, onPick }) {
   return (
     <div className="flex items-stretch gap-3 px-3 h-28 bg-panel border-t border-divider shrink-0">
       {/* playback controls */}
@@ -27,23 +26,23 @@ export default function FramesTimeline({ active, onPick }) {
 
       {/* frame strip */}
       <div className="flex-1 flex items-center gap-2 overflow-x-auto py-2">
-        {FRAMES.map((n) => (
+        {Array.from({ length: frameCount }, (_, i) => (
           <button
-            key={n}
-            onClick={() => onPick(n)}
+            key={i}
+            onClick={() => onPick(i)}
             className={
               'relative shrink-0 rounded border p-1 ' +
-              (active === n ? 'border-accent-deep bg-accent-deep/10' : 'border-edge hover:border-edge-hover')
+              (active === i ? 'border-accent-deep bg-accent-deep/10' : 'border-edge hover:border-edge-hover')
             }
           >
             <span className="beast-checker block w-16 h-16 rounded-sm" />
             <span
               className={
                 'absolute top-1 left-1 text-[10px] px-1 rounded-sm tabular-nums ' +
-                (active === n ? 'bg-accent-deep text-bg' : 'bg-well/80 text-faint')
+                (active === i ? 'bg-accent-deep text-bg' : 'bg-well/80 text-faint')
               }
             >
-              {n}
+              {i + 1}
             </span>
           </button>
         ))}

@@ -5,4 +5,5 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: '/BEAST/',
   plugins: [react(), tailwindcss()],
+  server: { port: 5174 },
 })
