@@ -23,7 +23,7 @@ export default function App() {
         <ToolRail active={tool} onPick={setTool} />
         <SpriteList selected={sprite} onSelect={setSprite} />
 
-        <CanvasStage tool={tool} />
+        <CanvasStage tool={tool} color={color} />
 
         <aside className="w-64 bg-panel border-l border-divider flex flex-col overflow-y-auto shrink-0">
           <LayersPanel />
