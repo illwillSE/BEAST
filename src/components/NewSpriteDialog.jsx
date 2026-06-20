@@ -25,6 +25,14 @@ export default function NewSpriteDialog({ open, onCreate, onClose }) {
       <form
         onMouseDown={(e) => e.stopPropagation()}
         onSubmit={(e) => { e.preventDefault(); create() }}
+        onKeyDown={(e) => {
+          // Enter always creates, even when focus is on a preset/Cancel
+          // button (which would otherwise just re-fire that button's own
+          // click instead of submitting).
+          if (e.key !== 'Enter') return
+          e.preventDefault()
+          create()
+        }}
         className="bg-panel border border-divider rounded-lg p-4 w-72 shadow-xl"
       >
         <h2 className="text-sm font-semibold text-ink mb-3">New Sprite</h2>
