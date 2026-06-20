@@ -63,6 +63,15 @@ export default function App() {
     prevLayersRef.current = { spriteId: activeSprite.id, ids: new Set(ids) }
   }, [activeSprite])
 
+  // Follow a sprite add with selection (new sprites are appended at the end).
+  const prevSpriteIdsRef = useRef(new Set(doc.sprites.map((s) => s.id)))
+  useEffect(() => {
+    const ids = doc.sprites.map((s) => s.id)
+    const added = ids.find((id) => !prevSpriteIdsRef.current.has(id))
+    if (added) selectSprite(added)
+    prevSpriteIdsRef.current = new Set(ids)
+  }, [doc.sprites])
+
   // Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo.
   useEffect(() => {
     const onKey = (e) => {
@@ -118,7 +127,7 @@ export default function App() {
 
       <div className="flex-1 flex min-h-0">
         <ToolRail active={tool} onPick={setTool} />
-        <SpriteList sprites={doc.sprites} selectedId={spriteId} onSelect={selectSprite} />
+        <SpriteList sprites={doc.sprites} selectedId={spriteId} onSelect={selectSprite} dispatch={dispatch} />
 
         <CanvasStage
           tool={tool}

@@ -46,7 +46,9 @@ still cosmetic; painting targets the first of each.
       again, or click a hidden one's eye, to restore prior visibility).
 
 ## Sprites
-- [ ] Add/rename/delete/reorder sprites (the Sprites panel + buttons).
+- [x] Add/rename/delete/reorder sprites (`document/model.js`, `SpriteList.jsx`).
+      Rename is via double-click on the name; move up/down acts on the
+      selected sprite.
 - [ ] Remember selected layer (and frame) per sprite when switching. Currently
       switching sprites resets to the top layer / frame 1 (`App.jsx` selectSprite).
 
@@ -67,9 +69,9 @@ still cosmetic; painting targets the first of each.
       if collisions ever matter.
 - [ ] Autosave never GCs orphan blobs in IndexedDB — old cell versions accumulate.
       Add cleanup (e.g. prune hashes not in the current manifest).
-- [ ] `uid` seq isn't reseeded after loading a project, so future add-sprite/
-      layer/frame ids could collide with loaded ids. Reseed past the loaded max
-      when CRUD lands (`document/model.js`).
+- [x] `uid` seq reseeded past the loaded max on project load (`reseedUid`,
+      `document/model.js`), so new sprites/layers/frames can't collide with ids
+      from a prior session.
 - [ ] No "save before discard" guard: Open replaces the current project without
       confirmation; autosave overwrites the previous autosave.
 

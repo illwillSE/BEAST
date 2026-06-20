@@ -10,6 +10,10 @@ import {
   replaceCell,
   paintLine,
   floodFill,
+  addSprite,
+  renameSprite,
+  removeSprite,
+  moveSprite,
   addLayer,
   duplicateLayer,
   removeLayer,
@@ -90,6 +94,18 @@ export function historyReducer(state, action) {
       const { x, y, rgba } = action
       return editCell(state, action, (cell, sp) => floodFill(cell, sp.w, sp.h, x, y, rgba))
     }
+
+    case 'ADD_SPRITE':
+      return editDoc(state, (doc) => addSprite(doc, action.opts))
+
+    case 'RENAME_SPRITE':
+      return editDoc(state, (doc) => renameSprite(doc, action.spriteId, action.name))
+
+    case 'REMOVE_SPRITE':
+      return editDoc(state, (doc) => removeSprite(doc, action.spriteId))
+
+    case 'MOVE_SPRITE':
+      return editDoc(state, (doc) => moveSprite(doc, action.spriteId, action.delta))
 
     case 'ADD_LAYER':
       return editDoc(state, (doc) => addLayer(doc, action.spriteId, action.name))

@@ -59,6 +59,30 @@ export function createDocument() {
   }
 }
 
+// ── sprite CRUD ──────────────────────────────────────────────────────────
+export function addSprite(doc, opts) {
+  return { ...doc, sprites: [...doc.sprites, createSprite(opts)] }
+}
+
+export function renameSprite(doc, spriteId, name) {
+  return { ...doc, sprites: doc.sprites.map((sp) => (sp.id === spriteId ? { ...sp, name } : sp)) }
+}
+
+// No-op if it's the last sprite — a project always keeps at least one.
+export function removeSprite(doc, spriteId) {
+  return doc.sprites.length <= 1 ? doc : { ...doc, sprites: doc.sprites.filter((sp) => sp.id !== spriteId) }
+}
+
+// delta: +1 moves the sprite later in the list, -1 moves it earlier.
+export function moveSprite(doc, spriteId, delta) {
+  const i = doc.sprites.findIndex((sp) => sp.id === spriteId)
+  const j = i + delta
+  if (i === -1 || j < 0 || j >= doc.sprites.length) return doc
+  const sprites = [...doc.sprites]
+  ;[sprites[i], sprites[j]] = [sprites[j], sprites[i]]
+  return { ...doc, sprites }
+}
+
 // ── lookups ──────────────────────────────────────────────────────────────
 export function findSprite(doc, spriteId) {
   return doc.sprites.find((s) => s.id === spriteId)
