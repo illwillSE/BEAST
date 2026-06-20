@@ -17,7 +17,9 @@ still cosmetic; painting targets the first of each.
 
 ## Canvas
 - [x] Actual pixel drawing on the canvas — pencil only; other tools pending.
-- [ ] Canvas presets (16×16, 32×32, 64×64, 128×128) + custom W×H.
+- [x] Canvas presets (16×16, 32×32, 64×64, 128×128) + custom W×H — picked in
+      a `NewSpriteDialog` opened from SpriteList's "+" button; custom W/H is
+      clamped to 1–256 (`components/NewSpriteDialog.jsx`).
 - [ ] Resize/crop after creation (undoable).
 - [ ] Sane max canvas size cap for performance.
 

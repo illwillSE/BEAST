@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import NewSpriteDialog from './NewSpriteDialog.jsx'
 
 // A BEAST project holds many sprites (like BLAST holds many sounds). Selecting
 // one makes it the paint target; the header buttons add/move/delete the
@@ -8,10 +9,14 @@ import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
+  const [newSpriteOpen, setNewSpriteOpen] = useState(false)
 
   const selectedIndex = sprites.findIndex((s) => s.id === selectedId)
 
-  const addSprite = () => dispatch({ type: 'ADD_SPRITE', opts: { name: `Sprite ${sprites.length + 1}` } })
+  const createSprite = (w, h) => {
+    dispatch({ type: 'ADD_SPRITE', opts: { name: `Sprite ${sprites.length + 1}`, w, h } })
+    setNewSpriteOpen(false)
+  }
   const removeSprite = () => selectedId && sprites.length > 1 && dispatch({ type: 'REMOVE_SPRITE', spriteId: selectedId })
   const moveSprite = (delta) => selectedId && dispatch({ type: 'MOVE_SPRITE', spriteId: selectedId, delta })
 
@@ -27,7 +32,7 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) 
       <div className="flex items-center justify-between px-3 h-9 border-b border-divider">
         <span className="text-[11px] uppercase tracking-wide text-faint font-semibold">Sprites</span>
         <div className="flex items-center gap-1 text-muted">
-          <button title="New sprite" className="hover:text-ink" onClick={addSprite}>
+          <button title="New sprite" className="hover:text-ink" onClick={() => setNewSpriteOpen(true)}>
             <Plus size={15} />
           </button>
           <button
@@ -101,6 +106,12 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) 
           )
         })}
       </div>
+
+      <NewSpriteDialog
+        open={newSpriteOpen}
+        onCreate={createSprite}
+        onClose={() => setNewSpriteOpen(false)}
+      />
     </div>
   )
 }
