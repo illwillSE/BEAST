@@ -20,7 +20,15 @@ still cosmetic; painting targets the first of each.
 - [x] Canvas presets (16×16, 32×32, 64×64, 128×128) + custom W×H — picked in
       a `NewSpriteDialog` opened from SpriteList's "+" button; custom W/H is
       clamped to 1–256 (`components/NewSpriteDialog.jsx`).
-- [ ] Resize/crop after creation (undoable).
+- [x] Resize/crop after creation (undoable) — a Crop tool (`tools/registry.js`,
+      key `C`) that drags a marquee like Select. The rect doesn't apply on
+      release: it becomes a pending crop window (App's `cropPending`) that can
+      still be dragged from inside to reposition before committing. Commits
+      (`CROP_SPRITE` → `document/model.js` `cropSprite`) on Enter or on
+      switching away from the Crop tool; Escape cancels it. Dragging past an
+      edge extends the canvas there (transparent fill); dragging inside crops
+      away everything outside the rect. No size cap on the extend direction
+      yet — see the cap item below.
 - [ ] Sane max canvas size cap for performance.
 
 ## Real Preview

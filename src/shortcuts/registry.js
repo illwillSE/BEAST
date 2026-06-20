@@ -14,6 +14,7 @@
 //   run    ctx => void; ctx = {
 //     dispatch, setTool, tool, filled, setVariant, copySelection,
 //     cutSelection, pasteClipboard, commitFloating, setSelection,
+//     commitCrop, cancelCrop,
 //   }
 
 import { tools } from '../tools/registry.js'
@@ -37,7 +38,8 @@ export const shortcuts = [
   { key: 'c', mod: true, run: (ctx) => ctx.copySelection() },
   { key: 'x', mod: true, run: (ctx) => ctx.cutSelection() },
   { key: 'v', mod: true, run: (ctx) => ctx.pasteClipboard() },
-  { key: 'escape', run: (ctx) => { ctx.commitFloating(); ctx.setSelection(null) } },
+  { key: 'enter', run: (ctx) => ctx.commitCrop() },
+  { key: 'escape', run: (ctx) => { ctx.commitFloating(); ctx.setSelection(null); ctx.cancelCrop() } },
   ...toolShortcuts,
 ]
 

@@ -23,7 +23,7 @@
 // ctx = {
 //   x, y, target, color, dispatch, setColor, sampleColor, w, h, filled,
 //   setPreview, selection, setSelection, floating, setFloating,
-//   commitFloating, getRawCell,
+//   commitFloating, getRawCell, cropPending, setCropPending,
 // } where x,y are in-bounds integer cell coordinates and target =
 // { spriteId, layerId, frameIndex }. `dispatch` mirrors actions across the
 // active symmetry axes (see PixelCanvas), so tools just dispatch normally.
@@ -183,6 +183,39 @@ export const tools = {
     },
     onEnd(ctx, start) {
       ctx.setSelection(normalizeRect(start.x0, start.y0, ctx.x, ctx.y))
+      ctx.setPreview(null)
+    },
+  },
+
+  // Crop (or extend) the canvas to a dragged rectangle — same marquee gesture
+  // as select, but the rect doesn't apply on release: it becomes a pending
+  // crop window (ctx.cropPending) that stays editable. Dragging from inside
+  // the pending window moves it; dragging from outside redraws it. It commits
+  // (CROP_SPRITE) on Enter or on switching away from the crop tool, and
+  // cancels on Escape (see App's commitCrop/cancelCrop). Dragging past an
+  // edge extends the canvas there (transparent); dragging inside crops away
+  // everything outside the rect.
+  crop: {
+    key: 'c',
+    cursor: 'crosshair',
+    onStart(ctx) {
+      ctx.commitFloating()
+      const p = ctx.cropPending
+      if (p && ctx.x >= p.x && ctx.y >= p.y && ctx.x < p.x + p.w && ctx.y < p.y + p.h) {
+        return { mode: 'move', dx: ctx.x - p.x, dy: ctx.y - p.y }
+      }
+      return { mode: 'draw', x0: ctx.x, y0: ctx.y }
+    },
+    onDrag(ctx, _prev, drag) {
+      if (drag.mode === 'move') {
+        ctx.setCropPending((p) => (p ? { ...p, x: ctx.x - drag.dx, y: ctx.y - drag.dy } : p))
+        return
+      }
+      ctx.setPreview({ kind: 'marquee', rect: normalizeRect(drag.x0, drag.y0, ctx.x, ctx.y) })
+    },
+    onEnd(ctx, drag) {
+      if (drag.mode === 'move') return
+      ctx.setCropPending({ ...normalizeRect(drag.x0, drag.y0, ctx.x, ctx.y), target: ctx.target })
       ctx.setPreview(null)
     },
   },

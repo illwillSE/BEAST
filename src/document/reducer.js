@@ -20,6 +20,7 @@ import {
   renameSprite,
   removeSprite,
   moveSprite,
+  cropSprite,
   addLayer,
   duplicateLayer,
   removeLayer,
@@ -138,6 +139,9 @@ export function historyReducer(state, action) {
 
     case 'MOVE_SPRITE':
       return editDoc(state, (doc) => moveSprite(doc, action.spriteId, action.delta))
+
+    case 'CROP_SPRITE':
+      return editDoc(state, (doc) => cropSprite(doc, action.spriteId, action.x, action.y, action.w, action.h))
 
     case 'ADD_LAYER':
       return editDoc(state, (doc) => addLayer(doc, action.spriteId, action.name))

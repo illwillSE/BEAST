@@ -27,6 +27,9 @@ export default function App() {
   const [selection, setSelection] = useState(null)
   const [floating, setFloating] = useState(null)
   const [clipboard, setClipboard] = useState(null)
+  // Pending crop window from the Crop tool — { x, y, w, h, target } — stays
+  // editable (movable) until committed/cancelled (see commitCrop/cancelCrop).
+  const [cropPending, setCropPending] = useState(null)
   const [mirrorV, setMirrorV] = useState(false)
   const [mirrorH, setMirrorH] = useState(false)
   const [filled, setFilled] = useState({ rect: false, ellipse: false })
@@ -98,16 +101,32 @@ export default function App() {
     setTool('move')
   }
 
+  // Apply the pending crop window (CROP_SPRITE on the sprite it was drawn
+  // against) and clear it. cancelCrop discards it without applying.
+  const commitCrop = () => {
+    if (!cropPending) return
+    const { x, y, w, h, target: t } = cropPending
+    dispatch({ type: 'CROP_SPRITE', spriteId: t.spriteId, x, y, w, h })
+    setCropPending(null)
+  }
+  const cancelCrop = () => setCropPending(null)
+
   // A floating move/paste only makes sense while the move tool is active, and
-  // only for the cell it was lifted from — commit it when either changes.
+  // only for the cell it was lifted from — commit it when either changes. A
+  // pending crop window likewise only makes sense while the crop tool is
+  // active — commit it (apply the crop) when leaving the tool.
   useEffect(() => {
     if (tool !== 'move') commitFloating()
+    if (tool !== 'crop') commitCrop()
   }, [tool])
 
+  // Switching the paint target mid-crop would apply the crop to the wrong
+  // sprite, so discard rather than commit.
   useEffect(() => {
     commitFloating()
     setSelection(null)
-  }, [activeSprite.id, safeLayerId, safeFrame])
+    cancelCrop()
+  }, [activeSprite.id, safeLayerId, safeFrame, activeSprite.w, activeSprite.h])
 
   // Follow a layer add/duplicate with selection. Guarded by spriteId so
   // switching sprites (which also changes the layer id set) doesn't hijack
@@ -134,12 +153,14 @@ export default function App() {
 
   // Routes keydown through the shortcut registry: Cmd/Ctrl+Z undo,
   // Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo, Cmd/Ctrl+C/X/V for the selection
-  // clipboard, Escape to commit a floating move/paste and deselect, and a
-  // letter per tool (see each tool's `key` in tools/registry.js).
+  // clipboard, Escape to commit a floating move/paste (and cancel a pending
+  // crop) and deselect, Enter to commit a pending crop, and a letter per tool
+  // (see each tool's `key` in tools/registry.js).
   useEffect(() => {
     const ctx = {
       dispatch, setTool, tool, filled, setVariant: setToolVariant,
       copySelection, cutSelection, pasteClipboard, commitFloating, setSelection,
+      commitCrop, cancelCrop,
     }
     const onKey = (e) => {
       if (isTypingTarget(e.target)) return
@@ -150,7 +171,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [floating, selection, clipboard, activeSprite, safeLayerId, safeFrame, tool, filled])
+  }, [floating, selection, clipboard, activeSprite, safeLayerId, safeFrame, tool, filled, cropPending])
 
   // Restore the autosaved project on mount, then enable autosaving.
   const [ready, setReady] = useState(false)
@@ -223,6 +244,8 @@ export default function App() {
           floating={floating}
           setFloating={setFloating}
           commitFloating={commitFloating}
+          cropPending={cropPending}
+          setCropPending={setCropPending}
           filled={filled[tool] ?? false}
           mirrorV={mirrorV}
           mirrorH={mirrorH}

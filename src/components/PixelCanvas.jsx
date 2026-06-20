@@ -33,7 +33,8 @@ function flipAction(action, w, h, axes) {
 // outline stays a crisp thin line instead of scaling up into blocky pixels.
 export default function PixelCanvas({
   sprite, frameIndex, target, dispatch, scale, color, tool, onColor, onHover,
-  selection, setSelection, floating, setFloating, commitFloating, filled,
+  selection, setSelection, floating, setFloating, commitFloating,
+  cropPending, setCropPending, filled,
   mirrorV, mirrorH,
 }) {
   const canvasRef = useRef(null)
@@ -76,17 +77,18 @@ export default function PixelCanvas({
   }, [floating, preview, w, h])
 
   // Re-draw the selection marquee — a thin dashed rect at CSS-pixel resolution
-  // (not the pixel-art grid), so it stays a 1px line at any zoom level.
+  // (not the pixel-art grid), so it stays a 1px line at any zoom level. Also
+  // doubles as the pending crop window's outline (live while it's moved).
   useEffect(() => {
     const ctx = marqueeRef.current.getContext('2d')
     ctx.clearRect(0, 0, w * scale, h * scale)
-    const rect = preview?.kind === 'marquee' ? preview.rect : !floating && selection ? selection : null
+    const rect = preview?.kind === 'marquee' ? preview.rect : !floating && (selection || cropPending) ? (selection || cropPending) : null
     if (!rect) return
     ctx.strokeStyle = getColor('accent-bright')
     ctx.lineWidth = 1
     ctx.setLineDash([4, 3])
     ctx.strokeRect(rect.x * scale + 0.5, rect.y * scale + 0.5, rect.w * scale - 1, rect.h * scale - 1)
-  }, [floating, selection, preview, w, h, scale])
+  }, [floating, selection, cropPending, preview, w, h, scale])
 
   const cellFromEvent = (e) => {
     const rect = canvasRef.current.getBoundingClientRect()
@@ -123,6 +125,7 @@ export default function PixelCanvas({
     x, y, target, color, dispatch: mirroredDispatch, setColor: onColor, sampleColor,
     w, h, filled, setPreview,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
+    cropPending, setCropPending,
   })
 
   const handleDown = (e) => {

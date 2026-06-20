@@ -8,7 +8,8 @@ import PreviewWindow from './PreviewWindow.jsx'
 // checkerboard shows through transparent pixels.
 export default function CanvasStage({
   tool, color, onColor, sprite, target, dispatch,
-  selection, setSelection, floating, setFloating, commitFloating, filled,
+  selection, setSelection, floating, setFloating, commitFloating,
+  cropPending, setCropPending, filled,
   mirrorV, mirrorH, previewOpen, onClosePreview,
 }) {
   const [scale, setScale] = useState(16)
@@ -49,6 +50,8 @@ export default function CanvasStage({
             floating={floating}
             setFloating={setFloating}
             commitFloating={commitFloating}
+            cropPending={cropPending}
+            setCropPending={setCropPending}
             filled={filled}
             mirrorV={mirrorV}
             mirrorH={mirrorH}

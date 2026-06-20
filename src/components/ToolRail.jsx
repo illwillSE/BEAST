@@ -1,6 +1,6 @@
 import {
   Pencil, Eraser, PaintBucket, Pipette, Minus, Square, Circle,
-  BoxSelect, Move, FlipHorizontal, FlipVertical, Blend,
+  BoxSelect, Move, FlipHorizontal, FlipVertical, Blend, Crop,
 } from 'lucide-react'
 import { tools } from '../tools/registry.js'
 
@@ -21,6 +21,8 @@ const TOOLS = [
   null,
   { id: 'select', label: 'Select', Icon: BoxSelect },
   { id: 'move', label: 'Move', Icon: Move },
+  null,
+  { id: 'crop', label: 'Crop', Icon: Crop },
 ]
 
 export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mirrorH, onMirrorV, onMirrorH }) {

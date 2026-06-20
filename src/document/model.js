@@ -83,6 +83,40 @@ export function moveSprite(doc, spriteId, delta) {
   return { ...doc, sprites }
 }
 
+// Resize a cell's canvas to newW×newH, sliding the old pixels by
+// (offsetX, offsetY) and clipping/filling-transparent as needed. Used for
+// both growing (extends with transparency) and shrinking (crops) a sprite.
+function resizeCell(cell, w, h, newW, newH, offsetX, offsetY) {
+  const out = createCell(newW, newH)
+  for (let y = 0; y < h; y++) {
+    const dy = y + offsetY
+    if (dy < 0 || dy >= newH) continue
+    for (let x = 0; x < w; x++) {
+      const dx = x + offsetX
+      if (dx < 0 || dx >= newW) continue
+      const si = (y * w + x) * 4
+      const di = (dy * newW + dx) * 4
+      out[di] = cell[si]; out[di + 1] = cell[si + 1]; out[di + 2] = cell[si + 2]; out[di + 3] = cell[si + 3]
+    }
+  }
+  return out
+}
+
+// Crop (or extend) a sprite's canvas to the rectangle (x,y,w,h), expressed in
+// the existing canvas's coordinate space — pixels outside the rectangle are
+// dropped, and area added beyond the old bounds comes in transparent.
+export function cropSprite(doc, spriteId, x, y, newW, newH) {
+  return mapSprite(doc, spriteId, (sp) => ({
+    ...sp,
+    w: newW,
+    h: newH,
+    layers: sp.layers.map((l) => ({
+      ...l,
+      cells: l.cells.map((c) => resizeCell(c, sp.w, sp.h, newW, newH, -x, -y)),
+    })),
+  }))
+}
+
 // ── lookups ──────────────────────────────────────────────────────────────
 export function findSprite(doc, spriteId) {
   return doc.sprites.find((s) => s.id === spriteId)

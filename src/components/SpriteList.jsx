@@ -6,7 +6,8 @@ import SpritePreview from './SpritePreview.jsx'
 // A BEAST project holds many sprites (like BLAST holds many sounds). Selecting
 // one makes it the paint target; the header buttons add/move/delete the
 // selected sprite. Double-click a name to rename it. Each thumbnail shows the
-// sprite's frame 0 composited across its layers.
+// sprite's frame 0 composited across its layers. Resizing/cropping a sprite's
+// canvas is the Crop tool (drag a rect on the canvas) — see tools/registry.js.
 export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
