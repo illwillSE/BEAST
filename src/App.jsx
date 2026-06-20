@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import Header from './components/Header.jsx'
 import ToolRail from './components/ToolRail.jsx'
 import SpriteList from './components/SpriteList.jsx'
@@ -48,6 +48,20 @@ export default function App() {
   }
 
   const target = { spriteId: activeSprite.id, layerId: safeLayerId, frameIndex: safeFrame }
+
+  // Follow a layer add/duplicate with selection. Guarded by spriteId so
+  // switching sprites (which also changes the layer id set) doesn't hijack
+  // the selection that selectSprite/resetSelection already set.
+  const prevLayersRef = useRef({ spriteId: activeSprite.id, ids: new Set(activeSprite.layers.map((l) => l.id)) })
+  useEffect(() => {
+    const prev = prevLayersRef.current
+    const ids = activeSprite.layers.map((l) => l.id)
+    if (prev.spriteId === activeSprite.id) {
+      const added = ids.find((id) => !prev.ids.has(id))
+      if (added) setLayerId(added)
+    }
+    prevLayersRef.current = { spriteId: activeSprite.id, ids: new Set(ids) }
+  }, [activeSprite])
 
   // Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo.
   useEffect(() => {
@@ -116,12 +130,24 @@ export default function App() {
         />
 
         <aside className="w-64 bg-panel border-l border-divider flex flex-col overflow-y-auto shrink-0">
-          <LayersPanel layers={activeSprite.layers} selectedId={safeLayerId} onSelect={setLayerId} />
+          <LayersPanel
+            layers={activeSprite.layers}
+            selectedId={safeLayerId}
+            onSelect={setLayerId}
+            spriteId={activeSprite.id}
+            dispatch={dispatch}
+          />
           <ColorPanel color={color} onColor={setColor} />
         </aside>
       </div>
 
-      <FramesTimeline frameCount={activeSprite.frameCount} active={safeFrame} onPick={setFrameIndex} />
+      <FramesTimeline
+        frameCount={activeSprite.frameCount}
+        active={safeFrame}
+        onPick={setFrameIndex}
+        spriteId={activeSprite.id}
+        dispatch={dispatch}
+      />
     </div>
   )
 }

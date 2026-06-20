@@ -38,8 +38,12 @@ still cosmetic; painting targets the first of each.
 - [ ] Free RGBA picker; add mixed color to palette.
 
 ## Layers
-- [~] Layer stack — selection wired; add/remove/reorder, visibility toggle and
-      opacity slider still static (eye/opacity render from data but don't mutate).
+- [x] Layer stack CRUD — add/duplicate/remove/move (up/down buttons), visibility
+      toggle, and opacity slider all wired (`document/model.js`, `LayersPanel.jsx`).
+- [ ] Drag-and-drop reordering — swap layer stack order by dragging a row,
+      instead of (or in addition to) the move up/down buttons.
+- [ ] Shift+click a layer's eye to solo it — hide all other layers (shift+click
+      again, or click a hidden one's eye, to restore prior visibility).
 
 ## Sprites
 - [ ] Add/rename/delete/reorder sprites (the Sprites panel + buttons).
@@ -47,7 +51,9 @@ still cosmetic; painting targets the first of each.
       switching sprites resets to the top layer / frame 1 (`App.jsx` selectSprite).
 
 ## Animation
-- [ ] Frames: add/remove/reorder/duplicate.
+- [x] Frames: add/remove/reorder/duplicate (move-left/right buttons; `FramesTimeline.jsx`).
+- [ ] Drag-and-drop reordering — reorder frames by dragging a thumbnail in the
+      strip, instead of (or in addition to) the move left/right buttons.
 - [ ] Onion-skinning (toggleable ghosts of adjacent frames).
 - [ ] Loop playback (play/stop).
 - [ ] Global FPS for the whole animation.

@@ -7,6 +7,21 @@
 let _seq = 0
 const uid = (p) => `${p}${++_seq}`
 
+// Bump the id counter past any id already in a loaded document, so freshly
+// created sprites/layers (now that CRUD exists) can't collide with ids a
+// prior session assigned before this session's counter started at 0.
+export function reseedUid(doc) {
+  for (const sp of doc.sprites) {
+    _seq = Math.max(_seq, numericSuffix(sp.id))
+    for (const ly of sp.layers) _seq = Math.max(_seq, numericSuffix(ly.id))
+  }
+}
+
+function numericSuffix(id) {
+  const m = /\d+$/.exec(id)
+  return m ? parseInt(m[0], 10) : 0
+}
+
 export function createCell(w, h) {
   return new Uint8ClampedArray(w * h * 4)
 }
@@ -71,6 +86,126 @@ export function replaceCell(doc, spriteId, layerId, frameIndex, cell) {
           }
     ),
   }
+}
+
+// ── layer CRUD ───────────────────────────────────────────────────────────
+function mapSprite(doc, spriteId, fn) {
+  return { ...doc, sprites: doc.sprites.map((sp) => (sp.id === spriteId ? fn(sp) : sp)) }
+}
+
+export function addLayer(doc, spriteId, name = 'Layer') {
+  return mapSprite(doc, spriteId, (sp) => ({
+    ...sp,
+    layers: [...sp.layers, createLayer(sp.w, sp.h, sp.frameCount, name)],
+  }))
+}
+
+// Inserts the copy directly above the source layer (not necessarily top of stack).
+export function duplicateLayer(doc, spriteId, layerId) {
+  return mapSprite(doc, spriteId, (sp) => {
+    const i = sp.layers.findIndex((l) => l.id === layerId)
+    if (i === -1) return sp
+    const src = sp.layers[i]
+    const copy = {
+      id: uid('ly'),
+      name: src.name + ' copy',
+      visible: src.visible,
+      opacity: src.opacity,
+      cells: src.cells.map((c) => c.slice()),
+    }
+    const layers = [...sp.layers]
+    layers.splice(i + 1, 0, copy)
+    return { ...sp, layers }
+  })
+}
+
+// No-op if it's the last layer — a sprite always keeps at least one.
+export function removeLayer(doc, spriteId, layerId) {
+  return mapSprite(doc, spriteId, (sp) =>
+    sp.layers.length <= 1 ? sp : { ...sp, layers: sp.layers.filter((l) => l.id !== layerId) }
+  )
+}
+
+// delta: +1 moves the layer up the stack (toward the top), -1 moves it down.
+export function moveLayer(doc, spriteId, layerId, delta) {
+  return mapSprite(doc, spriteId, (sp) => {
+    const i = sp.layers.findIndex((l) => l.id === layerId)
+    const j = i + delta
+    if (i === -1 || j < 0 || j >= sp.layers.length) return sp
+    const layers = [...sp.layers]
+    ;[layers[i], layers[j]] = [layers[j], layers[i]]
+    return { ...sp, layers }
+  })
+}
+
+export function setLayerVisible(doc, spriteId, layerId, visible) {
+  return mapSprite(doc, spriteId, (sp) => ({
+    ...sp,
+    layers: sp.layers.map((l) => (l.id === layerId ? { ...l, visible } : l)),
+  }))
+}
+
+export function setLayerOpacity(doc, spriteId, layerId, opacity) {
+  return mapSprite(doc, spriteId, (sp) => ({
+    ...sp,
+    layers: sp.layers.map((l) => (l.id === layerId ? { ...l, opacity } : l)),
+  }))
+}
+
+// ── frame CRUD ───────────────────────────────────────────────────────────
+// Every layer keeps one cell per frame, so frame CRUD touches every layer's
+// cells array in lockstep and updates the sprite's frameCount.
+export function addFrame(doc, spriteId, atIndex) {
+  return mapSprite(doc, spriteId, (sp) => ({
+    ...sp,
+    frameCount: sp.frameCount + 1,
+    layers: sp.layers.map((l) => {
+      const cells = [...l.cells]
+      cells.splice(atIndex, 0, createCell(sp.w, sp.h))
+      return { ...l, cells }
+    }),
+  }))
+}
+
+export function duplicateFrame(doc, spriteId, frameIndex) {
+  return mapSprite(doc, spriteId, (sp) => ({
+    ...sp,
+    frameCount: sp.frameCount + 1,
+    layers: sp.layers.map((l) => {
+      const cells = [...l.cells]
+      cells.splice(frameIndex + 1, 0, l.cells[frameIndex].slice())
+      return { ...l, cells }
+    }),
+  }))
+}
+
+// No-op if it's the last frame — a sprite always keeps at least one.
+export function removeFrame(doc, spriteId, frameIndex) {
+  return mapSprite(doc, spriteId, (sp) =>
+    sp.frameCount <= 1
+      ? sp
+      : {
+          ...sp,
+          frameCount: sp.frameCount - 1,
+          layers: sp.layers.map((l) => ({ ...l, cells: l.cells.filter((_, i) => i !== frameIndex) })),
+        }
+  )
+}
+
+// delta: +1 moves the frame later in the timeline, -1 moves it earlier.
+export function moveFrame(doc, spriteId, frameIndex, delta) {
+  return mapSprite(doc, spriteId, (sp) => {
+    const j = frameIndex + delta
+    if (j < 0 || j >= sp.frameCount) return sp
+    return {
+      ...sp,
+      layers: sp.layers.map((l) => {
+        const cells = [...l.cells]
+        ;[cells[frameIndex], cells[j]] = [cells[j], cells[frameIndex]]
+        return { ...l, cells }
+      }),
+    }
+  })
 }
 
 // ── pixel writes (mutate a cell in place) ────────────────────────────────

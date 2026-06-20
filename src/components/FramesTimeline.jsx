@@ -1,9 +1,32 @@
-import { Play, Plus, Copy, Trash2, Eye } from 'lucide-react'
+import { Play, Plus, Copy, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
 
 // Bottom timeline: animation frames + playback controls (loop), global FPS, and
-// an onion-skin toggle. Selecting a frame makes it the paint target. Playback,
-// FPS, onion-skin and the add/dup/delete buttons are still static (see TODO).
-export default function FramesTimeline({ frameCount, active, onPick }) {
+// an onion-skin toggle. Selecting a frame makes it the paint target; the side
+// buttons add/duplicate/move/delete the active frame and follow it with
+// selection. Playback, FPS, and onion-skin are still static (see TODO).
+export default function FramesTimeline({ frameCount, active, onPick, spriteId, dispatch }) {
+  const addFrame = () => {
+    const at = active + 1
+    dispatch({ type: 'ADD_FRAME', spriteId, atIndex: at })
+    onPick(at)
+  }
+  const duplicateFrame = () => {
+    const at = active + 1
+    dispatch({ type: 'DUPLICATE_FRAME', spriteId, frameIndex: active })
+    onPick(at)
+  }
+  const removeFrame = () => {
+    if (frameCount <= 1) return
+    dispatch({ type: 'REMOVE_FRAME', spriteId, frameIndex: active })
+    onPick(Math.min(active, frameCount - 2))
+  }
+  const moveFrame = (delta) => {
+    const to = active + delta
+    if (to < 0 || to >= frameCount) return
+    dispatch({ type: 'MOVE_FRAME', spriteId, frameIndex: active, delta })
+    onPick(to)
+  }
+
   return (
     <div className="flex items-stretch gap-3 px-3 h-28 bg-panel border-t border-divider shrink-0">
       {/* playback controls */}
@@ -46,14 +69,35 @@ export default function FramesTimeline({ frameCount, active, onPick }) {
             </span>
           </button>
         ))}
-        <div className="shrink-0 flex flex-col gap-1 ml-1">
-          <button title="Add frame" className="grid place-items-center w-8 h-8 rounded border border-dashed border-edge text-muted hover:text-ink hover:border-edge-hover">
+        <div className="shrink-0 grid grid-cols-2 gap-1 ml-1">
+          <button title="Add frame" className="grid place-items-center w-8 h-8 rounded border border-dashed border-edge text-muted hover:text-ink hover:border-edge-hover" onClick={addFrame}>
             <Plus size={16} />
           </button>
-          <button title="Duplicate frame" className="grid place-items-center w-8 h-8 rounded border border-edge text-muted hover:text-ink">
+          <button title="Duplicate frame" className="grid place-items-center w-8 h-8 rounded border border-edge text-muted hover:text-ink" onClick={duplicateFrame}>
             <Copy size={14} />
           </button>
-          <button title="Delete frame" className="grid place-items-center w-8 h-8 rounded border border-edge text-muted hover:text-danger">
+          <button
+            title="Move left"
+            className="grid place-items-center w-8 h-8 rounded border border-edge text-muted hover:text-ink disabled:opacity-30 disabled:hover:text-muted"
+            disabled={active === 0}
+            onClick={() => moveFrame(-1)}
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <button
+            title="Move right"
+            className="grid place-items-center w-8 h-8 rounded border border-edge text-muted hover:text-ink disabled:opacity-30 disabled:hover:text-muted"
+            disabled={active === frameCount - 1}
+            onClick={() => moveFrame(1)}
+          >
+            <ChevronRight size={14} />
+          </button>
+          <button
+            title="Delete frame"
+            className="col-span-2 grid place-items-center w-full h-8 rounded border border-edge text-muted hover:text-danger disabled:opacity-30 disabled:hover:text-muted"
+            disabled={frameCount <= 1}
+            onClick={removeFrame}
+          >
             <Trash2 size={14} />
           </button>
         </div>

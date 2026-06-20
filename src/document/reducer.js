@@ -4,7 +4,24 @@
 // STROKE_END and fires PAINT_LINE in between. The snapshot + cell-clone happen
 // lazily on the first paint of a step, so an empty click adds no history.
 
-import { findSprite, getCell, replaceCell, paintLine, floodFill } from './model.js'
+import {
+  findSprite,
+  getCell,
+  replaceCell,
+  paintLine,
+  floodFill,
+  addLayer,
+  duplicateLayer,
+  removeLayer,
+  moveLayer,
+  setLayerVisible,
+  setLayerOpacity,
+  addFrame,
+  duplicateFrame,
+  removeFrame,
+  moveFrame,
+  reseedUid,
+} from './model.js'
 
 const MAX_HISTORY = 200
 
@@ -33,11 +50,29 @@ function editCell(state, { spriteId, layerId, frameIndex }, mutate) {
   return { past, present, future, stroke }
 }
 
+// Apply a whole-document edit as one undo step. Coalesces into the current
+// step while a gesture is open (STROKE_BEGIN/END) — used by the opacity
+// slider so a single drag is one undo step, like a pencil stroke; CRUD
+// actions don't open a gesture, so each one is its own step.
+function editDoc(state, mutate) {
+  let { past, present, future, stroke } = state
+  const startStep = !stroke || !stroke.committed
+  if (startStep) {
+    past = [...past, present]
+    if (past.length > MAX_HISTORY) past = past.slice(past.length - MAX_HISTORY)
+    future = []
+    if (stroke) stroke = { committed: true }
+  }
+  present = mutate(present)
+  return { past, present, future, stroke }
+}
+
 export function historyReducer(state, action) {
   switch (action.type) {
     // Swap in a whole document (autosave restore / project load) and reset
     // history — there's nothing meaningful to undo back to.
     case 'REPLACE':
+      reseedUid(action.doc)
       return initHistory(action.doc)
 
     case 'STROKE_BEGIN':
@@ -55,6 +90,38 @@ export function historyReducer(state, action) {
       const { x, y, rgba } = action
       return editCell(state, action, (cell, sp) => floodFill(cell, sp.w, sp.h, x, y, rgba))
     }
+
+    case 'ADD_LAYER':
+      return editDoc(state, (doc) => addLayer(doc, action.spriteId, action.name))
+
+    case 'DUPLICATE_LAYER':
+      return editDoc(state, (doc) => duplicateLayer(doc, action.spriteId, action.layerId))
+
+    case 'REMOVE_LAYER':
+      return editDoc(state, (doc) => removeLayer(doc, action.spriteId, action.layerId))
+
+    case 'MOVE_LAYER':
+      return editDoc(state, (doc) => moveLayer(doc, action.spriteId, action.layerId, action.delta))
+
+    case 'SET_LAYER_VISIBLE':
+      return editDoc(state, (doc) => setLayerVisible(doc, action.spriteId, action.layerId, action.visible))
+
+    // Coalesced: the slider fires this repeatedly during one drag, bracketed
+    // by STROKE_BEGIN/END from the panel, so the drag is a single undo step.
+    case 'SET_LAYER_OPACITY':
+      return editDoc(state, (doc) => setLayerOpacity(doc, action.spriteId, action.layerId, action.opacity))
+
+    case 'ADD_FRAME':
+      return editDoc(state, (doc) => addFrame(doc, action.spriteId, action.atIndex))
+
+    case 'DUPLICATE_FRAME':
+      return editDoc(state, (doc) => duplicateFrame(doc, action.spriteId, action.frameIndex))
+
+    case 'REMOVE_FRAME':
+      return editDoc(state, (doc) => removeFrame(doc, action.spriteId, action.frameIndex))
+
+    case 'MOVE_FRAME':
+      return editDoc(state, (doc) => moveFrame(doc, action.spriteId, action.frameIndex, action.delta))
 
     case 'UNDO': {
       if (!state.past.length) return state
