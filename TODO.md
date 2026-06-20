@@ -23,6 +23,20 @@ still cosmetic; painting targets the first of each.
 - [ ] Resize/crop after creation (undoable).
 - [ ] Sane max canvas size cap for performance.
 
+## Real Preview
+- [x] Free-floating "real size" preview window — shows the active sprite/frame
+      at literal 1:1 scale (own zoom control, range 1–16×), draggable/resizable,
+      position/size/scale/open-state persisted to localStorage
+      (`components/PreviewWindow.jsx`, `persist/previewPrefs.js`). Click inside
+      it scrolls the main canvas to center on that pixel (`CanvasStage.jsx`
+      `scrollToCenter`). Toggled from the header (`ScanEye` icon).
+- [ ] No keyboard shortcut to toggle it — only the header button. The shortcut
+      registry's `ctx` doesn't carry arbitrary UI setters yet
+      (`shortcuts/registry.js`); add if it becomes annoying to reach via mouse.
+- [ ] Preview always shows `target.frameIndex` (follows the timeline like the
+      main canvas). Once onion-skinning / play-loop animation lands, decide
+      whether the preview should follow playback too.
+
 ## Tools (v1 registry)
 - [x] Tool registry (`src/tools/registry.js`) — one entry per tool; PixelCanvas
       drives the gesture loop and delegates behavior. ToolRail still has its own

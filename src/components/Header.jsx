@@ -1,9 +1,9 @@
 import { useRef } from 'react'
-import { Undo2, Redo2, FolderOpen, Save, Download, Settings, ChevronDown } from 'lucide-react'
+import { Undo2, Redo2, FolderOpen, Save, Download, Settings, ChevronDown, ScanEye } from 'lucide-react'
 
 // Top chrome: brand, current sprite name, undo/redo, open/save/export. Save and
 // Open are wired (ZIP project); undo/redo/export/settings are still placeholders.
-export default function Header({ projectName, onSave, onOpen }) {
+export default function Header({ projectName, onSave, onOpen, previewOpen, onTogglePreview }) {
   const fileRef = useRef(null)
 
   const pickFile = (e) => {
@@ -29,6 +29,9 @@ export default function Header({ projectName, onSave, onOpen }) {
       <div className="flex items-center gap-1 ml-2">
         <IconBtn title="Undo"><Undo2 size={16} /></IconBtn>
         <IconBtn title="Redo"><Redo2 size={16} /></IconBtn>
+        <IconBtn title="Real Preview" active={previewOpen} onClick={onTogglePreview}>
+          <ScanEye size={16} />
+        </IconBtn>
       </div>
 
       <div className="flex-1" />
@@ -54,11 +57,14 @@ export default function Header({ projectName, onSave, onOpen }) {
   )
 }
 
-function IconBtn({ title, children }) {
+function IconBtn({ title, active, onClick, children }) {
   return (
     <button
       title={title}
-      className="grid place-items-center w-8 h-8 rounded text-muted hover:text-ink hover:bg-surface-hover"
+      onClick={onClick}
+      className={`grid place-items-center w-8 h-8 rounded hover:bg-surface-hover ${
+        active ? 'text-accent-bright' : 'text-muted hover:text-ink'
+      }`}
     >
       {children}
     </button>

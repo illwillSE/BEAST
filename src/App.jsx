@@ -9,6 +9,7 @@ import FramesTimeline from './components/FramesTimeline.jsx'
 import { createDocument, copyRegion } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
+import { loadPreviewPrefs } from './persist/previewPrefs.js'
 import { projectToZipBlob, projectFromZipFile, downloadBlob } from './persist/zip.js'
 import { matchShortcut, isTypingTarget } from './shortcuts/registry.js'
 
@@ -30,6 +31,7 @@ export default function App() {
   const [mirrorH, setMirrorH] = useState(false)
   const [filled, setFilled] = useState({ rect: false, ellipse: false })
   const setToolVariant = (id, v) => setFilled((f) => ({ ...f, [id]: v }))
+  const [previewOpen, setPreviewOpen] = useState(() => loadPreviewPrefs()?.open ?? false)
 
   const [state, dispatch] = useReducer(historyReducer, undefined, () => initHistory(createDocument()))
   const doc = state.present
@@ -188,7 +190,13 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col text-ink-soft">
-      <Header projectName={activeSprite.name} onSave={handleSave} onOpen={handleOpen} />
+      <Header
+        projectName={activeSprite.name}
+        onSave={handleSave}
+        onOpen={handleOpen}
+        previewOpen={previewOpen}
+        onTogglePreview={() => setPreviewOpen((o) => !o)}
+      />
 
       <div className="flex-1 flex min-h-0">
         <ToolRail
@@ -218,6 +226,8 @@ export default function App() {
           filled={filled[tool] ?? false}
           mirrorV={mirrorV}
           mirrorH={mirrorH}
+          previewOpen={previewOpen}
+          onClosePreview={() => setPreviewOpen(false)}
         />
 
         <aside className="w-64 bg-panel border-l border-divider flex flex-col overflow-y-auto shrink-0">

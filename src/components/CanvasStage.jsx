@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ZoomIn, ZoomOut } from 'lucide-react'
 import PixelCanvas from './PixelCanvas.jsx'
+import PreviewWindow from './PreviewWindow.jsx'
 
 // Center stage hosting the working pixel canvas. Document size comes from the
 // active sprite; zoom is local. The pencil draws (see PixelCanvas) and the
@@ -8,15 +9,30 @@ import PixelCanvas from './PixelCanvas.jsx'
 export default function CanvasStage({
   tool, color, onColor, sprite, target, dispatch,
   selection, setSelection, floating, setFloating, commitFloating, filled,
-  mirrorV, mirrorH,
+  mirrorV, mirrorH, previewOpen, onClosePreview,
 }) {
   const [scale, setScale] = useState(16)
   const [pos, setPos] = useState(null)
+  const viewportRef = useRef(null)
+
+  // Scrolls the canvas viewport so the given sprite pixel is centered —
+  // used by the Real Preview window's click-to-navigate.
+  const scrollToCenter = (spriteX, spriteY) => {
+    const el = viewportRef.current
+    if (!el) return
+    const targetLeft = spriteX * scale + scale / 2 - el.clientWidth / 2
+    const targetTop = spriteY * scale + scale / 2 - el.clientHeight / 2
+    el.scrollTo({
+      left: Math.max(0, Math.min(targetLeft, el.scrollWidth - el.clientWidth)),
+      top: Math.max(0, Math.min(targetTop, el.scrollHeight - el.clientHeight)),
+      behavior: 'smooth',
+    })
+  }
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-bg">
       {/* canvas viewport */}
-      <div className="flex-1 grid place-items-center overflow-auto p-6">
+      <div ref={viewportRef} className="flex-1 grid place-items-center overflow-auto p-6">
         <div className="beast-checker rounded shadow-2xl border border-edge">
           <PixelCanvas
             sprite={sprite}
@@ -54,6 +70,14 @@ export default function CanvasStage({
           <ZoomIn size={14} />
         </button>
       </div>
+
+      <PreviewWindow
+        sprite={sprite}
+        frameIndex={target.frameIndex}
+        onNavigate={scrollToCenter}
+        open={previewOpen}
+        onClose={onClosePreview}
+      />
     </div>
   )
 }
