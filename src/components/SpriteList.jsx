@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import NewSpriteDialog from './NewSpriteDialog.jsx'
+import SpritePreview from './SpritePreview.jsx'
 
 // A BEAST project holds many sprites (like BLAST holds many sounds). Selecting
 // one makes it the paint target; the header buttons add/move/delete the
-// selected sprite. Double-click a name to rename it. Thumbnails are still
-// placeholders.
+// selected sprite. Double-click a name to rename it. Each thumbnail shows the
+// sprite's frame 0 composited across its layers.
 export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
@@ -67,7 +68,7 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) 
           if (editingId === s.id) {
             return (
               <div key={s.id} className="flex items-center gap-2 p-1.5 rounded border border-accent-deep/50 bg-accent-deep/15">
-                <span className="beast-checker w-9 h-9 rounded border border-edge shrink-0" />
+                <SpritePreview sprite={s} frameIndex={0} size={36} className="rounded border border-edge" />
                 <input
                   autoFocus
                   value={editValue}
@@ -93,7 +94,7 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) 
                 (selected ? 'bg-accent-deep/15 border-accent-deep/50' : 'border-transparent hover:bg-surface-hover')
               }
             >
-              <span className="beast-checker w-9 h-9 rounded border border-edge shrink-0" />
+              <SpritePreview sprite={s} frameIndex={0} size={36} className="rounded border border-edge" />
               <span className="min-w-0">
                 <span className={'block text-sm truncate ' + (selected ? 'text-accent-soft' : 'text-ink-soft')}>
                   {s.name}

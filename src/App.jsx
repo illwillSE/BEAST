@@ -233,6 +233,7 @@ export default function App() {
       </div>
 
       <FramesTimeline
+        sprite={activeSprite}
         frameCount={activeSprite.frameCount}
         active={safeFrame}
         onPick={setFrameIndex}

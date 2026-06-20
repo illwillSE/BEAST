@@ -1,10 +1,12 @@
 import { Play, Plus, Copy, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
+import SpritePreview from './SpritePreview.jsx'
 
 // Bottom timeline: animation frames + playback controls (loop), global FPS, and
 // an onion-skin toggle. Selecting a frame makes it the paint target; the side
 // buttons add/duplicate/move/delete the active frame and follow it with
-// selection. Playback, FPS, and onion-skin are still static (see TODO).
-export default function FramesTimeline({ frameCount, active, onPick, spriteId, dispatch }) {
+// selection. Each frame thumbnail shows that frame composited across the
+// sprite's layers. Playback, FPS, and onion-skin are still static (see TODO).
+export default function FramesTimeline({ sprite, frameCount, active, onPick, spriteId, dispatch }) {
   const addFrame = () => {
     const at = active + 1
     dispatch({ type: 'ADD_FRAME', spriteId, atIndex: at })
@@ -58,7 +60,7 @@ export default function FramesTimeline({ frameCount, active, onPick, spriteId, d
               (active === i ? 'border-accent-deep bg-accent-deep/10' : 'border-edge hover:border-edge-hover')
             }
           >
-            <span className="beast-checker block w-16 h-16 rounded-sm" />
+            <SpritePreview sprite={sprite} frameIndex={i} size={64} className="rounded-sm" />
             <span
               className={
                 'absolute top-1 left-1 text-[10px] px-1 rounded-sm tabular-nums ' +
