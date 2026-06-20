@@ -45,16 +45,40 @@ function getBlobs(db, hashes) {
   })
 }
 
+function getAllKeys(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly')
+    const req = tx.objectStore(STORE).getAllKeys()
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+function deleteBlobs(db, hashes) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite')
+    const store = tx.objectStore(STORE)
+    for (const hash of hashes) store.delete(hash)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
 export async function saveAutosave(doc) {
   try {
     const { manifest, blobs } = serializeProject(doc)
     const fresh = [...blobs].filter(([hash]) => !persisted.has(hash))
+    const db = await openDB()
     if (fresh.length) {
-      const db = await openDB()
       await putBlobs(db, fresh)
-      db.close()
       for (const [hash] of fresh) persisted.add(hash)
     }
+    const keep = new Set(blobs.keys())
+    const allKeys = await getAllKeys(db)
+    const orphans = allKeys.filter((key) => !keep.has(key))
+    if (orphans.length) await deleteBlobs(db, orphans)
+    db.close()
+    for (const hash of orphans) persisted.delete(hash)
     localStorage.setItem(MANIFEST_KEY, JSON.stringify(manifest))
   } catch (err) {
     console.warn('BEAST autosave failed', err)

@@ -76,8 +76,9 @@ still cosmetic; painting targets the first of each.
       (`persist/autosave.js`).
 - [ ] Cell-hash is cyrb53 (non-crypto) — fine for in-project dedup, but revisit
       if collisions ever matter.
-- [ ] Autosave never GCs orphan blobs in IndexedDB — old cell versions accumulate.
-      Add cleanup (e.g. prune hashes not in the current manifest).
+- [x] Autosave never GCs orphan blobs in IndexedDB — old cell versions accumulate.
+      Every `saveAutosave` now deletes any stored hash not referenced by the
+      current manifest (`persist/autosave.js`).
 - [x] `uid` seq reseeded past the loaded max on project load (`reseedUid`,
       `document/model.js`), so new sprites/layers/frames can't collide with ids
       from a prior session.
