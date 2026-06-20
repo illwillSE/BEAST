@@ -242,39 +242,177 @@ export function paintPixel(cell, w, h, x, y, rgba) {
   cell[i + 3] = rgba[3]
 }
 
-// Bresenham — paint every cell on the segment so fast drags leave no gaps.
-export function paintLine(cell, w, h, x0, y0, x1, y1, rgba) {
+// Bresenham — every cell on the segment, so fast drags/shape tools leave no gaps.
+export function linePoints(x0, y0, x1, y1) {
+  const pts = []
   const dx = Math.abs(x1 - x0)
   const dy = Math.abs(y1 - y0)
   const sx = x0 < x1 ? 1 : -1
   const sy = y0 < y1 ? 1 : -1
   let err = dx - dy
   for (;;) {
-    paintPixel(cell, w, h, x0, y0, rgba)
+    pts.push([x0, y0])
     if (x0 === x1 && y0 === y1) break
     const e2 = 2 * err
     if (e2 > -dy) { err -= dy; x0 += sx }
     if (e2 < dx) { err += dx; y0 += sy }
   }
+  return pts
+}
+
+// Rectangle from corner (x0,y0) to corner (x1,y1), either filled or 1px outline.
+export function rectPoints(x0, y0, x1, y1, filled) {
+  const left = Math.min(x0, x1), right = Math.max(x0, x1)
+  const top = Math.min(y0, y1), bottom = Math.max(y0, y1)
+  const pts = []
+  if (filled) {
+    for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) pts.push([x, y])
+    return pts
+  }
+  for (let x = left; x <= right; x++) {
+    pts.push([x, top])
+    if (bottom !== top) pts.push([x, bottom])
+  }
+  for (let y = top + 1; y < bottom; y++) {
+    pts.push([left, y])
+    if (right !== left) pts.push([right, y])
+  }
+  return pts
+}
+
+// Ellipse inscribed in the box spanned by (x0,y0)-(x1,y1). Brute-force over the
+// bounding box (sprites are small, so this is cheap) testing each pixel center
+// against the ellipse equation; outline keeps only boundary pixels (inside with
+// an outside 4-neighbor).
+export function ellipsePoints(x0, y0, x1, y1, filled) {
+  const left = Math.min(x0, x1), right = Math.max(x0, x1)
+  const top = Math.min(y0, y1), bottom = Math.max(y0, y1)
+  const cx = (left + right + 1) / 2, cy = (top + bottom + 1) / 2
+  const rx = (right - left + 1) / 2, ry = (bottom - top + 1) / 2
+  const inside = (px, py) => {
+    const nx = (px + 0.5 - cx) / rx
+    const ny = (py + 0.5 - cy) / ry
+    return nx * nx + ny * ny <= 1
+  }
+  const pts = []
+  for (let y = top; y <= bottom; y++) {
+    for (let x = left; x <= right; x++) {
+      if (!inside(x, y)) continue
+      if (filled || !inside(x + 1, y) || !inside(x - 1, y) || !inside(x, y + 1) || !inside(x, y - 1)) {
+        pts.push([x, y])
+      }
+    }
+  }
+  return pts
+}
+
+export function paintPoints(cell, w, h, points, rgba) {
+  for (const [x, y] of points) paintPixel(cell, w, h, x, y, rgba)
+}
+
+export function paintLine(cell, w, h, x0, y0, x1, y1, rgba) {
+  paintPoints(cell, w, h, linePoints(x0, y0, x1, y1), rgba)
+}
+
+// Compute the 4-connected region matching the RGBA at (x,y), without mutating.
+// Shared by floodFill (apply one color) and gradientFill (apply per-pixel color).
+function floodMask(cell, w, h, x, y) {
+  if (x < 0 || y < 0 || x >= w || y >= h) return null
+  const at = (px, py) => (py * w + px) * 4
+  const t = at(x, y)
+  const tr = cell[t], tg = cell[t + 1], tb = cell[t + 2], ta = cell[t + 3]
+  const mask = new Uint8Array(w * h)
+  const stack = [[x, y]]
+  while (stack.length) {
+    const [cx, cy] = stack.pop()
+    if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue
+    const mi = cy * w + cx
+    if (mask[mi]) continue
+    const i = at(cx, cy)
+    if (cell[i] !== tr || cell[i + 1] !== tg || cell[i + 2] !== tb || cell[i + 3] !== ta) continue
+    mask[mi] = 1
+    stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1])
+  }
+  return { mask, tr, tg, tb, ta }
 }
 
 // 4-connected flood fill from (x,y): replace the contiguous region matching the
 // clicked pixel's RGBA with `rgba`. Mutates the cell in place.
 export function floodFill(cell, w, h, x, y, rgba) {
-  if (x < 0 || y < 0 || x >= w || y >= h) return
-  const at = (px, py) => (py * w + px) * 4
-  const t = at(x, y)
-  const tr = cell[t], tg = cell[t + 1], tb = cell[t + 2], ta = cell[t + 3]
+  const region = floodMask(cell, w, h, x, y)
+  if (!region) return
   const [fr, fg, fb, fa] = rgba
-  if (tr === fr && tg === fg && tb === fb && ta === fa) return // already that color
-  const stack = [[x, y]]
-  while (stack.length) {
-    const [cx, cy] = stack.pop()
-    if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue
-    const i = at(cx, cy)
-    if (cell[i] !== tr || cell[i + 1] !== tg || cell[i + 2] !== tb || cell[i + 3] !== ta) continue
-    cell[i] = fr; cell[i + 1] = fg; cell[i + 2] = fb; cell[i + 3] = fa
-    stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1])
+  if (region.tr === fr && region.tg === fg && region.tb === fb && region.ta === fa) return
+  for (let i = 0; i < region.mask.length; i++) {
+    if (!region.mask[i]) continue
+    const o = i * 4
+    cell[o] = fr; cell[o + 1] = fg; cell[o + 2] = fb; cell[o + 3] = fa
+  }
+}
+
+// Flood-fill the region from (x0,y0), fading `rgba` from full alpha at (x0,y0)
+// to transparent at (x1,y1) — a fixed two-stop gradient (color → transparent),
+// so it needs no second color picker.
+export function gradientFill(cell, w, h, x0, y0, x1, y1, rgba) {
+  const region = floodMask(cell, w, h, x0, y0)
+  if (!region) return
+  const [r, g, b] = rgba
+  const dx = x1 - x0, dy = y1 - y0
+  const lenSq = dx * dx + dy * dy || 1
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x
+      if (!region.mask[i]) continue
+      const t = Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / lenSq))
+      const o = i * 4
+      cell[o] = r; cell[o + 1] = g; cell[o + 2] = b; cell[o + 3] = Math.round(255 * (1 - t))
+    }
+  }
+}
+
+// ── region ops (move / cut / copy / paste) ──────────────────────────────────
+// Zero out a rectangular region in place, clipped to bounds.
+export function clearRegion(cell, w, h, rx, ry, rw, rh) {
+  for (let y = Math.max(0, ry); y < Math.min(h, ry + rh); y++) {
+    for (let x = Math.max(0, rx); x < Math.min(w, rx + rw); x++) {
+      const i = (y * w + x) * 4
+      cell[i] = 0; cell[i + 1] = 0; cell[i + 2] = 0; cell[i + 3] = 0
+    }
+  }
+}
+
+// Sample a rectangular region into a new buffer (out-of-bounds samples stay
+// transparent). Does not mutate `cell`.
+export function copyRegion(cell, w, h, rx, ry, rw, rh) {
+  const out = new Uint8ClampedArray(rw * rh * 4)
+  for (let y = 0; y < rh; y++) {
+    for (let x = 0; x < rw; x++) {
+      const sx = rx + x, sy = ry + y
+      if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue
+      const si = (sy * w + sx) * 4, di = (y * rw + x) * 4
+      out[di] = cell[si]; out[di + 1] = cell[si + 1]; out[di + 2] = cell[si + 2]; out[di + 3] = cell[si + 3]
+    }
+  }
+  return out
+}
+
+// Src-over composite `data` (rw×rh RGBA) onto `cell` at (rx,ry), clipped to bounds.
+export function pasteRegion(cell, w, h, rx, ry, rw, rh, data) {
+  for (let y = 0; y < rh; y++) {
+    for (let x = 0; x < rw; x++) {
+      const dx = rx + x, dy = ry + y
+      if (dx < 0 || dy < 0 || dx >= w || dy >= h) continue
+      const si = (y * rw + x) * 4, di = (dy * w + dx) * 4
+      const sa = data[si + 3] / 255
+      if (sa === 0) continue
+      const da = cell[di + 3] / 255
+      const oa = sa + da * (1 - sa)
+      if (oa === 0) continue
+      cell[di] = (data[si] * sa + cell[di] * da * (1 - sa)) / oa
+      cell[di + 1] = (data[si + 1] * sa + cell[di + 1] * da * (1 - sa)) / oa
+      cell[di + 2] = (data[si + 2] * sa + cell[di + 2] * da * (1 - sa)) / oa
+      cell[di + 3] = oa * 255
+    }
   }
 }
 

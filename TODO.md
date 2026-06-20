@@ -28,10 +28,19 @@ still cosmetic; painting targets the first of each.
 - [~] Brush (incl. 1px pencil) — pencil drawing wired; brush sizes TBD.
 - [x] Eraser, Fill/bucket, Eyedropper.
       (Eyedropper samples the composited/visible pixel; ignores transparent.)
-- [ ] Line, Rectangle, Ellipse (outline + filled).
-- [ ] Rect/lasso select, Move, Cut/Copy/Paste of regions.
-- [ ] Symmetry/mirror (vertical + horizontal axis).
-- [ ] Gradient fill.
+- [x] Line, Rectangle, Ellipse (outline + filled) — filled/outline picked via a
+      flyout that opens next to the Rectangle/Ellipse button when active.
+- [x] Rect select, Move, Cut/Copy/Paste of regions (Cmd/Ctrl+C/X/V, Escape to
+      deselect). Move/paste float on top of the layer until committed (tool
+      switch, target switch, or Escape) so they can be repositioned first.
+- [ ] Lasso (freehand polygon) select — deferred; only rectangular select is
+      implemented for now.
+- [x] Symmetry/mirror (vertical + horizontal axis) — two persistent toggle
+      buttons in ToolRail that mirror whichever paint tool is active
+      (pencil/eraser/line/rect/ellipse/fill/gradient), not a separate tool.
+- [x] Gradient fill — flood-fills the clicked region (Fill's connectivity
+      rule) fading the current color to transparent along the drag axis.
+      Fixed two-stop (color → transparent); no second-color picker.
 
 ## Color
 - [ ] Managed swatch palette (loadable/savable).
@@ -88,7 +97,8 @@ still cosmetic; painting targets the first of each.
 - [ ] Sprite sheet (all frames in one PNG grid).
 
 ## Infra
-- [ ] Theme palette tokens via `getColor()` (Canvas/SVG read tokens).
+- [x] Theme palette tokens via `getColor()` (Canvas/SVG read tokens) —
+      `src/theme/colors.js`, used by the selection-marquee overlay so far.
 - [ ] Deploy: gh-pages, Vite `base: '/BEAST/'`.
 
 ## Performance

@@ -6,7 +6,7 @@ import CanvasStage from './components/CanvasStage.jsx'
 import LayersPanel from './components/LayersPanel.jsx'
 import ColorPanel from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
-import { createDocument } from './document/model.js'
+import { createDocument, copyRegion } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { projectToZipBlob, projectFromZipFile, downloadBlob } from './persist/zip.js'
@@ -18,6 +18,16 @@ import { projectToZipBlob, projectFromZipFile, downloadBlob } from './persist/zi
 export default function App() {
   const [tool, setTool] = useState('pencil')
   const [color, setColor] = useState('#fbbf24')
+
+  // Select/move/clipboard state. `selection` is a rect on the active layer's
+  // current frame; `floating` is pixels lifted out of the layer by a move or
+  // paste, rendered on top until something commits them (see commitFloating).
+  const [selection, setSelection] = useState(null)
+  const [floating, setFloating] = useState(null)
+  const [clipboard, setClipboard] = useState(null)
+  const [mirrorV, setMirrorV] = useState(false)
+  const [mirrorH, setMirrorH] = useState(false)
+  const [filled, setFilled] = useState({ rect: false, ellipse: false })
 
   const [state, dispatch] = useReducer(historyReducer, undefined, () => initHistory(createDocument()))
   const doc = state.present
@@ -49,6 +59,52 @@ export default function App() {
 
   const target = { spriteId: activeSprite.id, layerId: safeLayerId, frameIndex: safeFrame }
 
+  const getActiveCell = () => activeSprite.layers.find((l) => l.id === safeLayerId).cells[safeFrame]
+
+  // Write a pending move/paste back into the layer and drop the floating
+  // buffer. Triggered by leaving the move tool, switching the paint target,
+  // or Escape — a floating selection only makes sense for one cell at a time.
+  const commitFloating = () => {
+    if (!floating) return
+    dispatch({ type: 'PASTE_REGION', ...floating.target, x: floating.x, y: floating.y, w: floating.w, h: floating.h, data: floating.data })
+    setFloating(null)
+    setSelection(null)
+  }
+
+  const copySelection = () => {
+    if (floating) { setClipboard({ w: floating.w, h: floating.h, data: floating.data.slice() }); return }
+    if (!selection) return
+    setClipboard({ w: selection.w, h: selection.h, data: copyRegion(getActiveCell(), activeSprite.w, activeSprite.h, selection.x, selection.y, selection.w, selection.h) })
+  }
+
+  const cutSelection = () => {
+    if (floating) { setClipboard({ w: floating.w, h: floating.h, data: floating.data.slice() }); setFloating(null); return }
+    if (!selection) return
+    setClipboard({ w: selection.w, h: selection.h, data: copyRegion(getActiveCell(), activeSprite.w, activeSprite.h, selection.x, selection.y, selection.w, selection.h) })
+    dispatch({ type: 'CLEAR_REGION', ...target, x: selection.x, y: selection.y, w: selection.w, h: selection.h })
+  }
+
+  const pasteClipboard = () => {
+    if (!clipboard) return
+    commitFloating()
+    const x = Math.max(0, Math.floor((activeSprite.w - clipboard.w) / 2))
+    const y = Math.max(0, Math.floor((activeSprite.h - clipboard.h) / 2))
+    setFloating({ x, y, w: clipboard.w, h: clipboard.h, data: clipboard.data.slice(), target })
+    setSelection({ x, y, w: clipboard.w, h: clipboard.h })
+    setTool('move')
+  }
+
+  // A floating move/paste only makes sense while the move tool is active, and
+  // only for the cell it was lifted from — commit it when either changes.
+  useEffect(() => {
+    if (tool !== 'move') commitFloating()
+  }, [tool])
+
+  useEffect(() => {
+    commitFloating()
+    setSelection(null)
+  }, [activeSprite.id, safeLayerId, safeFrame])
+
   // Follow a layer add/duplicate with selection. Guarded by spriteId so
   // switching sprites (which also changes the layer id set) doesn't hijack
   // the selection that selectSprite/resetSelection already set.
@@ -72,18 +128,25 @@ export default function App() {
     prevSpriteIdsRef.current = new Set(ids)
   }, [doc.sprites])
 
-  // Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo.
+  // Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo, Cmd/Ctrl+C/X/V for the
+  // selection clipboard, Escape to commit a floating move/paste and deselect.
   useEffect(() => {
     const onKey = (e) => {
       const mod = e.metaKey || e.ctrlKey
-      if (!mod) return
-      const k = e.key.toLowerCase()
-      if (k === 'z') { e.preventDefault(); dispatch({ type: e.shiftKey ? 'REDO' : 'UNDO' }) }
-      else if (k === 'y') { e.preventDefault(); dispatch({ type: 'REDO' }) }
+      if (mod) {
+        const k = e.key.toLowerCase()
+        if (k === 'z') { e.preventDefault(); dispatch({ type: e.shiftKey ? 'REDO' : 'UNDO' }) }
+        else if (k === 'y') { e.preventDefault(); dispatch({ type: 'REDO' }) }
+        else if (k === 'c') { e.preventDefault(); copySelection() }
+        else if (k === 'x') { e.preventDefault(); cutSelection() }
+        else if (k === 'v') { e.preventDefault(); pasteClipboard() }
+        return
+      }
+      if (e.key === 'Escape') { commitFloating(); setSelection(null) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [floating, selection, clipboard, activeSprite, safeLayerId, safeFrame, tool])
 
   // Restore the autosaved project on mount, then enable autosaving.
   const [ready, setReady] = useState(false)
@@ -126,7 +189,16 @@ export default function App() {
       <Header projectName={activeSprite.name} onSave={handleSave} onOpen={handleOpen} />
 
       <div className="flex-1 flex min-h-0">
-        <ToolRail active={tool} onPick={setTool} />
+        <ToolRail
+          active={tool}
+          onPick={setTool}
+          filled={filled}
+          onFilled={(id, v) => setFilled((f) => ({ ...f, [id]: v }))}
+          mirrorV={mirrorV}
+          mirrorH={mirrorH}
+          onMirrorV={() => setMirrorV((v) => !v)}
+          onMirrorH={() => setMirrorH((v) => !v)}
+        />
         <SpriteList sprites={doc.sprites} selectedId={spriteId} onSelect={selectSprite} dispatch={dispatch} />
 
         <CanvasStage
@@ -136,6 +208,14 @@ export default function App() {
           sprite={activeSprite}
           target={target}
           dispatch={dispatch}
+          selection={selection}
+          setSelection={setSelection}
+          floating={floating}
+          setFloating={setFloating}
+          commitFloating={commitFloating}
+          filled={filled[tool] ?? false}
+          mirrorV={mirrorV}
+          mirrorH={mirrorH}
         />
 
         <aside className="w-64 bg-panel border-l border-divider flex flex-col overflow-y-auto shrink-0">

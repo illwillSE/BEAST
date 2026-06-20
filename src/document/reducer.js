@@ -10,6 +10,12 @@ import {
   replaceCell,
   paintLine,
   floodFill,
+  rectPoints,
+  ellipsePoints,
+  paintPoints,
+  gradientFill,
+  clearRegion,
+  pasteRegion,
   addSprite,
   renameSprite,
   removeSprite,
@@ -93,6 +99,32 @@ export function historyReducer(state, action) {
     case 'FILL': {
       const { x, y, rgba } = action
       return editCell(state, action, (cell, sp) => floodFill(cell, sp.w, sp.h, x, y, rgba))
+    }
+
+    case 'PAINT_RECT': {
+      const { x0, y0, x1, y1, filled, rgba } = action
+      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, rectPoints(x0, y0, x1, y1, filled), rgba))
+    }
+
+    case 'PAINT_ELLIPSE': {
+      const { x0, y0, x1, y1, filled, rgba } = action
+      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, ellipsePoints(x0, y0, x1, y1, filled), rgba))
+    }
+
+    case 'GRADIENT_FILL': {
+      const { x0, y0, x1, y1, rgba } = action
+      return editCell(state, action, (cell, sp) => gradientFill(cell, sp.w, sp.h, x0, y0, x1, y1, rgba))
+    }
+
+    // Move/cut lift pixels out of the layer; paste/move-drop writes them back.
+    case 'CLEAR_REGION': {
+      const { x, y, w: rw, h: rh } = action
+      return editCell(state, action, (cell, sp) => clearRegion(cell, sp.w, sp.h, x, y, rw, rh))
+    }
+
+    case 'PASTE_REGION': {
+      const { x, y, w: rw, h: rh, data } = action
+      return editCell(state, action, (cell, sp) => pasteRegion(cell, sp.w, sp.h, x, y, rw, rh, data))
     }
 
     case 'ADD_SPRITE':
