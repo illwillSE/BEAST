@@ -22,9 +22,10 @@ export default function NewSpriteDialog({ open, onCreate, onClose }) {
       className="fixed inset-0 bg-black/50 grid place-items-center z-50"
       onMouseDown={onClose}
     >
-      <div
-        className="bg-panel border border-divider rounded-lg p-4 w-72 shadow-xl"
+      <form
         onMouseDown={(e) => e.stopPropagation()}
+        onSubmit={(e) => { e.preventDefault(); create() }}
+        className="bg-panel border border-divider rounded-lg p-4 w-72 shadow-xl"
       >
         <h2 className="text-sm font-semibold text-ink mb-3">New Sprite</h2>
 
@@ -32,6 +33,7 @@ export default function NewSpriteDialog({ open, onCreate, onClose }) {
           {PRESETS.map((p) => (
             <button
               key={p}
+              type="button"
               onClick={() => { setW(p); setH(p) }}
               className={
                 'py-1.5 rounded text-xs border ' +
@@ -75,19 +77,20 @@ export default function NewSpriteDialog({ open, onCreate, onClose }) {
 
         <div className="flex justify-end gap-2">
           <button
+            type="button"
             onClick={onClose}
             className="px-2.5 py-1.5 rounded text-sm bg-surface hover:bg-surface-hover text-ink-soft"
           >
             Cancel
           </button>
           <button
-            onClick={create}
+            type="submit"
             className="px-2.5 py-1.5 rounded text-sm bg-accent-deep/15 hover:bg-accent-deep/25 text-accent-bright border border-accent-deep/40"
           >
             Create
           </button>
         </div>
-      </div>
+      </form>
     </div>
   )
 }
