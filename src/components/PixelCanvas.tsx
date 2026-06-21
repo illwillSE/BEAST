@@ -85,6 +85,7 @@ export default function PixelCanvas({
   const draggingRef = useRef(false)
   const lastRef = useRef<{ x: number; y: number } | null>(null)
   const dragStateRef = useRef<any>(null)
+  const shiftRef = useRef(false)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [magnifier, setMagnifier] = useState<{ clientX: number; clientY: number; pixels: (RGBA | null)[] } | null>(null)
 
@@ -246,6 +247,26 @@ export default function PixelCanvas({
     if (inBounds(x, y)) setMagnifier({ clientX: pos.clientX, clientY: pos.clientY, pixels: sampleRegion(x, y) })
   }, [tool])
 
+  // Tracks live Shift state (rect/ellipse square-circle constraint) on the
+  // window rather than per-pointer-event, so toggling Shift mid-drag updates
+  // the preview even without moving the mouse.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Shift') return
+      shiftRef.current = e.type === 'keydown'
+      if (draggingRef.current && lastRef.current) {
+        activeTool?.onDrag?.(ctxFor(lastRef.current.x, lastRef.current.y), lastRef.current, dragStateRef.current)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('keyup', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keyup', onKey)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  })
+
   // Dispatch wrapper that also dispatches mirrored copies of coordinate-bearing
   // actions across whichever symmetry axes are on, so tools never need to know
   // about mirroring themselves.
@@ -261,7 +282,7 @@ export default function PixelCanvas({
 
   const ctxFor = (x: number, y: number): ToolContext => ({
     x, y, target, fgColor, bgColor, dispatch: mirroredDispatch, setFgColor: onFgColor, sampleColor,
-    w, h, filled, brushSize, setPreview,
+    w, h, filled, brushSize, setPreview, shiftKey: shiftRef.current,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
     cropPending, setCropPending,
   })

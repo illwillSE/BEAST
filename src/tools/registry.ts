@@ -86,6 +86,7 @@ export interface ToolContext {
   filled: boolean
   brushSize: number
   setPreview: (preview: Preview | null) => void
+  shiftKey: boolean
   selection: Rect | null
   setSelection: (rect: Rect | null) => void
   floating: Floating | null
@@ -135,6 +136,15 @@ function commitBracketed(ctx: ToolContext, action: Action) {
   ctx.dispatch({ type: 'STROKE_BEGIN' })
   ctx.dispatch(action)
   ctx.dispatch({ type: 'STROKE_END' })
+}
+
+// Shift-constrain a dragged corner to a square (rect → square, ellipse →
+// circle): clamps both axes to the larger delta, keeping each axis' sign.
+function constrainSquare(x0: number, y0: number, x1: number, y1: number): [number, number] {
+  const dx = x1 - x0
+  const dy = y1 - y0
+  const size = Math.max(Math.abs(dx), Math.abs(dy))
+  return [x0 + Math.sign(dx || 1) * size, y0 + Math.sign(dy || 1) * size]
 }
 
 function normalizeRect(x0: number, y0: number, x1: number, y1: number): Rect {
@@ -218,13 +228,15 @@ export const tools: Record<string, Tool<any>> = {
       return { x0: ctx.x, y0: ctx.y }
     },
     onDrag(ctx, _prev, start) {
-      const pts = rectPoints(start.x0, start.y0, ctx.x, ctx.y, ctx.filled)
+      const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
+      const pts = rectPoints(start.x0, start.y0, x1, y1, ctx.filled)
       ctx.setPreview({ kind: 'pixels', points: ctx.filled ? pts : stampPoints(pts, ctx.brushSize), color: ctx.fgColor })
     },
     onEnd(ctx, start) {
+      const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       commitBracketed(ctx, {
         type: 'PAINT_RECT', ...ctx.target,
-        x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y, filled: ctx.filled,
+        x0: start.x0, y0: start.y0, x1, y1, filled: ctx.filled,
         rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize,
       })
       ctx.setPreview(null)
@@ -240,13 +252,15 @@ export const tools: Record<string, Tool<any>> = {
       return { x0: ctx.x, y0: ctx.y }
     },
     onDrag(ctx, _prev, start) {
-      const pts = ellipsePoints(start.x0, start.y0, ctx.x, ctx.y, ctx.filled)
+      const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
+      const pts = ellipsePoints(start.x0, start.y0, x1, y1, ctx.filled)
       ctx.setPreview({ kind: 'pixels', points: ctx.filled ? pts : stampPoints(pts, ctx.brushSize), color: ctx.fgColor })
     },
     onEnd(ctx, start) {
+      const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       commitBracketed(ctx, {
         type: 'PAINT_ELLIPSE', ...ctx.target,
-        x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y, filled: ctx.filled,
+        x0: start.x0, y0: start.y0, x1, y1, filled: ctx.filled,
         rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize,
       })
       ctx.setPreview(null)
