@@ -86,6 +86,18 @@ export async function saveAutosave(doc: Doc): Promise<void> {
   }
 }
 
+// Wipes everything BEAST has persisted in the browser: all localStorage keys
+// and the IndexedDB database (autosave manifest + cell blobs).
+export async function clearAllStorage(): Promise<void> {
+  localStorage.clear()
+  await new Promise<void>((resolve) => {
+    const req = indexedDB.deleteDatabase(DB_NAME)
+    req.onsuccess = () => resolve()
+    req.onerror = () => resolve()
+    req.onblocked = () => resolve()
+  })
+}
+
 // Returns the restored document, or null if there's nothing saved / it fails.
 export async function loadAutosave(): Promise<Doc | null> {
   try {
