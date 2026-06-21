@@ -309,6 +309,24 @@ export function moveFrame(doc: Doc, spriteId: string, frameIndex: number, delta:
   })
 }
 
+// Lift-and-insert reorder for frame drag-and-drop: the frame at `from` ends up
+// at index `to`, with frames in between shifting to make room — unlike
+// moveFrame's adjacent swap, used by the ◂▸ buttons.
+export function reorderFrame(doc: Doc, spriteId: string, from: number, to: number): Doc {
+  return mapSprite(doc, spriteId, (sp) => {
+    if (from === to || from < 0 || from >= sp.frameCount || to < 0 || to >= sp.frameCount) return sp
+    return {
+      ...sp,
+      layers: sp.layers.map((l) => {
+        const cells = [...l.cells]
+        const [moved] = cells.splice(from, 1)
+        cells.splice(to, 0, moved)
+        return { ...l, cells }
+      }),
+    }
+  })
+}
+
 // ── pixel writes (mutate a cell in place) ────────────────────────────────
 export function paintPixel(cell: Cell, w: number, h: number, x: number, y: number, rgba: RGBA) {
   if (x < 0 || y < 0 || x >= w || y >= h) return

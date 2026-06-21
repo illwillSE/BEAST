@@ -16,7 +16,7 @@
 //     dispatch, setTool, setTemporaryTool, tool, filled, setVariant,
 //     brushSize, setBrushSize, copySelection,
 //     cutSelection, pasteClipboard, commitFloating, setSelection,
-//     commitCrop, cancelCrop, swapColors,
+//     commitCrop, cancelCrop, swapColors, stepFrame,
 //   }
 
 import { tools } from '../tools/registry.js'
@@ -40,6 +40,7 @@ export interface ShortcutContext {
   commitCrop: () => void
   cancelCrop: () => void
   swapColors: () => void
+  stepFrame: (delta: number) => void
 }
 
 interface Shortcut {
@@ -84,6 +85,8 @@ export const shortcuts: Shortcut[] = [
   { key: 'x', run: (ctx) => ctx.swapColors() },
   { key: '[', run: (ctx) => stepBrushSize(ctx, -1) },
   { key: ']', run: (ctx) => stepBrushSize(ctx, 1) },
+  { key: 'arrowleft', run: (ctx) => ctx.stepFrame(-1) },
+  { key: 'arrowright', run: (ctx) => ctx.stepFrame(1) },
   ...toolShortcuts,
 ]
 

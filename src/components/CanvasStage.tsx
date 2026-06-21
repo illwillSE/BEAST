@@ -30,6 +30,8 @@ interface CanvasStageProps {
   onTemporaryToolComplete?: () => void
   previewOpen: boolean
   onClosePreview: () => void
+  playing: boolean
+  onionSkin: boolean
 }
 
 // Center stage hosting the working pixel canvas. Document size comes from the
@@ -40,6 +42,7 @@ export default function CanvasStage({
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, filled, brushSize,
   mirrorV, mirrorH, onTemporaryToolComplete, previewOpen, onClosePreview,
+  playing, onionSkin,
 }: CanvasStageProps) {
   const [scale, setScale] = useState(16)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
@@ -104,6 +107,8 @@ export default function CanvasStage({
             mirrorV={mirrorV}
             mirrorH={mirrorH}
             onTemporaryToolComplete={onTemporaryToolComplete}
+            playing={playing}
+            onionSkin={onionSkin}
           />
         </div>
       </div>

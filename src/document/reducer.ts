@@ -32,6 +32,7 @@ import {
   duplicateFrame,
   removeFrame,
   moveFrame,
+  reorderFrame,
   reseedUid,
 } from './model.js'
 import type { Cell, CellTarget, CreateSpriteOpts, Doc, RGBA, Sprite } from './model.js'
@@ -80,6 +81,7 @@ export type Action =
   | { type: 'DUPLICATE_FRAME'; spriteId: string; frameIndex: number }
   | { type: 'REMOVE_FRAME'; spriteId: string; frameIndex: number }
   | { type: 'MOVE_FRAME'; spriteId: string; frameIndex: number; delta: number }
+  | { type: 'REORDER_FRAME'; spriteId: string; from: number; to: number }
   | { type: 'UNDO' }
   | { type: 'REDO' }
 
@@ -227,6 +229,9 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
 
     case 'MOVE_FRAME':
       return editDoc(state, (doc) => moveFrame(doc, action.spriteId, action.frameIndex, action.delta))
+
+    case 'REORDER_FRAME':
+      return editDoc(state, (doc) => reorderFrame(doc, action.spriteId, action.from, action.to))
 
     case 'UNDO': {
       if (!state.past.length) return state

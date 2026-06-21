@@ -1,4 +1,5 @@
-import { Play, Plus, Copy, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
+import { Play, Pause, Plus, Copy, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
 import SpritePreview from './SpritePreview.jsx'
 import PinToggle from './PinToggle.jsx'
 import type { Sprite } from '../document/model.js'
@@ -11,18 +12,38 @@ interface FramesTimelineProps {
   onPick: (index: number) => void
   spriteId: string
   dispatch: (action: Action) => void
+  playing: boolean
+  onTogglePlay: () => void
+  fps: number
+  onFps: (fps: number) => void
+  onionSkin: boolean
+  onToggleOnionSkin: () => void
   pinned: boolean
   onTogglePin: () => void
   onPeekSelect?: () => void
 }
 
+// Maps a frame's original index through a from->to reorder (lift-and-insert,
+// matching reorderFrame in document/model.js) to where that same frame ends
+// up, so the active selection keeps following the same frame's content.
+function reorderedIndex(p: number, from: number, to: number) {
+  if (p === from) return to
+  const r = p < from ? p : p - 1
+  return r + (r >= to ? 1 : 0)
+}
+
 // Bottom timeline: animation frames + playback controls (loop), global FPS, and
 // an onion-skin toggle. Selecting a frame makes it the paint target; the side
 // buttons add/duplicate/move the active frame and follow it with selection;
-// delete lives on each thumbnail (hover to reveal). Each frame thumbnail shows
-// that frame composited across the sprite's layers. Playback, FPS, and
-// onion-skin are still static (see TODO).
-export default function FramesTimeline({ sprite, frameCount, active, onPick, spriteId, dispatch, pinned, onTogglePin, onPeekSelect }: FramesTimelineProps) {
+// delete lives on each thumbnail (hover to reveal); dragging a thumbnail
+// reorders frames. Each frame thumbnail shows that frame composited across
+// the sprite's layers.
+export default function FramesTimeline({
+  sprite, frameCount, active, onPick, spriteId, dispatch,
+  playing, onTogglePlay, fps, onFps, onionSkin, onToggleOnionSkin,
+  pinned, onTogglePin, onPeekSelect,
+}: FramesTimelineProps) {
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
   const addFrame = () => {
     const at = active + 1
     dispatch({ type: 'ADD_FRAME', spriteId, atIndex: at })
@@ -45,6 +66,11 @@ export default function FramesTimeline({ sprite, frameCount, active, onPick, spr
     dispatch({ type: 'MOVE_FRAME', spriteId, frameIndex: active, delta })
     onPick(to)
   }
+  const reorderFrame = (from: number, to: number) => {
+    if (from === to) return
+    dispatch({ type: 'REORDER_FRAME', spriteId, from, to })
+    onPick(reorderedIndex(active, from, to))
+  }
 
   return (
     <div className="flex items-stretch gap-3 px-3 h-28 bg-panel border-t border-divider shrink-0">
@@ -54,20 +80,40 @@ export default function FramesTimeline({ sprite, frameCount, active, onPick, spr
           <span className="text-[11px] uppercase tracking-wide text-faint font-semibold">Frames</span>
           <PinToggle pinned={pinned} onClick={onTogglePin} />
         </div>
-        <button className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-accent-deep/15 hover:bg-accent-deep/25 text-accent-bright border border-accent-deep/40 text-sm">
-          <Play size={15} /> Play
+        <button
+          className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-accent-deep/15 hover:bg-accent-deep/25 text-accent-bright border border-accent-deep/40 text-sm disabled:opacity-30 disabled:hover:bg-accent-deep/15"
+          disabled={frameCount <= 1}
+          onClick={onTogglePlay}
+        >
+          {playing ? <Pause size={15} /> : <Play size={15} />} {playing ? 'Stop' : 'Play'}
         </button>
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-faint">FPS</span>
-          <input type="range" min="1" max="24" defaultValue="12" className="beast-slider w-20" style={{ '--fill': '50%' } as React.CSSProperties} />
-          <span className="text-[11px] text-text tabular-nums w-5">12</span>
+          <input
+            type="range"
+            min="1"
+            max="24"
+            value={fps}
+            onChange={(e) => onFps(Number(e.target.value))}
+            className="beast-slider w-20"
+            style={{ '--fill': `${((fps - 1) / 23) * 100}%` } as React.CSSProperties}
+          />
+          <span className="text-[11px] text-text tabular-nums w-5">{fps}</span>
         </div>
-        <label className="flex items-center gap-1.5 text-[11px] text-muted cursor-pointer select-none">
-          <span className="grid place-items-center w-4 h-4 rounded-sm bg-accent-deep/20 border border-accent-deep text-accent-bright">
+        <button
+          onClick={onToggleOnionSkin}
+          className={'flex items-center gap-1.5 text-[11px] select-none ' + (onionSkin ? 'text-muted' : 'text-faint')}
+        >
+          <span
+            className={
+              'grid place-items-center w-4 h-4 rounded-sm border ' +
+              (onionSkin ? 'bg-accent-deep/20 border-accent-deep text-accent-bright' : 'border-edge text-faint')
+            }
+          >
             <Eye size={11} />
           </span>
           Onion skin
-        </label>
+        </button>
       </div>
 
       {/* frame strip */}
@@ -75,9 +121,20 @@ export default function FramesTimeline({ sprite, frameCount, active, onPick, spr
         {Array.from({ length: frameCount }, (_, i) => (
           <div
             key={i}
+            draggable={!playing}
+            onDragStart={() => setDragIndex(i)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault()
+              if (dragIndex === null) return
+              reorderFrame(dragIndex, i)
+              setDragIndex(null)
+            }}
+            onDragEnd={() => setDragIndex(null)}
             className={
               'group relative shrink-0 rounded border p-1 ' +
-              (active === i ? 'border-accent-deep bg-accent-deep/10' : 'border-edge hover:border-edge-hover')
+              (active === i ? 'border-accent-deep bg-accent-deep/10' : 'border-edge hover:border-edge-hover') +
+              (dragIndex === i ? ' opacity-40' : '')
             }
           >
             <button onClick={() => { onPick(i); onPeekSelect?.() }}>

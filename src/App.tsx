@@ -106,6 +106,9 @@ export default function App() {
   const [spriteId, setSpriteId] = useState(() => doc.sprites[0].id)
   const [layerId, setLayerId] = useState(() => topLayer(doc.sprites[0]).id)
   const [frameIndex, setFrameIndex] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const [fps, setFps] = useState(12)
+  const [onionSkin, setOnionSkin] = useState(false)
 
   const activeSprite = doc.sprites.find((s) => s.id === spriteId) ?? doc.sprites[0]
   const safeLayerId = activeSprite.layers.some((l) => l.id === layerId) ? layerId : topLayer(activeSprite).id
@@ -212,17 +215,47 @@ export default function App() {
     prevSpriteIdsRef.current = new Set(ids)
   }, [doc.sprites])
 
+  // Loop playback: advances frameIndex at `fps` using a requestAnimationFrame
+  // timestamp accumulator (rather than setInterval) so the rate stays accurate
+  // even if individual frames are throttled.
+  useEffect(() => {
+    if (!playing) return
+    let raf = 0
+    let last = performance.now()
+    let acc = 0
+    const tick = (now: number) => {
+      acc += now - last
+      last = now
+      const frameMs = 1000 / fps
+      if (acc >= frameMs) {
+        acc %= frameMs
+        setFrameIndex((i) => (i + 1) % activeSprite.frameCount)
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [playing, fps, activeSprite.frameCount])
+
+  // Step to the previous/next frame (Left/Right arrow), clamped to bounds —
+  // same range as the timeline's ◂▸ buttons.
+  const stepFrame = (delta: number) => {
+    const next = safeFrame + delta
+    if (next < 0 || next >= activeSprite.frameCount) return
+    setFrameIndex(next)
+  }
+
   // Routes keydown through the shortcut registry: Cmd/Ctrl+Z undo,
   // Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo, Cmd/Ctrl+C/X/V for the selection
   // clipboard, Escape to commit a floating move/paste (and cancel a pending
-  // crop) and deselect, Enter to commit a pending crop, and a letter per tool
-  // (see each tool's `key` in tools/registry.js).
+  // crop) and deselect, Enter to commit a pending crop, Left/Right to step
+  // frames, and a letter per tool (see each tool's `key` in tools/registry.js).
   useEffect(() => {
     const ctx = {
       dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
       tool, filled, setVariant: setToolVariant, brushSize, setBrushSize: setToolSize,
       copySelection, cutSelection, pasteClipboard, commitFloating, setSelection,
-      commitCrop, cancelCrop, swapColors,
+      commitCrop, cancelCrop, swapColors, stepFrame,
     }
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return
@@ -345,6 +378,8 @@ export default function App() {
           onTemporaryToolComplete={temporaryToolReturn ? completeTemporaryTool : undefined}
           previewOpen={previewOpen}
           onClosePreview={() => setPreviewOpen(false)}
+          playing={playing}
+          onionSkin={onionSkin}
         />
 
         <aside className="bg-panel border-l border-divider flex flex-col shrink-0">
@@ -430,6 +465,12 @@ export default function App() {
           onPick={setFrameIndex}
           spriteId={activeSprite.id}
           dispatch={dispatch}
+          playing={playing}
+          onTogglePlay={() => setPlaying((p) => !p)}
+          fps={fps}
+          onFps={setFps}
+          onionSkin={onionSkin}
+          onToggleOnionSkin={() => setOnionSkin((o) => !o)}
           pinned
           onTogglePin={framesFold.togglePin}
           onPeekSelect={undefined}
@@ -446,6 +487,12 @@ export default function App() {
                 onPick={setFrameIndex}
                 spriteId={activeSprite.id}
                 dispatch={dispatch}
+                playing={playing}
+                onTogglePlay={() => setPlaying((p) => !p)}
+                fps={fps}
+                onFps={setFps}
+                onionSkin={onionSkin}
+                onToggleOnionSkin={() => setOnionSkin((o) => !o)}
                 pinned={false}
                 onTogglePin={framesFold.togglePin}
                 onPeekSelect={framesFold.closePeek}

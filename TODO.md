@@ -18,9 +18,9 @@ implemented; this file tracks what isn't, organized by area.
 - [ ] No keyboard shortcut to toggle it — only the header button. The shortcut
       registry's `ctx` doesn't carry arbitrary UI setters yet
       (`shortcuts/registry.ts`); add if it becomes annoying to reach via mouse.
-- [ ] Preview always shows `target.frameIndex` (follows the timeline like the
-      main canvas). Once onion-skinning / play-loop animation lands, decide
-      whether the preview should follow playback too.
+- [x] Preview follows playback — it was already wired to `target.frameIndex`,
+      which is the same global `frameIndex` the playback loop advances, so this
+      came for free with loop playback below.
 
 ## Tools (v1 registry)
 - [ ] Lasso (freehand polygon) select — deferred; only rectangular select is
@@ -84,11 +84,22 @@ implemented; this file tracks what isn't, organized by area.
       switching sprites resets to the top layer / frame 1 (`App.tsx` selectSprite).
 
 ## Animation
-- [ ] Drag-and-drop reordering — reorder frames by dragging a thumbnail in the
-      strip, instead of (or in addition to) the move left/right buttons.
-- [ ] Onion-skinning (toggleable ghosts of adjacent frames).
-- [ ] Loop playback (play/stop).
-- [ ] Global FPS for the whole animation.
+- [x] Drag-and-drop reordering — dragging a thumbnail dispatches the new
+      `REORDER_FRAME` action (lift-and-insert via `reorderFrame` in
+      `document/model.ts`), distinct from `MOVE_FRAME`'s adjacent swap used by
+      the ◂▸ buttons. Disabled while playing.
+- [x] Onion-skinning — toggle in `FramesTimeline.tsx`; ghosts of the immediate
+      prev/next frame only (not deeper), rendered behind the main canvas in
+      `PixelCanvas.tsx`. Previous frame is tinted `--color-onion-prev` (red) at
+      40% alpha, next frame `--color-onion-next` (emerald) at 25% alpha — flat
+      silhouette tint, not color-blended — so direction reads at a glance.
+      Revisit the ghost count/opacity/tint if it doesn't read well in practice.
+- [x] Loop playback (play/stop) — `requestAnimationFrame` accumulator loop in
+      `App.tsx` driving the existing global `frameIndex`. Painting is disabled
+      while playing (`PixelCanvas.tsx` `handleDown`); Play is disabled at
+      frameCount <= 1.
+- [x] Global FPS for the whole animation — controlled slider (1-24) in
+      `FramesTimeline.tsx`, lifted to `App.tsx` state.
 
 ## Persistence
 - [ ] Cell-hash is cyrb53 (non-crypto) — fine for in-project dedup, but revisit

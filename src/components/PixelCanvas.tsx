@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { compositeFrame, hexToRgba, rgbaToHex } from '../document/model.js'
+import { compositeFrame, hexToRgba, rgbaToHex, pasteRegion } from '../document/model.js'
 import { getTool } from '../tools/registry.js'
 import { getColor } from '../theme/colors.js'
 import { getLastPointer } from '../hooks/lastPointer.js'
@@ -52,7 +52,15 @@ interface PixelCanvasProps {
   mirrorV: boolean
   mirrorH: boolean
   onTemporaryToolComplete?: () => void
+  playing: boolean
+  onionSkin: boolean
 }
+
+// Onion-skin ghosts are recolored to a flat tint (so direction reads at a
+// glance) and faded to a fraction of full alpha — previous frame stronger
+// than next, so which side is which is unambiguous even without the tint.
+const ONION_PREV_ALPHA = 0.4
+const ONION_NEXT_ALPHA = 0.25
 
 // Interactive pixel canvas, driven by the document model + tool registry. It
 // renders the active sprite frame (composited across visible layers) into a
@@ -67,9 +75,10 @@ export default function PixelCanvas({
   sprite, frameIndex, target, dispatch, scale, fgColor, bgColor, tool, onFgColor, onHover,
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, filled, brushSize,
-  mirrorV, mirrorH, onTemporaryToolComplete,
+  mirrorV, mirrorH, onTemporaryToolComplete, playing, onionSkin,
 }: PixelCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const onionRef = useRef<HTMLCanvasElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const marqueeRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<ImageData | null>(null)
@@ -91,6 +100,33 @@ export default function PixelCanvas({
     compositeFrame(sprite, frameIndex, imageRef.current)
     ctx.putImageData(imageRef.current, 0, 0)
   }, [sprite, frameIndex, w, h])
+
+  // Onion-skin ghosts: the immediately adjacent frames, recolored to a flat
+  // tint (previous = onion-prev, next = onion-next, see theme.css) and faded,
+  // drawn into a canvas sitting behind the main one so they show through
+  // wherever the active frame is transparent.
+  useEffect(() => {
+    const ctx = onionRef.current!.getContext('2d')!
+    ctx.clearRect(0, 0, w, h)
+    if (!onionSkin || playing) return
+    const ghost = ctx.createImageData(w, h)
+    const addGhost = (idx: number, tint: RGBA, alphaFactor: number) => {
+      if (idx < 0 || idx >= sprite.frameCount || idx === frameIndex) return
+      const img = ctx.createImageData(w, h)
+      compositeFrame(sprite, idx, img)
+      const [tr, tg, tb] = tint
+      const d = img.data
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] === 0) continue
+        d[i] = tr; d[i + 1] = tg; d[i + 2] = tb
+        d[i + 3] = Math.round(d[i + 3] * alphaFactor)
+      }
+      pasteRegion(ghost.data, w, h, 0, 0, w, h, img.data)
+    }
+    addGhost(frameIndex - 1, hexToRgba(getColor('onion-prev')), ONION_PREV_ALPHA)
+    addGhost(frameIndex + 1, hexToRgba(getColor('onion-next')), ONION_NEXT_ALPHA)
+    ctx.putImageData(ghost, 0, 0)
+  }, [sprite, frameIndex, onionSkin, playing, w, h])
 
   // Re-draw the preview overlay: floating buffer and any in-progress shape
   // preview from the active tool. Pixel-art resolution, scaled with the canvas.
@@ -231,7 +267,7 @@ export default function PixelCanvas({
   })
 
   const handleDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!activeTool) return
+    if (!activeTool || playing) return
     const { x, y } = cellFromEvent(e)
     if (!inBounds(x, y)) return
     const dragState = activeTool.onStart?.(ctxFor(x, y))
@@ -273,6 +309,19 @@ export default function PixelCanvas({
   return (
     <div style={{ position: 'relative', width: w * scale, height: h * scale }}>
       <canvas
+        ref={onionRef}
+        width={w}
+        height={h}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: w * scale,
+          height: h * scale,
+          imageRendering: 'pixelated',
+          pointerEvents: 'none',
+        }}
+      />
+      <canvas
         ref={canvasRef}
         data-eyedropper-owner
         width={w}
@@ -287,7 +336,7 @@ export default function PixelCanvas({
           width: w * scale,
           height: h * scale,
           imageRendering: 'pixelated',
-          cursor: activeTool?.cursor ?? 'default',
+          cursor: playing ? 'default' : activeTool?.cursor ?? 'default',
           touchAction: 'none',
           display: 'block',
         }}
