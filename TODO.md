@@ -58,16 +58,11 @@ implemented; this file tracks what isn't, organized by area.
       color-stop editing UI in `ColorPanel.tsx`, not just a toggle.
 
 ## Color
-- [ ] Docked sidebar (`LayersPanel` + `ColorPanel` both pinned) can still clip
-      at the bottom on short viewports — the `<aside>` in `App.tsx` has no
-      `overflow-y-auto`/scroll fallback. Folding the Color panel's gradient
-      section (added) reduces this but doesn't eliminate it, since
-      `LayersPanel`'s height is unbounded and independent of it. Consider
-      `overflow-y-auto` on the `<aside>` or a per-panel max-height/scroll if
-      it recurs. Also, in some conditions the color palette grid itself
-      expands below the app's layout/viewport rather than staying contained.
-      Minor cosmetic bug, not urgent — needs a proper tweak later rather than
-      another band-aid.
+- [x] Docked sidebar overflow: `<aside>` in `App.tsx` now scrolls
+      (`overflow-y-auto`) instead of clipping/overflowing on short viewports,
+      and the palette swatch grid in `ColorPanel.tsx` is capped at `max-h-44
+      overflow-y-auto` (same pattern as `LayersPanel`'s layer list) instead of
+      growing unbounded.
 - [ ] Right-click paints with bg color instead of fg — deliberately deferred
       when fg/bg landed. Needs `event.button` handling in `PixelCanvas.tsx`
       (`handleDown`/`ctxFor` currently treat all clicks the same) and

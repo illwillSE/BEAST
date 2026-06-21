@@ -529,7 +529,7 @@ export default function App() {
           )}
         </div>
 
-        <aside className="bg-panel border-l border-divider flex flex-col shrink-0">
+        <aside className="bg-panel border-l border-divider flex flex-col shrink-0 overflow-y-auto">
           {sidebarPinned ? (
             <LayersPanel
               layers={activeSprite.layers}

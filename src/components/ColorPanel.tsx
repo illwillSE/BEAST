@@ -339,7 +339,7 @@ export default function ColorPanel({
 
         {/* swatch palette — drag to reorder, right-click to overwrite with
             the current color, hover for the delete button */}
-        <div className="grid grid-cols-6 gap-1.5">
+        <div className="grid grid-cols-6 gap-1.5 max-h-44 overflow-y-auto">
           {palette.map((c, i) => (
             <div key={i} className="relative group aspect-square">
               <button
