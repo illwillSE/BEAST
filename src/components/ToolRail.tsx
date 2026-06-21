@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Pencil, Eraser, PaintBucket, Pipette, Minus, Square, Circle,
@@ -40,6 +40,20 @@ const TOOLS: (ToolEntry | null)[] = [
   { id: 'move', label: 'Move', Icon: Move },
 ]
 
+// Which flyout group (if any) a tool id belongs to — a sub-group's id for
+// select/crop, or its own id for a variant tool like rect/ellipse.
+function groupForTool(id: string): string | null {
+  for (const t of TOOLS) {
+    if (!t) continue
+    if (t.sub) {
+      if (t.sub.some((s) => s.id === id)) return t.id
+    } else if (t.id === id && tools[t.id].variants) {
+      return t.id
+    }
+  }
+  return null
+}
+
 interface RailButtonProps {
   title: string
   Icon: Icon
@@ -54,6 +68,7 @@ function RailButton({ title, Icon, active, onClick, activeClass = 'bg-accent-dee
   return (
     <button
       title={title}
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       className={
         'grid place-items-center w-10 h-10 rounded border ' +
@@ -117,6 +132,14 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
   // collapses it; clicking the rail icon again pops it back out.
   const [openGroup, setOpenGroup] = useState<string | null>(null)
   const toggleGroup = (id: string) => setOpenGroup((g) => (g === id ? null : id))
+
+  // A shortcut key can switch the active tool out from under an open
+  // variant/sub flyout (e.g. circle's Outline/Filled popout) without ever
+  // touching the rail — close it then. Mirror's flyout isn't tied to `active`
+  // (it has no tool of its own), so it's left alone here.
+  useEffect(() => {
+    setOpenGroup((g) => (g === null || g === 'mirror' || g === groupForTool(active) ? g : null))
+  }, [active])
 
   return (
     <div className="flex flex-col items-center gap-1 p-2 bg-panel border-r border-divider shrink-0">
