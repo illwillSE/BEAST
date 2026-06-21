@@ -20,92 +20,145 @@ const TOOLS = [
   { id: 'rect', label: 'Rectangle', Icon: Square },
   { id: 'ellipse', label: 'Ellipse', Icon: Circle },
   null,
-  { id: 'select', label: 'Select', Icon: BoxSelect },
+  {
+    id: 'select', label: 'Select', Icon: BoxSelect,
+    sub: [
+      { id: 'select', label: 'Select', Icon: BoxSelect },
+      { id: 'crop', label: 'Crop', Icon: Crop },
+    ],
+  },
   { id: 'move', label: 'Move', Icon: Move },
-  null,
-  { id: 'crop', label: 'Crop', Icon: Crop },
 ]
 
+// A single rail icon — used standalone and as the trigger for a Flyout.
+function RailButton({ title, Icon, active, onClick, activeClass = 'bg-accent-deep/20 border-accent-deep text-accent-bright', filled }) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      className={
+        'grid place-items-center w-10 h-10 rounded border ' +
+        (active ? activeClass : 'border-transparent text-muted hover:text-ink hover:bg-surface-hover')
+      }
+    >
+      <Icon size={18} fill={filled ? 'currentColor' : 'none'} />
+    </button>
+  )
+}
+
+// Shared popout for every tool with sub-options (rect/ellipse fill style,
+// select/crop, mirror axes). Each item supplies its own onClick, so the
+// caller decides what selecting it does — including collapsing the flyout.
+function Flyout({ items, activeClass = 'bg-accent-deep/20 text-accent-bright' }) {
+  return (
+    <div className="absolute left-full top-0 ml-1 z-10 flex flex-col gap-0.5 p-1 bg-panel border border-divider rounded shadow-lg">
+      {items.map((it) => (
+        <button
+          key={it.id}
+          onClick={it.onClick}
+          className={
+            'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] whitespace-nowrap text-left ' +
+            (it.active ? activeClass : 'text-muted hover:text-ink hover:bg-surface-hover')
+          }
+        >
+          {it.Icon && <it.Icon size={13} />}
+          {it.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mirrorH, onMirrorV, onMirrorH }) {
-  const [mirrorMenuOpen, setMirrorMenuOpen] = useState(false)
+  // Which tool's flyout (if any) is popped out. Picking an item from a flyout
+  // collapses it; clicking the rail icon again pops it back out.
+  const [openGroup, setOpenGroup] = useState(null)
+  const toggleGroup = (id) => setOpenGroup((g) => (g === id ? null : id))
+
   return (
     <div className="flex flex-col items-center gap-1 p-2 bg-panel border-r border-divider shrink-0">
-      {TOOLS.map((t, i) =>
-        t === null ? (
-          <div key={`d${i}`} className="h-px w-7 bg-divider my-1" />
-        ) : (
-          <div key={t.id} className="relative">
-            <button
-              title={tools[t.id].key ? `${t.label} (${tools[t.id].key.toUpperCase()})` : t.label}
-              onClick={() => onPick(t.id)}
-              className={
-                'grid place-items-center w-10 h-10 rounded border ' +
-                (active === t.id
-                  ? 'bg-accent-deep/20 border-accent-deep text-accent-bright'
-                  : 'border-transparent text-muted hover:text-ink hover:bg-surface-hover')
-              }
-            >
-              <t.Icon size={18} />
-            </button>
+      {TOOLS.map((t, i) => {
+        if (t === null) return <div key={`d${i}`} className="h-px w-7 bg-divider my-1" />
 
-            {tools[t.id].variants && active === t.id && (
-              <div className="absolute left-full top-0 ml-1 z-10 flex flex-col gap-0.5 p-1 bg-panel border border-divider rounded shadow-lg">
-                {tools[t.id].variants.map(([label, val]) => (
-                  <button
-                    key={label}
-                    onClick={() => onFilled(t.id, val)}
-                    className={
-                      'px-2 py-1 rounded text-[11px] whitespace-nowrap text-left ' +
-                      ((filled[t.id] ?? false) === val
-                        ? 'bg-accent-deep/20 text-accent-bright'
-                        : 'text-muted hover:text-ink hover:bg-surface-hover')
-                    }
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
+        if (t.sub) {
+          const activeSub = t.sub.find((s) => s.id === active)
+          const shown = activeSub ?? t.sub[0]
+          return (
+            <div key={t.id} className="relative">
+              <RailButton
+                title={tools[shown.id].key ? `${shown.label} (${tools[shown.id].key.toUpperCase()})` : shown.label}
+                Icon={shown.Icon}
+                active={!!activeSub}
+                onClick={() => { onPick(shown.id); toggleGroup(t.id) }}
+              />
+              {openGroup === t.id && (
+                <Flyout
+                  items={t.sub.map((s) => ({
+                    id: s.id,
+                    label: s.label,
+                    Icon: s.Icon,
+                    active: active === s.id,
+                    onClick: () => { onPick(s.id); setOpenGroup(null) },
+                  }))}
+                />
+              )}
+            </div>
+          )
+        }
+
+        if (tools[t.id].variants) {
+          return (
+            <div key={t.id} className="relative">
+              <RailButton
+                title={tools[t.id].key ? `${t.label} (${tools[t.id].key.toUpperCase()})` : t.label}
+                Icon={t.Icon}
+                active={active === t.id}
+                filled={filled[t.id] ?? false}
+                onClick={() => { onPick(t.id); toggleGroup(t.id) }}
+              />
+              {openGroup === t.id && (
+                <Flyout
+                  items={tools[t.id].variants.map(([label, val]) => ({
+                    id: String(val),
+                    label,
+                    active: (filled[t.id] ?? false) === val,
+                    onClick: () => { onFilled(t.id, val); setOpenGroup(null) },
+                  }))}
+                />
+              )}
+            </div>
+          )
+        }
+
+        return (
+          <div key={t.id} className="relative">
+            <RailButton
+              title={tools[t.id].key ? `${t.label} (${tools[t.id].key.toUpperCase()})` : t.label}
+              Icon={t.Icon}
+              active={active === t.id}
+              onClick={() => { onPick(t.id); setOpenGroup(null) }}
+            />
           </div>
         )
-      )}
+      })}
 
       <div className="h-px w-7 bg-divider my-1" />
       <div className="relative">
-        <button
+        <RailButton
           title="Mirror"
-          onClick={() => setMirrorMenuOpen((o) => !o)}
-          className={
-            'grid place-items-center w-10 h-10 rounded border ' +
-            (mirrorV || mirrorH
-              ? 'bg-on/20 border-on text-on-bright'
-              : 'border-transparent text-muted hover:text-ink hover:bg-surface-hover')
-          }
-        >
-          <FlipHorizontal size={18} />
-        </button>
-
-        {mirrorMenuOpen && (
-          <div className="absolute left-full top-0 ml-1 z-10 flex flex-col gap-0.5 p-1 bg-panel border border-divider rounded shadow-lg">
-            <button
-              onClick={onMirrorV}
-              className={
-                'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] whitespace-nowrap text-left ' +
-                (mirrorV ? 'bg-on/20 text-on-bright' : 'text-muted hover:text-ink hover:bg-surface-hover')
-              }
-            >
-              <FlipHorizontal size={13} /> Vertical axis
-            </button>
-            <button
-              onClick={onMirrorH}
-              className={
-                'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] whitespace-nowrap text-left ' +
-                (mirrorH ? 'bg-on/20 text-on-bright' : 'text-muted hover:text-ink hover:bg-surface-hover')
-              }
-            >
-              <FlipVertical size={13} /> Horizontal axis
-            </button>
-          </div>
+          Icon={FlipHorizontal}
+          active={mirrorV || mirrorH}
+          activeClass="bg-on/20 border-on text-on-bright"
+          onClick={() => toggleGroup('mirror')}
+        />
+        {openGroup === 'mirror' && (
+          <Flyout
+            activeClass="bg-on/20 text-on-bright"
+            items={[
+              { id: 'v', label: 'Vertical axis', Icon: FlipHorizontal, active: mirrorV, onClick: () => { onMirrorV(); setOpenGroup(null) } },
+              { id: 'h', label: 'Horizontal axis', Icon: FlipVertical, active: mirrorH, onClick: () => { onMirrorH(); setOpenGroup(null) } },
+            ]}
+          />
         )}
       </div>
     </div>
