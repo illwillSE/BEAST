@@ -13,12 +13,15 @@ export type Point = [number, number]
 // A brush stamp shape — square/round fill the whole footprint, the line
 // shapes are a 1px-thick flat nib at a fixed orientation (calligraphy-style).
 export type BrushShape = 'square' | 'round' | 'line-h' | 'line-v' | 'line-diag1' | 'line-diag2'
+// How a layer's pixels combine with the composite below it (see compositeFrame).
+export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'add'
 
 export interface Layer {
   id: string
   name: string
   visible: boolean
   opacity: number
+  blendMode: BlendMode
   cells: Cell[]
 }
 
@@ -84,7 +87,7 @@ export function createCell(w: number, h: number): Cell {
 export function createLayer(w: number, h: number, frameCount: number, name: string): Layer {
   const cells: Cell[] = []
   for (let f = 0; f < frameCount; f++) cells.push(createCell(w, h))
-  return { id: uid('ly'), name, visible: true, opacity: 1, cells }
+  return { id: uid('ly'), name, visible: true, opacity: 1, blendMode: 'normal', cells }
 }
 
 export function createSprite({
@@ -225,6 +228,7 @@ export function duplicateLayer(doc: Doc, spriteId: string, layerId: string): Doc
       name: src.name + ' copy',
       visible: src.visible,
       opacity: src.opacity,
+      blendMode: src.blendMode,
       cells: src.cells.map((c) => c.slice()),
     }
     const layers = [...sp.layers]
@@ -252,6 +256,20 @@ export function moveLayer(doc: Doc, spriteId: string, layerId: string, delta: nu
   })
 }
 
+// Lift-and-insert reorder for layer drag-and-drop: the layer at `from` ends up
+// at index `to` (both bottom-to-top indices, matching sp.layers order), with
+// layers in between shifting to make room — unlike moveLayer's adjacent swap,
+// used by the ▲▼ buttons. Mirrors reorderFrame.
+export function reorderLayer(doc: Doc, spriteId: string, from: number, to: number): Doc {
+  return mapSprite(doc, spriteId, (sp) => {
+    if (from === to || from < 0 || from >= sp.layers.length || to < 0 || to >= sp.layers.length) return sp
+    const layers = [...sp.layers]
+    const [moved] = layers.splice(from, 1)
+    layers.splice(to, 0, moved)
+    return { ...sp, layers }
+  })
+}
+
 export function setLayerVisible(doc: Doc, spriteId: string, layerId: string, visible: boolean): Doc {
   return mapSprite(doc, spriteId, (sp) => ({
     ...sp,
@@ -263,6 +281,13 @@ export function setLayerOpacity(doc: Doc, spriteId: string, layerId: string, opa
   return mapSprite(doc, spriteId, (sp) => ({
     ...sp,
     layers: sp.layers.map((l) => (l.id === layerId ? { ...l, opacity } : l)),
+  }))
+}
+
+export function setLayerBlendMode(doc: Doc, spriteId: string, layerId: string, blendMode: BlendMode): Doc {
+  return mapSprite(doc, spriteId, (sp) => ({
+    ...sp,
+    layers: sp.layers.map((l) => (l.id === layerId ? { ...l, blendMode } : l)),
   }))
 }
 
@@ -578,9 +603,28 @@ export function pasteRegion(cell: Cell, w: number, h: number, rx: number, ry: nu
   }
 }
 
+// Per-channel blend function (0-255 in/out) for non-'normal' blend modes —
+// see blendChannel below for the alpha-compositing step that wraps this.
+function blendChannel(mode: BlendMode, cs: number, cb: number): number {
+  switch (mode) {
+    case 'multiply':
+      return (cs * cb) / 255
+    case 'screen':
+      return 255 - ((255 - cs) * (255 - cb)) / 255
+    case 'overlay':
+      return cb <= 127.5 ? (2 * cs * cb) / 255 : 255 - (2 * (255 - cs) * (255 - cb)) / 255
+    case 'add':
+      return Math.min(cs + cb, 255)
+    default:
+      return cs
+  }
+}
+
 // ── rendering ────────────────────────────────────────────────────────────
 // Composite a sprite's frame across its visible layers into `imageData`
-// (which must be w*h). src-over, honoring per-layer opacity.
+// (which must be w*h). src-over, honoring per-layer opacity and blend mode
+// (W3C compositing: blend the source against the backdrop, then alpha-mix
+// the blended color in with the usual src-over weights).
 export function compositeFrame(sprite: Sprite, frameIndex: number, imageData: ImageData) {
   const out = imageData.data
   out.fill(0)
@@ -588,15 +632,19 @@ export function compositeFrame(sprite: Sprite, frameIndex: number, imageData: Im
     if (!layer.visible) continue
     const cell = layer.cells[frameIndex]
     const la = layer.opacity
+    const mode = layer.blendMode
     for (let i = 0; i < out.length; i += 4) {
       const sa = (cell[i + 3] / 255) * la
       if (sa === 0) continue
       const da = out[i + 3] / 255
       const oa = sa + da * (1 - sa)
       if (oa === 0) continue
-      out[i] = (cell[i] * sa + out[i] * da * (1 - sa)) / oa
-      out[i + 1] = (cell[i + 1] * sa + out[i + 1] * da * (1 - sa)) / oa
-      out[i + 2] = (cell[i + 2] * sa + out[i + 2] * da * (1 - sa)) / oa
+      const cr = mode === 'normal' ? cell[i] : (1 - da) * cell[i] + da * blendChannel(mode, cell[i], out[i])
+      const cg = mode === 'normal' ? cell[i + 1] : (1 - da) * cell[i + 1] + da * blendChannel(mode, cell[i + 1], out[i + 1])
+      const cbl = mode === 'normal' ? cell[i + 2] : (1 - da) * cell[i + 2] + da * blendChannel(mode, cell[i + 2], out[i + 2])
+      out[i] = (cr * sa + out[i] * da * (1 - sa)) / oa
+      out[i + 1] = (cg * sa + out[i + 1] * da * (1 - sa)) / oa
+      out[i + 2] = (cbl * sa + out[i + 2] * da * (1 - sa)) / oa
       out[i + 3] = oa * 255
     }
   }

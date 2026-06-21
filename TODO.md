@@ -82,9 +82,12 @@ implemented; this file tracks what isn't, organized by area.
       for now.
 
 ## Layers
-- [ ] Drag-and-drop reordering — swap layer stack order by dragging a row,
+- [x] Drag-and-drop reordering — swap layer stack order by dragging a row,
       instead of (or in addition to) the move up/down buttons.
-- [ ] Layer mix option.
+- [x] Layer blend modes: Normal, Multiply, Screen, Overlay, Add. Composited
+      per-layer in `compositeFrame` (`document/model.ts`). UI: a mode
+      `<select>` docked at the bottom of `LayersPanel.tsx`, next to the
+      opacity slider, editing the selected layer.
 
 ## Sprites
 

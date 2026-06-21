@@ -26,8 +26,10 @@ import {
   duplicateLayer,
   removeLayer,
   moveLayer,
+  reorderLayer,
   setLayerVisible,
   setLayerOpacity,
+  setLayerBlendMode,
   addFrame,
   duplicateFrame,
   removeFrame,
@@ -41,7 +43,7 @@ import {
   setPalette,
   reseedUid,
 } from './model.js'
-import type { BrushShape, Cell, CellTarget, CreateSpriteOpts, Doc, RGBA, Sprite } from './model.js'
+import type { BlendMode, BrushShape, Cell, CellTarget, CreateSpriteOpts, Doc, RGBA, Sprite } from './model.js'
 
 // An open gesture (STROKE_BEGIN…STROKE_END). `committed` flips true once the
 // first edit of the gesture has snapshotted history, so later edits in the same
@@ -81,8 +83,10 @@ export type Action =
   | { type: 'DUPLICATE_LAYER'; spriteId: string; layerId: string }
   | { type: 'REMOVE_LAYER'; spriteId: string; layerId: string }
   | { type: 'MOVE_LAYER'; spriteId: string; layerId: string; delta: number }
+  | { type: 'REORDER_LAYER'; spriteId: string; from: number; to: number }
   | { type: 'SET_LAYER_VISIBLE'; spriteId: string; layerId: string; visible: boolean }
   | { type: 'SET_LAYER_OPACITY'; spriteId: string; layerId: string; opacity: number }
+  | { type: 'SET_LAYER_BLEND_MODE'; spriteId: string; layerId: string; blendMode: BlendMode }
   | { type: 'ADD_FRAME'; spriteId: string; atIndex: number }
   | { type: 'DUPLICATE_FRAME'; spriteId: string; frameIndex: number }
   | { type: 'REMOVE_FRAME'; spriteId: string; frameIndex: number }
@@ -222,6 +226,9 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
     case 'MOVE_LAYER':
       return editDoc(state, (doc) => moveLayer(doc, action.spriteId, action.layerId, action.delta))
 
+    case 'REORDER_LAYER':
+      return editDoc(state, (doc) => reorderLayer(doc, action.spriteId, action.from, action.to))
+
     case 'SET_LAYER_VISIBLE':
       return editDoc(state, (doc) => setLayerVisible(doc, action.spriteId, action.layerId, action.visible))
 
@@ -229,6 +236,9 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
     // by STROKE_BEGIN/END from the panel, so the drag is a single undo step.
     case 'SET_LAYER_OPACITY':
       return editDoc(state, (doc) => setLayerOpacity(doc, action.spriteId, action.layerId, action.opacity))
+
+    case 'SET_LAYER_BLEND_MODE':
+      return editDoc(state, (doc) => setLayerBlendMode(doc, action.spriteId, action.layerId, action.blendMode))
 
     case 'ADD_FRAME':
       return editDoc(state, (doc) => addFrame(doc, action.spriteId, action.atIndex))

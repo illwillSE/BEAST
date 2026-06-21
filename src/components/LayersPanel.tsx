@@ -2,8 +2,16 @@ import { useEffect, useState } from 'react'
 import { Plus, Copy, Trash2, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react'
 import PinToggle from './PinToggle.jsx'
 import SpritePreview from './SpritePreview.jsx'
-import type { Layer } from '../document/model.js'
+import type { BlendMode, Layer } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
+
+const BLEND_MODES: { value: BlendMode; label: string }[] = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'multiply', label: 'Multiply' },
+  { value: 'screen', label: 'Screen' },
+  { value: 'overlay', label: 'Overlay' },
+  { value: 'add', label: 'Add' },
+]
 
 interface LayersPanelProps {
   layers: Layer[]
@@ -22,9 +30,9 @@ interface LayersPanelProps {
 // Layer stack for the selected sprite. Listed top-of-stack first (the model
 // stores bottom-to-top). Selecting a layer makes it the paint target; the
 // header buttons add/duplicate/move the selected layer; delete lives on each
-// row (hover to reveal). Each row's eye toggles that layer's visibility
-// independent of selection. The opacity slider edits the selected layer,
-// coalescing one drag into one undo step.
+// row (hover to reveal); dragging a row reorders the stack. Each row's eye
+// toggles that layer's visibility independent of selection. The opacity
+// slider edits the selected layer, coalescing one drag into one undo step.
 export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w, h, frameIndex, dispatch, pinned, onTogglePin, onPeekSelect }: LayersPanelProps) {
   const ordered = [...layers].reverse()
   const selected = layers.find((l) => l.id === selectedId)
@@ -36,6 +44,16 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
   const removeLayer = (layerId: string) => layers.length > 1 && dispatch({ type: 'REMOVE_LAYER', spriteId, layerId })
   const moveLayer = (delta: number) => selected && dispatch({ type: 'MOVE_LAYER', spriteId, layerId: selected.id, delta })
   const toggleVisible = (l: Layer) => dispatch({ type: 'SET_LAYER_VISIBLE', spriteId, layerId: l.id, visible: !l.visible })
+
+  // `ordered` is top-of-stack first (reverse of the model's bottom-to-top
+  // `layers`), so drag indices need flipping before they reach REORDER_LAYER,
+  // which operates on model (bottom-to-top) indices.
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const reorderLayer = (fromUi: number, toUi: number) => {
+    if (fromUi === toUi) return
+    const last = layers.length - 1
+    dispatch({ type: 'REORDER_LAYER', spriteId, from: last - fromUi, to: last - toUi })
+  }
 
   // Shift+click an eye to solo that layer (hide all others), remembering prior
   // visibility so it can be restored by shift+clicking the soloed layer again
@@ -104,14 +122,25 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
       </div>
 
       <div className="p-2 flex flex-col gap-1 max-h-44 overflow-y-auto">
-        {ordered.map((l) => {
+        {ordered.map((l, i) => {
           const isSelected = l.id === selectedId
           return (
             <div
               key={l.id}
+              draggable
+              onDragStart={() => setDragIndex(i)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (dragIndex === null) return
+                reorderLayer(dragIndex, i)
+                setDragIndex(null)
+              }}
+              onDragEnd={() => setDragIndex(null)}
               className={
                 'group flex items-center gap-2 p-1.5 rounded border ' +
-                (isSelected ? 'bg-accent-deep/15 border-accent-deep/50' : 'border-transparent hover:bg-surface-hover')
+                (isSelected ? 'bg-accent-deep/15 border-accent-deep/50' : 'border-transparent hover:bg-surface-hover') +
+                (dragIndex === i ? ' opacity-40' : '')
               }
             >
               <button
@@ -143,6 +172,23 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
             </div>
           )
         })}
+      </div>
+
+      <div className="px-3 pb-1.5 flex items-center gap-2">
+        <span className="text-[11px] text-faint w-12">Blend</span>
+        <select
+          value={selected?.blendMode ?? 'normal'}
+          disabled={!selected}
+          onChange={(e) =>
+            selected &&
+            dispatch({ type: 'SET_LAYER_BLEND_MODE', spriteId, layerId: selected.id, blendMode: e.target.value as BlendMode })
+          }
+          className="flex-1 bg-well text-[11px] text-ink-soft rounded px-1.5 py-0.5 border border-edge disabled:opacity-50"
+        >
+          {BLEND_MODES.map((m) => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
       </div>
 
       <div className="px-3 pb-2 flex items-center gap-2">

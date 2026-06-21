@@ -6,7 +6,7 @@
 // like BLAST's sample cache.
 
 import { DEFAULT_PALETTE } from '../document/model.js'
-import type { Cell, Doc } from '../document/model.js'
+import type { BlendMode, Cell, Doc } from '../document/model.js'
 
 const VERSION = 1
 
@@ -15,6 +15,7 @@ interface ManifestLayer {
   name: string
   visible: boolean
   opacity: number
+  blendMode?: BlendMode
   cells: string[]
 }
 
@@ -66,6 +67,7 @@ export function serializeProject(doc: Doc): { manifest: Manifest; blobs: Map<str
       name: ly.name,
       visible: ly.visible,
       opacity: ly.opacity,
+      blendMode: ly.blendMode,
       cells: ly.cells.map((cell) => {
         const hash = hashCell(cell)
         if (!blobs.has(hash)) blobs.set(hash, cell)
@@ -110,6 +112,7 @@ export function deserializeProject({
           name: ly.name,
           visible: ly.visible,
           opacity: ly.opacity,
+          blendMode: ly.blendMode ?? 'normal',
           cells: ly.cells.map(cellFor),
         })),
       }
