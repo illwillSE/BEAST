@@ -135,6 +135,17 @@ export default function PixelCanvas({
       }
     }
 
+    if (preview?.kind === 'line') {
+      ctx.strokeStyle = getColor('accent-bright')
+      ctx.lineWidth = 1
+      ctx.setLineDash([4, 3])
+      ctx.beginPath()
+      ctx.moveTo(preview.x0 * scale + scale / 2, preview.y0 * scale + scale / 2)
+      ctx.lineTo(preview.x1 * scale + scale / 2, preview.y1 * scale + scale / 2)
+      ctx.stroke()
+      return
+    }
+
     const rect = preview?.kind === 'marquee' ? preview.rect : !floating && (selection || cropPending) ? (selection || cropPending) : null
     if (!rect) return
     ctx.strokeStyle = getColor('accent-bright')

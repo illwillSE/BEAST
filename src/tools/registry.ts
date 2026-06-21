@@ -55,10 +55,11 @@ export interface CropPending extends Rect {
 }
 
 // Live overlay the active tool asks PixelCanvas to draw mid-gesture: a pixel
-// shape preview, or the dashed marquee for select/crop.
+// shape preview, the dashed marquee for select/crop, or a dashed line (gradient).
 export type Preview =
   | { kind: 'pixels'; points: Point[]; color: string }
   | { kind: 'marquee'; rect: Rect }
+  | { kind: 'line'; x0: number; y0: number; x1: number; y1: number }
 
 // An [x, y] cell coordinate as the gesture loop threads it (the previous cell).
 interface Coord {
@@ -160,7 +161,7 @@ export const tools: Record<string, Tool<any>> = {
       return { x0: ctx.x, y0: ctx.y }
     },
     onDrag(ctx, _prev, start) {
-      ctx.setPreview({ kind: 'pixels', points: linePoints(start.x0, start.y0, ctx.x, ctx.y), color: ctx.fgColor })
+      ctx.setPreview({ kind: 'line', x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y })
     },
     onEnd(ctx, start) {
       commitBracketed(ctx, {
