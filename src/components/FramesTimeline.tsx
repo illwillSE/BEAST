@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Play, Pause, Plus, Copy, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Play, Pause, Plus, Copy, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import SpritePreview from './SpritePreview.jsx'
 import PinToggle from './PinToggle.jsx'
 import type { Sprite } from '../document/model.js'
@@ -16,8 +16,6 @@ interface FramesTimelineProps {
   onTogglePlay: () => void
   fps: number
   onFps: (fps: number) => void
-  onionSkin: boolean
-  onToggleOnionSkin: () => void
   pinned: boolean
   onTogglePin: () => void
   onPeekSelect?: () => void
@@ -32,15 +30,15 @@ function reorderedIndex(p: number, from: number, to: number) {
   return r + (r >= to ? 1 : 0)
 }
 
-// Bottom timeline: animation frames + playback controls (loop), global FPS, and
-// an onion-skin toggle. Selecting a frame makes it the paint target; the side
-// buttons add/duplicate/move the active frame and follow it with selection;
-// delete lives on each thumbnail (hover to reveal); dragging a thumbnail
-// reorders frames. Each frame thumbnail shows that frame composited across
-// the sprite's layers.
+// Bottom timeline: animation frames + playback controls (loop) and global FPS
+// (the onion-skin toggle lives in the Settings modal). Selecting a frame
+// makes it the paint target; the side buttons add/duplicate/move the active
+// frame and follow it with selection; delete lives on each thumbnail (hover
+// to reveal); dragging a thumbnail reorders frames. Each frame thumbnail
+// shows that frame composited across the sprite's layers.
 export default function FramesTimeline({
   sprite, frameCount, active, onPick, spriteId, dispatch,
-  playing, onTogglePlay, fps, onFps, onionSkin, onToggleOnionSkin,
+  playing, onTogglePlay, fps, onFps,
   pinned, onTogglePin, onPeekSelect,
 }: FramesTimelineProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null)
@@ -100,20 +98,6 @@ export default function FramesTimeline({
           />
           <span className="text-[11px] text-text tabular-nums w-5">{fps}</span>
         </div>
-        <button
-          onClick={onToggleOnionSkin}
-          className={'flex items-center gap-1.5 text-[11px] select-none ' + (onionSkin ? 'text-muted' : 'text-faint')}
-        >
-          <span
-            className={
-              'grid place-items-center w-4 h-4 rounded-sm border ' +
-              (onionSkin ? 'bg-accent-deep/20 border-accent-deep text-accent-bright' : 'border-edge text-faint')
-            }
-          >
-            <Eye size={11} />
-          </span>
-          Onion skin
-        </button>
       </div>
 
       {/* frame strip */}

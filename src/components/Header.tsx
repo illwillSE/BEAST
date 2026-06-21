@@ -8,11 +8,12 @@ interface HeaderProps {
   onOpen: (file: File) => void
   previewOpen: boolean
   onTogglePreview: () => void
+  onOpenSettings: () => void
 }
 
-// Top chrome: brand, current sprite name, undo/redo, open/save/export. Save and
-// Open are wired (ZIP project); undo/redo/export/settings are still placeholders.
-export default function Header({ projectName, onSave, onOpen, previewOpen, onTogglePreview }: HeaderProps) {
+// Top chrome: brand, current sprite name, undo/redo, open/save/export. Save,
+// Open, and Settings are wired; undo/redo/export are still placeholders.
+export default function Header({ projectName, onSave, onOpen, previewOpen, onTogglePreview, onOpenSettings }: HeaderProps) {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const pickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,7 +62,7 @@ export default function Header({ projectName, onSave, onOpen, previewOpen, onTog
       <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm bg-accent-deep/15 hover:bg-accent-deep/25 text-accent-bright border border-accent-deep/40">
         <Download size={15} /> Export
       </button>
-      <IconBtn title="Settings"><Settings size={16} /></IconBtn>
+      <IconBtn title="Settings" onClick={onOpenSettings}><Settings size={16} /></IconBtn>
     </header>
   )
 }

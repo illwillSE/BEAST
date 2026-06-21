@@ -6,6 +6,7 @@ import CanvasStage from './components/CanvasStage.jsx'
 import LayersPanel from './components/LayersPanel.jsx'
 import ColorPanel, { DEFAULT_PALETTE } from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
+import SettingsModal from './components/SettingsModal.jsx'
 import FoldTab from './components/FoldTab.jsx'
 import EyedropperMagnifier from './components/EyedropperMagnifier.jsx'
 import useFoldable from './hooks/useFoldable.js'
@@ -108,7 +109,8 @@ export default function App() {
   const [frameIndex, setFrameIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [fps, setFps] = useState(12)
-  const [onionSkin, setOnionSkin] = useState(false)
+  const [onionSkin, setOnionSkin] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const activeSprite = doc.sprites.find((s) => s.id === spriteId) ?? doc.sprites[0]
   const safeLayerId = activeSprite.layers.some((l) => l.id === layerId) ? layerId : topLayer(activeSprite).id
@@ -312,6 +314,7 @@ export default function App() {
         onOpen={handleOpen}
         previewOpen={previewOpen}
         onTogglePreview={() => setPreviewOpen((o) => !o)}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <div className="flex-1 flex min-h-0">
@@ -469,8 +472,6 @@ export default function App() {
           onTogglePlay={() => setPlaying((p) => !p)}
           fps={fps}
           onFps={setFps}
-          onionSkin={onionSkin}
-          onToggleOnionSkin={() => setOnionSkin((o) => !o)}
           pinned
           onTogglePin={framesFold.togglePin}
           onPeekSelect={undefined}
@@ -491,8 +492,6 @@ export default function App() {
                 onTogglePlay={() => setPlaying((p) => !p)}
                 fps={fps}
                 onFps={setFps}
-                onionSkin={onionSkin}
-                onToggleOnionSkin={() => setOnionSkin((o) => !o)}
                 pinned={false}
                 onTogglePin={framesFold.togglePin}
                 onPeekSelect={framesFold.closePeek}
@@ -503,6 +502,13 @@ export default function App() {
       )}
 
       {globalMagnifier && <EyedropperMagnifier {...globalMagnifier} />}
+
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onionSkin={onionSkin}
+        onToggleOnionSkin={() => setOnionSkin((o) => !o)}
+      />
     </div>
   )
 }
