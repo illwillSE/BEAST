@@ -5,12 +5,12 @@ import { useEffect, useRef, useState } from 'react'
 // (its primary "select" action).
 export default function usePeek() {
   const [peeking, setPeeking] = useState(false)
-  const ref = useRef(null)
+  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!peeking) return
-    const onPointerDown = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setPeeking(false)
+    const onPointerDown = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setPeeking(false)
     }
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)

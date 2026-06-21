@@ -1,15 +1,25 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import {
   Pencil, Eraser, PaintBucket, Pipette, Minus, Square, Circle,
   BoxSelect, Move, FlipHorizontal, FlipVertical, Blend, Crop,
 } from 'lucide-react'
 import { tools } from '../tools/registry.js'
 
+type Icon = typeof Pencil
+
+interface ToolEntry {
+  id: string
+  label: string
+  Icon: Icon
+  sub?: ToolEntry[]
+}
+
 // v1 tool set, rendered from a static list (see src/tools/registry.js for the
 // behavior side of each entry, including each tool's shortcut `key`). Mirror
 // is a toggle layered on other tools rather than its own tool, so it lives
 // outside this list.
-const TOOLS = [
+const TOOLS: (ToolEntry | null)[] = [
   { id: 'pencil', label: 'Pencil', Icon: Pencil },
   { id: 'eraser', label: 'Eraser', Icon: Eraser },
   { id: 'fill', label: 'Fill', Icon: PaintBucket },
@@ -30,8 +40,17 @@ const TOOLS = [
   { id: 'move', label: 'Move', Icon: Move },
 ]
 
+interface RailButtonProps {
+  title: string
+  Icon: Icon
+  active: boolean
+  onClick: () => void
+  activeClass?: string
+  filled?: boolean
+}
+
 // A single rail icon — used standalone and as the trigger for a Flyout.
-function RailButton({ title, Icon, active, onClick, activeClass = 'bg-accent-deep/20 border-accent-deep text-accent-bright', filled }) {
+function RailButton({ title, Icon, active, onClick, activeClass = 'bg-accent-deep/20 border-accent-deep text-accent-bright', filled }: RailButtonProps) {
   return (
     <button
       title={title}
@@ -46,10 +65,23 @@ function RailButton({ title, Icon, active, onClick, activeClass = 'bg-accent-dee
   )
 }
 
+interface FlyoutItem {
+  id: string
+  label: string
+  Icon?: Icon
+  active: boolean
+  onClick: () => void
+}
+
+interface FlyoutProps {
+  items: FlyoutItem[]
+  activeClass?: string
+}
+
 // Shared popout for every tool with sub-options (rect/ellipse fill style,
 // select/crop, mirror axes). Each item supplies its own onClick, so the
 // caller decides what selecting it does — including collapsing the flyout.
-function Flyout({ items, activeClass = 'bg-accent-deep/20 text-accent-bright' }) {
+function Flyout({ items, activeClass = 'bg-accent-deep/20 text-accent-bright' }: FlyoutProps) {
   return (
     <div className="absolute left-full top-0 ml-1 z-10 flex flex-col gap-0.5 p-1 bg-panel border border-divider rounded shadow-lg">
       {items.map((it) => (
@@ -69,11 +101,22 @@ function Flyout({ items, activeClass = 'bg-accent-deep/20 text-accent-bright' })
   )
 }
 
-export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mirrorH, onMirrorV, onMirrorH }) {
+interface ToolRailProps {
+  active: string
+  onPick: (id: string) => void
+  filled: Record<string, boolean>
+  onFilled: (id: string, value: boolean) => void
+  mirrorV: boolean
+  mirrorH: boolean
+  onMirrorV: () => void
+  onMirrorH: () => void
+}
+
+export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mirrorH, onMirrorV, onMirrorH }: ToolRailProps): ReactNode {
   // Which tool's flyout (if any) is popped out. Picking an item from a flyout
   // collapses it; clicking the rail icon again pops it back out.
-  const [openGroup, setOpenGroup] = useState(null)
-  const toggleGroup = (id) => setOpenGroup((g) => (g === id ? null : id))
+  const [openGroup, setOpenGroup] = useState<string | null>(null)
+  const toggleGroup = (id: string) => setOpenGroup((g) => (g === id ? null : id))
 
   return (
     <div className="flex flex-col items-center gap-1 p-2 bg-panel border-r border-divider shrink-0">
@@ -83,10 +126,11 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
         if (t.sub) {
           const activeSub = t.sub.find((s) => s.id === active)
           const shown = activeSub ?? t.sub[0]
+          const shownKey = tools[shown.id].key
           return (
             <div key={t.id} className="relative">
               <RailButton
-                title={tools[shown.id].key ? `${shown.label} (${tools[shown.id].key.toUpperCase()})` : shown.label}
+                title={shownKey ? `${shown.label} (${shownKey.toUpperCase()})` : shown.label}
                 Icon={shown.Icon}
                 active={!!activeSub}
                 onClick={() => { onPick(shown.id); toggleGroup(t.id) }}
@@ -106,11 +150,13 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
           )
         }
 
-        if (tools[t.id].variants) {
+        const variants = tools[t.id].variants
+        if (variants) {
+          const key = tools[t.id].key
           return (
             <div key={t.id} className="relative">
               <RailButton
-                title={tools[t.id].key ? `${t.label} (${tools[t.id].key.toUpperCase()})` : t.label}
+                title={key ? `${t.label} (${key.toUpperCase()})` : t.label}
                 Icon={t.Icon}
                 active={active === t.id}
                 filled={filled[t.id] ?? false}
@@ -118,7 +164,7 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
               />
               {openGroup === t.id && (
                 <Flyout
-                  items={tools[t.id].variants.map(([label, val]) => ({
+                  items={variants.map(([label, val]) => ({
                     id: String(val),
                     label,
                     active: (filled[t.id] ?? false) === val,
@@ -130,10 +176,11 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
           )
         }
 
+        const plainKey = tools[t.id].key
         return (
           <div key={t.id} className="relative">
             <RailButton
-              title={tools[t.id].key ? `${t.label} (${tools[t.id].key.toUpperCase()})` : t.label}
+              title={plainKey ? `${t.label} (${plainKey.toUpperCase()})` : t.label}
               Icon={t.Icon}
               active={active === t.id}
               onClick={() => { onPick(t.id); setOpenGroup(null) }}

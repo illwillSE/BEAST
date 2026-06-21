@@ -4,6 +4,18 @@ import NewSpriteDialog from './NewSpriteDialog.jsx'
 import ResizeCanvasDialog from './ResizeCanvasDialog.jsx'
 import SpritePreview from './SpritePreview.jsx'
 import PinToggle from './PinToggle.jsx'
+import type { Sprite } from '../document/model.js'
+import type { Action } from '../document/reducer.js'
+
+interface SpriteListProps {
+  sprites: Sprite[]
+  selectedId: string
+  onSelect: (id: string) => void
+  dispatch: (action: Action) => void
+  pinned: boolean
+  onTogglePin: () => void
+  onPeekSelect?: () => void
+}
 
 // A BEAST project holds many sprites (like BLAST holds many sounds). Selecting
 // one makes it the paint target; the header buttons add/move the selected
@@ -13,8 +25,8 @@ import PinToggle from './PinToggle.jsx'
 // resized via the Crop tool (drag a rect on the canvas, tools/registry.js) or
 // by double-clicking a block's W×H label, which opens the Resize dialog
 // (explicit W×H + anchor).
-export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pinned, onTogglePin, onPeekSelect }) {
-  const [editingId, setEditingId] = useState(null)
+export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pinned, onTogglePin, onPeekSelect }: SpriteListProps) {
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [newSpriteOpen, setNewSpriteOpen] = useState(false)
   const [resizeOpen, setResizeOpen] = useState(false)
@@ -22,21 +34,21 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pi
   const selectedIndex = sprites.findIndex((s) => s.id === selectedId)
   const selectedSprite = sprites.find((s) => s.id === selectedId)
 
-  const createSprite = (w, h) => {
+  const createSprite = (w: number, h: number) => {
     dispatch({ type: 'ADD_SPRITE', opts: { name: `Sprite ${sprites.length + 1}`, w, h } })
     setNewSpriteOpen(false)
   }
-  const resizeSprite = (x, y, w, h) => {
-    dispatch({ type: 'CROP_SPRITE', spriteId: selectedSprite.id, x, y, w, h })
+  const resizeSprite = (x: number, y: number, w: number, h: number) => {
+    dispatch({ type: 'CROP_SPRITE', spriteId: selectedSprite!.id, x, y, w, h })
     setResizeOpen(false)
   }
-  const removeSprite = (spriteId) => sprites.length > 1 && dispatch({ type: 'REMOVE_SPRITE', spriteId })
-  const moveSprite = (delta) => selectedId && dispatch({ type: 'MOVE_SPRITE', spriteId: selectedId, delta })
+  const removeSprite = (spriteId: string) => sprites.length > 1 && dispatch({ type: 'REMOVE_SPRITE', spriteId })
+  const moveSprite = (delta: number) => selectedId && dispatch({ type: 'MOVE_SPRITE', spriteId: selectedId, delta })
 
-  const startRename = (s) => { setEditingId(s.id); setEditValue(s.name) }
+  const startRename = (s: Sprite) => { setEditingId(s.id); setEditValue(s.name) }
   const commitRename = () => {
     const name = editValue.trim()
-    if (name) dispatch({ type: 'RENAME_SPRITE', spriteId: editingId, name })
+    if (name) dispatch({ type: 'RENAME_SPRITE', spriteId: editingId!, name })
     setEditingId(null)
   }
 

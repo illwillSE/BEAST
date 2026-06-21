@@ -3,12 +3,13 @@
 
 import JSZip from 'jszip'
 import { serializeProject, deserializeProject } from './serialize.js'
+import type { Doc } from '../document/model.js'
 
-export async function projectToZipBlob(doc) {
+export async function projectToZipBlob(doc: Doc): Promise<Blob> {
   const { manifest, blobs } = serializeProject(doc)
   const zip = new JSZip()
   zip.file('manifest.json', JSON.stringify(manifest))
-  const cells = zip.folder('cells')
+  const cells = zip.folder('cells')!
   // JSZip accepts Uint8Array but not Uint8ClampedArray, so view the same bytes.
   for (const [hash, buf] of blobs) {
     cells.file(hash + '.bin', new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength))
@@ -16,13 +17,13 @@ export async function projectToZipBlob(doc) {
   return zip.generateAsync({ type: 'blob' })
 }
 
-export async function projectFromZipFile(file) {
+export async function projectFromZipFile(file: File | Blob): Promise<Doc> {
   const zip = await JSZip.loadAsync(file)
   const manifestFile = zip.file('manifest.json')
   if (!manifestFile) throw new Error('Not a BEAST project: manifest.json missing')
   const manifest = JSON.parse(await manifestFile.async('string'))
 
-  const blobs = new Map()
+  const blobs = new Map<string, Uint8Array>()
   const entries = zip.folder('cells')?.file(/\.bin$/) ?? []
   for (const entry of entries) {
     const hash = entry.name.replace(/^cells\//, '').replace(/\.bin$/, '')
@@ -31,7 +32,7 @@ export async function projectFromZipFile(file) {
   return deserializeProject({ manifest, blobs })
 }
 
-export function downloadBlob(blob, filename) {
+export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

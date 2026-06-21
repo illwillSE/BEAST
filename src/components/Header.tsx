@@ -1,12 +1,21 @@
 import { useRef } from 'react'
+import type { ReactNode } from 'react'
 import { Undo2, Redo2, FolderOpen, Save, Download, Settings, ChevronDown, ScanEye } from 'lucide-react'
+
+interface HeaderProps {
+  projectName: string
+  onSave: () => void
+  onOpen: (file: File) => void
+  previewOpen: boolean
+  onTogglePreview: () => void
+}
 
 // Top chrome: brand, current sprite name, undo/redo, open/save/export. Save and
 // Open are wired (ZIP project); undo/redo/export/settings are still placeholders.
-export default function Header({ projectName, onSave, onOpen, previewOpen, onTogglePreview }) {
-  const fileRef = useRef(null)
+export default function Header({ projectName, onSave, onOpen, previewOpen, onTogglePreview }: HeaderProps) {
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  const pickFile = (e) => {
+  const pickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = '' // allow re-opening the same file
     if (file) onOpen(file)
@@ -38,7 +47,7 @@ export default function Header({ projectName, onSave, onOpen, previewOpen, onTog
 
       <input ref={fileRef} type="file" accept=".zip" className="hidden" onChange={pickFile} />
       <button
-        onClick={() => fileRef.current.click()}
+        onClick={() => fileRef.current?.click()}
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm bg-surface hover:bg-surface-hover text-ink-soft"
       >
         <FolderOpen size={15} /> Open
@@ -57,7 +66,14 @@ export default function Header({ projectName, onSave, onOpen, previewOpen, onTog
   )
 }
 
-function IconBtn({ title, active, onClick, children }) {
+interface IconBtnProps {
+  title: string
+  active?: boolean
+  onClick?: () => void
+  children: ReactNode
+}
+
+function IconBtn({ title, active, onClick, children }: IconBtnProps) {
   return (
     <button
       title={title}

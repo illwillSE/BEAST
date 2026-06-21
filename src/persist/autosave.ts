@@ -4,15 +4,16 @@
 // failures are swallowed so persistence never breaks editing.
 
 import { serializeProject, deserializeProject } from './serialize.js'
+import type { Doc, Cell } from '../document/model.js'
 
 const MANIFEST_KEY = 'beast.autosave.manifest'
 const DB_NAME = 'beast'
 const STORE = 'cells'
 
 // Hashes already written this session, so repeat autosaves only put new blobs.
-const persisted = new Set()
+const persisted = new Set<string>()
 
-function openDB() {
+function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1)
     req.onupgradeneeded = () => req.result.createObjectStore(STORE)
@@ -21,7 +22,7 @@ function openDB() {
   })
 }
 
-function putBlobs(db, entries) {
+function putBlobs(db: IDBDatabase, entries: [string, Cell][]): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite')
     const store = tx.objectStore(STORE)
@@ -31,11 +32,11 @@ function putBlobs(db, entries) {
   })
 }
 
-function getBlobs(db, hashes) {
+function getBlobs(db: IDBDatabase, hashes: Iterable<string>): Promise<Map<string, Cell>> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly')
     const store = tx.objectStore(STORE)
-    const out = new Map()
+    const out = new Map<string, Cell>()
     for (const hash of hashes) {
       const req = store.get(hash)
       req.onsuccess = () => { if (req.result) out.set(hash, req.result) }
@@ -45,16 +46,16 @@ function getBlobs(db, hashes) {
   })
 }
 
-function getAllKeys(db) {
+function getAllKeys(db: IDBDatabase): Promise<string[]> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly')
     const req = tx.objectStore(STORE).getAllKeys()
-    req.onsuccess = () => resolve(req.result)
+    req.onsuccess = () => resolve(req.result as string[])
     req.onerror = () => reject(req.error)
   })
 }
 
-function deleteBlobs(db, hashes) {
+function deleteBlobs(db: IDBDatabase, hashes: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite')
     const store = tx.objectStore(STORE)
@@ -64,7 +65,7 @@ function deleteBlobs(db, hashes) {
   })
 }
 
-export async function saveAutosave(doc) {
+export async function saveAutosave(doc: Doc): Promise<void> {
   try {
     const { manifest, blobs } = serializeProject(doc)
     const fresh = [...blobs].filter(([hash]) => !persisted.has(hash))
@@ -86,12 +87,12 @@ export async function saveAutosave(doc) {
 }
 
 // Returns the restored document, or null if there's nothing saved / it fails.
-export async function loadAutosave() {
+export async function loadAutosave(): Promise<Doc | null> {
   try {
     const raw = localStorage.getItem(MANIFEST_KEY)
     if (!raw) return null
     const manifest = JSON.parse(raw)
-    const hashes = new Set()
+    const hashes = new Set<string>()
     for (const sp of manifest.sprites)
       for (const ly of sp.layers)
         for (const hash of ly.cells) hashes.add(hash)

@@ -1,13 +1,27 @@
 import { Play, Plus, Copy, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
 import SpritePreview from './SpritePreview.jsx'
 import PinToggle from './PinToggle.jsx'
+import type { Sprite } from '../document/model.js'
+import type { Action } from '../document/reducer.js'
+
+interface FramesTimelineProps {
+  sprite: Sprite
+  frameCount: number
+  active: number
+  onPick: (index: number) => void
+  spriteId: string
+  dispatch: (action: Action) => void
+  pinned: boolean
+  onTogglePin: () => void
+  onPeekSelect?: () => void
+}
 
 // Bottom timeline: animation frames + playback controls (loop), global FPS, and
 // an onion-skin toggle. Selecting a frame makes it the paint target; the side
 // buttons add/duplicate/move/delete the active frame and follow it with
 // selection. Each frame thumbnail shows that frame composited across the
 // sprite's layers. Playback, FPS, and onion-skin are still static (see TODO).
-export default function FramesTimeline({ sprite, frameCount, active, onPick, spriteId, dispatch, pinned, onTogglePin, onPeekSelect }) {
+export default function FramesTimeline({ sprite, frameCount, active, onPick, spriteId, dispatch, pinned, onTogglePin, onPeekSelect }: FramesTimelineProps) {
   const addFrame = () => {
     const at = active + 1
     dispatch({ type: 'ADD_FRAME', spriteId, atIndex: at })
@@ -23,7 +37,7 @@ export default function FramesTimeline({ sprite, frameCount, active, onPick, spr
     dispatch({ type: 'REMOVE_FRAME', spriteId, frameIndex: active })
     onPick(Math.min(active, frameCount - 2))
   }
-  const moveFrame = (delta) => {
+  const moveFrame = (delta: number) => {
     const to = active + delta
     if (to < 0 || to >= frameCount) return
     dispatch({ type: 'MOVE_FRAME', spriteId, frameIndex: active, delta })
@@ -43,7 +57,7 @@ export default function FramesTimeline({ sprite, frameCount, active, onPick, spr
         </button>
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-faint">FPS</span>
-          <input type="range" min="1" max="24" defaultValue="12" className="beast-slider w-20" style={{ '--fill': '50%' }} />
+          <input type="range" min="1" max="24" defaultValue="12" className="beast-slider w-20" style={{ '--fill': '50%' } as React.CSSProperties} />
           <span className="text-[11px] text-text tabular-nums w-5">12</span>
         </div>
         <label className="flex items-center gap-1.5 text-[11px] text-muted cursor-pointer select-none">

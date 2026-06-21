@@ -33,10 +33,58 @@ import {
   moveFrame,
   reseedUid,
 } from './model.js'
+import type { Cell, CellTarget, CreateSpriteOpts, Doc, RGBA, Sprite } from './model.js'
+
+// An open gesture (STROKE_BEGIN…STROKE_END). `committed` flips true once the
+// first edit of the gesture has snapshotted history, so later edits in the same
+// gesture coalesce into that one undo step instead of each pushing their own.
+interface Stroke {
+  committed: boolean
+}
+
+// past / present / future undo stack; `present` is the live document.
+export interface HistoryState {
+  past: Doc[]
+  present: Doc
+  future: Doc[]
+  stroke: Stroke | null
+}
+
+// Every action the reducer accepts. The cell-editing actions carry a CellTarget
+// (spriteId/layerId/frameIndex) identifying the cell they mutate; CRUD actions
+// carry the ids of the sprite/layer/frame they touch.
+export type Action =
+  | { type: 'REPLACE'; doc: Doc }
+  | { type: 'STROKE_BEGIN' }
+  | { type: 'STROKE_END' }
+  | (CellTarget & { type: 'PAINT_LINE'; x0: number; y0: number; x1: number; y1: number; rgba: RGBA })
+  | (CellTarget & { type: 'FILL'; x: number; y: number; rgba: RGBA })
+  | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA })
+  | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA })
+  | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; rgba: RGBA })
+  | (CellTarget & { type: 'CLEAR_REGION'; x: number; y: number; w: number; h: number })
+  | (CellTarget & { type: 'PASTE_REGION'; x: number; y: number; w: number; h: number; data: Cell })
+  | { type: 'ADD_SPRITE'; opts?: CreateSpriteOpts }
+  | { type: 'RENAME_SPRITE'; spriteId: string; name: string }
+  | { type: 'REMOVE_SPRITE'; spriteId: string }
+  | { type: 'MOVE_SPRITE'; spriteId: string; delta: number }
+  | { type: 'CROP_SPRITE'; spriteId: string; x: number; y: number; w: number; h: number }
+  | { type: 'ADD_LAYER'; spriteId: string; name?: string }
+  | { type: 'DUPLICATE_LAYER'; spriteId: string; layerId: string }
+  | { type: 'REMOVE_LAYER'; spriteId: string; layerId: string }
+  | { type: 'MOVE_LAYER'; spriteId: string; layerId: string; delta: number }
+  | { type: 'SET_LAYER_VISIBLE'; spriteId: string; layerId: string; visible: boolean }
+  | { type: 'SET_LAYER_OPACITY'; spriteId: string; layerId: string; opacity: number }
+  | { type: 'ADD_FRAME'; spriteId: string; atIndex: number }
+  | { type: 'DUPLICATE_FRAME'; spriteId: string; frameIndex: number }
+  | { type: 'REMOVE_FRAME'; spriteId: string; frameIndex: number }
+  | { type: 'MOVE_FRAME'; spriteId: string; frameIndex: number; delta: number }
+  | { type: 'UNDO' }
+  | { type: 'REDO' }
 
 const MAX_HISTORY = 200
 
-export function initHistory(doc) {
+export function initHistory(doc: Doc): HistoryState {
   return { past: [], present: doc, future: [], stroke: null }
 }
 
@@ -44,9 +92,9 @@ export function initHistory(doc) {
 // a step snapshots the document and clones the target cell so the snapshot's
 // buffer stays frozen while we mutate the copy; the spine is rebuilt every call
 // so the sprite gets a new identity and the canvas re-composites.
-function editCell(state, { spriteId, layerId, frameIndex }, mutate) {
+function editCell(state: HistoryState, { spriteId, layerId, frameIndex }: CellTarget, mutate: (cell: Cell, sprite: Sprite) => void): HistoryState {
   let { past, present, future, stroke } = state
-  const sprite = findSprite(present, spriteId)
+  const sprite = findSprite(present, spriteId)!
   const startStep = !stroke || !stroke.committed
   let cell = getCell(present, spriteId, layerId, frameIndex)
   if (startStep) {
@@ -65,7 +113,7 @@ function editCell(state, { spriteId, layerId, frameIndex }, mutate) {
 // step while a gesture is open (STROKE_BEGIN/END) — used by the opacity
 // slider so a single drag is one undo step, like a pencil stroke; CRUD
 // actions don't open a gesture, so each one is its own step.
-function editDoc(state, mutate) {
+function editDoc(state: HistoryState, mutate: (doc: Doc) => Doc): HistoryState {
   let { past, present, future, stroke } = state
   const startStep = !stroke || !stroke.committed
   if (startStep) {
@@ -78,7 +126,7 @@ function editDoc(state, mutate) {
   return { past, present, future, stroke }
 }
 
-export function historyReducer(state, action) {
+export function historyReducer(state: HistoryState, action: Action): HistoryState {
   switch (action.type) {
     // Swap in a whole document (autosave restore / project load) and reset
     // history — there's nothing meaningful to undo back to.

@@ -1,12 +1,25 @@
 import { Plus, Copy, Trash2, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react'
 import PinToggle from './PinToggle.jsx'
+import type { Layer } from '../document/model.js'
+import type { Action } from '../document/reducer.js'
+
+interface LayersPanelProps {
+  layers: Layer[]
+  selectedId: string
+  onSelect: (id: string) => void
+  spriteId: string
+  dispatch: (action: Action) => void
+  pinned: boolean
+  onTogglePin: () => void
+  onPeekSelect?: () => void
+}
 
 // Layer stack for the selected sprite. Listed top-of-stack first (the model
 // stores bottom-to-top). Selecting a layer makes it the paint target; the
 // header buttons add/duplicate/move/delete the selected layer. Each row's eye
 // toggles that layer's visibility independent of selection. The opacity
 // slider edits the selected layer, coalescing one drag into one undo step.
-export default function LayersPanel({ layers, selectedId, onSelect, spriteId, dispatch, pinned, onTogglePin, onPeekSelect }) {
+export default function LayersPanel({ layers, selectedId, onSelect, spriteId, dispatch, pinned, onTogglePin, onPeekSelect }: LayersPanelProps) {
   const ordered = [...layers].reverse()
   const selected = layers.find((l) => l.id === selectedId)
   const selectedIndex = layers.findIndex((l) => l.id === selectedId)
@@ -15,8 +28,8 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, di
   const addLayer = () => dispatch({ type: 'ADD_LAYER', spriteId, name: `Layer ${layers.length + 1}` })
   const duplicateLayer = () => selected && dispatch({ type: 'DUPLICATE_LAYER', spriteId, layerId: selected.id })
   const removeLayer = () => selected && layers.length > 1 && dispatch({ type: 'REMOVE_LAYER', spriteId, layerId: selected.id })
-  const moveLayer = (delta) => selected && dispatch({ type: 'MOVE_LAYER', spriteId, layerId: selected.id, delta })
-  const toggleVisible = (l) => dispatch({ type: 'SET_LAYER_VISIBLE', spriteId, layerId: l.id, visible: !l.visible })
+  const moveLayer = (delta: number) => selected && dispatch({ type: 'MOVE_LAYER', spriteId, layerId: selected.id, delta })
+  const toggleVisible = (l: Layer) => dispatch({ type: 'SET_LAYER_VISIBLE', spriteId, layerId: l.id, visible: !l.visible })
 
   return (
     <div className="flex flex-col w-64 bg-panel border-b border-divider">
@@ -99,7 +112,7 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, di
             dispatch({ type: 'SET_LAYER_OPACITY', spriteId, layerId: selected.id, opacity: Number(e.target.value) / 100 })
           }
           className="beast-slider flex-1"
-          style={{ '--fill': opacityPct + '%' }}
+          style={{ '--fill': opacityPct + '%' } as React.CSSProperties}
         />
         <span className="text-[11px] text-text tabular-nums w-8 text-right">{opacityPct}</span>
       </div>

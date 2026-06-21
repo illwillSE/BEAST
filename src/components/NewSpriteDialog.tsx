@@ -4,12 +4,18 @@ const PRESETS = [16, 32, 64, 128]
 const MIN_SIZE = 1
 const MAX_SIZE = 256
 
+interface NewSpriteDialogProps {
+  open: boolean
+  onCreate: (w: number, h: number) => void
+  onClose: () => void
+}
+
 // Modal shown from SpriteList's "+" button to pick a new sprite's canvas size
 // before creating it — a preset (16/32/64/128, square) or a custom W×H.
-export default function NewSpriteDialog({ open, onCreate, onClose }) {
+export default function NewSpriteDialog({ open, onCreate, onClose }: NewSpriteDialogProps) {
   const [w, setW] = useState(32)
   const [h, setH] = useState(32)
-  const firstInputRef = useRef(null)
+  const firstInputRef = useRef<HTMLInputElement>(null)
 
   // Opening the dialog doesn't move focus on its own, so without this Enter
   // would activate whatever still has focus from before the dialog opened
@@ -20,7 +26,7 @@ export default function NewSpriteDialog({ open, onCreate, onClose }) {
 
   if (!open) return null
 
-  const clamp = (n) => Math.min(MAX_SIZE, Math.max(MIN_SIZE, Math.round(n) || MIN_SIZE))
+  const clamp = (n: number) => Math.min(MAX_SIZE, Math.max(MIN_SIZE, Math.round(n) || MIN_SIZE))
   const activePreset = w === h && PRESETS.includes(w) ? w : null
 
   const create = () => onCreate(clamp(w), clamp(h))

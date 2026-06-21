@@ -15,13 +15,7 @@
 
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-
-    /* Incremental migration: .js/.jsx and .ts/.tsx coexist. checkJs is off, so
-       JS files are parsed for their exports but not type-checked — only files
-       renamed to .ts/.tsx are checked. */
-    "allowJs": true,
-    "checkJs": false
+    "noFallthroughCasesInSwitch": true
   },
   "include": ["src"]
 }

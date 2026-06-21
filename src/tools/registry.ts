@@ -28,12 +28,82 @@
 // { spriteId, layerId, frameIndex }. `dispatch` mirrors actions across the
 // active symmetry axes (see PixelCanvas), so tools just dispatch normally.
 
+import type { Dispatch, SetStateAction } from 'react'
 import {
   hexToRgba, linePoints, rectPoints, ellipsePoints, copyRegion,
 } from '../document/model.js'
+import type { Cell, CellTarget, Point, RGBA } from '../document/model.js'
+import type { Action } from '../document/reducer.js'
+
+// A rectangular region in cell coordinates (selection / crop window / paste box).
+export interface Rect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+// A region lifted off the layer and floating on top until committed (move/paste).
+export interface Floating extends Rect {
+  data: Cell
+  target: CellTarget
+}
+
+// A drawn-but-not-yet-applied crop rectangle (commits on Enter / tool switch).
+export interface CropPending extends Rect {
+  target: CellTarget
+}
+
+// Live overlay the active tool asks PixelCanvas to draw mid-gesture: a pixel
+// shape preview, or the dashed marquee for select/crop.
+export type Preview =
+  | { kind: 'pixels'; points: Point[]; color: string }
+  | { kind: 'marquee'; rect: Rect }
+
+// An [x, y] cell coordinate as the gesture loop threads it (the previous cell).
+interface Coord {
+  x: number
+  y: number
+}
+
+// The context PixelCanvas builds per pointer event and hands to the active tool.
+export interface ToolContext {
+  x: number
+  y: number
+  target: CellTarget
+  color: string
+  dispatch: (action: Action) => void
+  setColor: (hex: string) => void
+  sampleColor: (x: number, y: number) => string | null
+  w: number
+  h: number
+  filled: boolean
+  setPreview: (preview: Preview | null) => void
+  selection: Rect | null
+  setSelection: (rect: Rect | null) => void
+  floating: Floating | null
+  setFloating: Dispatch<SetStateAction<Floating | null>>
+  commitFloating: () => void
+  getRawCell: () => Cell
+  cropPending: CropPending | null
+  setCropPending: Dispatch<SetStateAction<CropPending | null>>
+}
+
+// One painting tool. `D` is the per-tool "drag state" onStart returns and the
+// gesture loop threads back into onDrag/onEnd; tools that don't drag return a
+// falsy value. Each registry entry uses its own D, so the `tools` map below is
+// typed Tool<any>.
+export interface Tool<D = unknown> {
+  cursor?: string
+  key?: string
+  variants?: [string, boolean][]
+  onStart?(ctx: ToolContext): D | boolean | void
+  onDrag?(ctx: ToolContext, prev: Coord, drag: D): void
+  onEnd?(ctx: ToolContext, drag: D): void
+}
 
 // Pencil/eraser share a continuous-line stroke; one undo step per drag.
-function strokeTool(rgbaFor) {
+function strokeTool(rgbaFor: (ctx: ToolContext) => RGBA): Tool<boolean> {
   return {
     cursor: 'crosshair',
     onStart(ctx) {
@@ -53,13 +123,13 @@ function strokeTool(rgbaFor) {
 // One-shot committing tools (fill/line/rect/ellipse/gradient) bracket their
 // commit in a STROKE so that, when symmetry mirroring turns one dispatch into
 // several, all of them land in a single undo step instead of one each.
-function commitBracketed(ctx, action) {
+function commitBracketed(ctx: ToolContext, action: Action) {
   ctx.dispatch({ type: 'STROKE_BEGIN' })
   ctx.dispatch(action)
   ctx.dispatch({ type: 'STROKE_END' })
 }
 
-function normalizeRect(x0, y0, x1, y1) {
+function normalizeRect(x0: number, y0: number, x1: number, y1: number): Rect {
   return {
     x: Math.min(x0, x1),
     y: Math.min(y0, y1),
@@ -68,7 +138,7 @@ function normalizeRect(x0, y0, x1, y1) {
   }
 }
 
-export const tools = {
+export const tools: Record<string, Tool<any>> = {
   pencil: { key: 'b', ...strokeTool((ctx) => hexToRgba(ctx.color)) },
   eraser: { key: 'e', ...strokeTool(() => [0, 0, 0, 0]) },
 
@@ -243,6 +313,6 @@ export const tools = {
   },
 }
 
-export function getTool(id) {
+export function getTool(id: string): Tool<any> | null {
   return tools[id] ?? null
 }

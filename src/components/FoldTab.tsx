@@ -5,7 +5,15 @@
 // same edge (Layers/Color), which instead get a fixed content-sized box.
 const BORDER_CLASSES = { left: 'border-r', right: 'border-l', bottom: 'border-t' }
 
-export default function FoldTab({ edge, label, active, onClick, fill = true }) {
+interface FoldTabProps {
+  edge: keyof typeof BORDER_CLASSES
+  label: string
+  active: boolean
+  onClick: () => void
+  fill?: boolean
+}
+
+export default function FoldTab({ edge, label, active, onClick, fill = true }: FoldTabProps) {
   const vertical = edge !== 'bottom'
   const sizeClass = vertical
     ? (fill ? 'w-7 h-full' : 'w-7 h-28')

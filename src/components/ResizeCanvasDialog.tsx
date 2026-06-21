@@ -1,23 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
+import type { Sprite } from '../document/model.js'
 
 const MIN_SIZE = 1
 const MAX_SIZE = 256
-const ANCHORS = [
+const ANCHORS: [number, number][] = [
   [-1, -1], [0, -1], [1, -1],
   [-1, 0], [0, 0], [1, 0],
   [-1, 1], [0, 1], [1, 1],
 ]
+
+interface ResizeCanvasDialogProps {
+  open: boolean
+  sprite: Sprite
+  onResize: (x: number, y: number, w: number, h: number) => void
+  onClose: () => void
+}
 
 // Modal for resizing the active sprite's canvas to an explicit W×H, anchored
 // at one of 9 points (like Photoshop's Canvas Size) — existing pixels stay
 // put relative to the anchor, padding (or cropping) the rest. Dispatches the
 // same undoable CROP_SPRITE action as the Crop tool (document/model.js
 // cropSprite handles both growing and shrinking generically).
-export default function ResizeCanvasDialog({ open, sprite, onResize, onClose }) {
+export default function ResizeCanvasDialog({ open, sprite, onResize, onClose }: ResizeCanvasDialogProps) {
   const [w, setW] = useState(32)
   const [h, setH] = useState(32)
-  const [anchor, setAnchor] = useState([0, 0])
-  const firstInputRef = useRef(null)
+  const [anchor, setAnchor] = useState<[number, number]>([0, 0])
+  const firstInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -29,7 +37,7 @@ export default function ResizeCanvasDialog({ open, sprite, onResize, onClose }) 
 
   if (!open) return null
 
-  const clamp = (n) => Math.min(MAX_SIZE, Math.max(MIN_SIZE, Math.round(n) || MIN_SIZE))
+  const clamp = (n: number) => Math.min(MAX_SIZE, Math.max(MIN_SIZE, Math.round(n) || MIN_SIZE))
 
   const resize = () => {
     const newW = clamp(w)

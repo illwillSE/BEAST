@@ -6,7 +6,7 @@
 //   getColor('accent')        → '#fbbf24'
 //   getColor('accent-deep', '88') → '#f59e0b88'  (append baked-in alpha)
 
-export function getColor(name, alpha = '') {
+export function getColor(name: string, alpha = ''): string {
   const v = getComputedStyle(document.documentElement)
     .getPropertyValue(`--color-${name}`)
     .trim()

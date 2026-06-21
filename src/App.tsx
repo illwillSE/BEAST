@@ -15,6 +15,14 @@ import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
 import { projectToZipBlob, projectFromZipFile, downloadBlob } from './persist/zip.js'
 import { matchShortcut, isTypingTarget } from './shortcuts/registry.js'
+import type { Cell, Doc, Sprite } from './document/model.js'
+import type { Rect, Floating, CropPending } from './tools/registry.js'
+
+interface Clipboard {
+  w: number
+  h: number
+  data: Cell
+}
 
 // BEAST shell. The pixel document lives behind the history reducer; the pencil
 // draws into the active sprite/layer/frame with undo/redo. Sprite/layer/frame
@@ -27,16 +35,16 @@ export default function App() {
   // Select/move/clipboard state. `selection` is a rect on the active layer's
   // current frame; `floating` is pixels lifted out of the layer by a move or
   // paste, rendered on top until something commits them (see commitFloating).
-  const [selection, setSelection] = useState(null)
-  const [floating, setFloating] = useState(null)
-  const [clipboard, setClipboard] = useState(null)
+  const [selection, setSelection] = useState<Rect | null>(null)
+  const [floating, setFloating] = useState<Floating | null>(null)
+  const [clipboard, setClipboard] = useState<Clipboard | null>(null)
   // Pending crop window from the Crop tool — { x, y, w, h, target } — stays
   // editable (movable) until committed/cancelled (see commitCrop/cancelCrop).
-  const [cropPending, setCropPending] = useState(null)
+  const [cropPending, setCropPending] = useState<CropPending | null>(null)
   const [mirrorV, setMirrorV] = useState(false)
   const [mirrorH, setMirrorH] = useState(false)
-  const [filled, setFilled] = useState({ rect: false, ellipse: false })
-  const setToolVariant = (id, v) => setFilled((f) => ({ ...f, [id]: v }))
+  const [filled, setFilled] = useState<Record<string, boolean>>({ rect: false, ellipse: false })
+  const setToolVariant = (id: string, v: boolean) => setFilled((f) => ({ ...f, [id]: v }))
   const [previewOpen, setPreviewOpen] = useState(() => loadPreviewPrefs()?.open ?? false)
 
   // Foldable chrome panels — each pinned open by default (today's layout).
@@ -70,15 +78,15 @@ export default function App() {
   const safeLayerId = activeSprite.layers.some((l) => l.id === layerId) ? layerId : topLayer(activeSprite).id
   const safeFrame = frameIndex < activeSprite.frameCount ? frameIndex : 0
 
-  const selectSprite = (id) => {
-    const sp = doc.sprites.find((s) => s.id === id)
+  const selectSprite = (id: string) => {
+    const sp = doc.sprites.find((s) => s.id === id)!
     setSpriteId(id)
     setLayerId(topLayer(sp).id)
     setFrameIndex(0)
   }
 
   // Point selection at a freshly loaded document's first sprite.
-  const resetSelection = (nextDoc) => {
+  const resetSelection = (nextDoc: Doc) => {
     setSpriteId(nextDoc.sprites[0].id)
     setLayerId(topLayer(nextDoc.sprites[0]).id)
     setFrameIndex(0)
@@ -86,7 +94,7 @@ export default function App() {
 
   const target = { spriteId: activeSprite.id, layerId: safeLayerId, frameIndex: safeFrame }
 
-  const getActiveCell = () => activeSprite.layers.find((l) => l.id === safeLayerId).cells[safeFrame]
+  const getActiveCell = () => activeSprite.layers.find((l) => l.id === safeLayerId)!.cells[safeFrame]
 
   // Write a pending move/paste back into the layer and drop the floating
   // buffer. Triggered by leaving the move tool, switching the paint target,
@@ -182,7 +190,7 @@ export default function App() {
       copySelection, cutSelection, pasteClipboard, commitFloating, setSelection,
       commitCrop, cancelCrop,
     }
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return
       const shortcut = matchShortcut(e)
       if (!shortcut) return
@@ -218,7 +226,7 @@ export default function App() {
     downloadBlob(await projectToZipBlob(doc), 'beast-project.zip')
   }
 
-  const handleOpen = async (file) => {
+  const handleOpen = async (file: File) => {
     try {
       const loaded = await projectFromZipFile(file)
       dispatch({ type: 'REPLACE', doc: loaded })
@@ -258,6 +266,7 @@ export default function App() {
             dispatch={dispatch}
             pinned
             onTogglePin={spriteListFold.togglePin}
+            onPeekSelect={undefined}
           />
         ) : (
           <div ref={spriteListFold.ref} className="relative shrink-0">
@@ -309,6 +318,7 @@ export default function App() {
               dispatch={dispatch}
               pinned
               onTogglePin={toggleSidebarPin}
+              onPeekSelect={undefined}
             />
           ) : (
             <div ref={layersPeek.ref} className="relative shrink-0">
@@ -331,7 +341,7 @@ export default function App() {
           )}
 
           {sidebarPinned ? (
-            <ColorPanel color={color} onColor={setColor} pinned onTogglePin={toggleSidebarPin} />
+            <ColorPanel color={color} onColor={setColor} pinned onTogglePin={toggleSidebarPin} onPeekSelect={undefined} />
           ) : (
             <div ref={colorPeek.ref} className="relative shrink-0">
               <FoldTab edge="right" label="Color" fill={false} active={colorPeek.peeking} onClick={colorPeek.toggle} />
@@ -361,6 +371,7 @@ export default function App() {
           dispatch={dispatch}
           pinned
           onTogglePin={framesFold.togglePin}
+          onPeekSelect={undefined}
         />
       ) : (
         <div ref={framesFold.ref} className="relative shrink-0">
@@ -387,6 +398,6 @@ export default function App() {
 }
 
 // Topmost layer in the stack (last in array; rendered first in the panel).
-function topLayer(sprite) {
+function topLayer(sprite: Sprite) {
   return sprite.layers[sprite.layers.length - 1]
 }

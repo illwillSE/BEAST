@@ -3,6 +3,30 @@ import { ZoomIn, ZoomOut } from 'lucide-react'
 import PixelCanvas from './PixelCanvas.jsx'
 import PreviewWindow from './PreviewWindow.jsx'
 import ResizeCanvasDialog from './ResizeCanvasDialog.jsx'
+import type { Sprite, CellTarget } from '../document/model.js'
+import type { Action } from '../document/reducer.js'
+import type { Rect, Floating, CropPending } from '../tools/registry.js'
+
+interface CanvasStageProps {
+  tool: string
+  color: string
+  onColor: (hex: string) => void
+  sprite: Sprite
+  target: CellTarget
+  dispatch: (action: Action) => void
+  selection: Rect | null
+  setSelection: (rect: Rect | null) => void
+  floating: Floating | null
+  setFloating: React.Dispatch<React.SetStateAction<Floating | null>>
+  commitFloating: () => void
+  cropPending: CropPending | null
+  setCropPending: React.Dispatch<React.SetStateAction<CropPending | null>>
+  filled: boolean
+  mirrorV: boolean
+  mirrorH: boolean
+  previewOpen: boolean
+  onClosePreview: () => void
+}
 
 // Center stage hosting the working pixel canvas. Document size comes from the
 // active sprite; zoom is local. The pencil draws (see PixelCanvas) and the
@@ -12,20 +36,20 @@ export default function CanvasStage({
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, filled,
   mirrorV, mirrorH, previewOpen, onClosePreview,
-}) {
+}: CanvasStageProps) {
   const [scale, setScale] = useState(16)
-  const [pos, setPos] = useState(null)
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const [resizeOpen, setResizeOpen] = useState(false)
-  const viewportRef = useRef(null)
+  const viewportRef = useRef<HTMLDivElement>(null)
 
-  const resizeSprite = (x, y, w, h) => {
+  const resizeSprite = (x: number, y: number, w: number, h: number) => {
     dispatch({ type: 'CROP_SPRITE', spriteId: sprite.id, x, y, w, h })
     setResizeOpen(false)
   }
 
   // Scrolls the canvas viewport so the given sprite pixel is centered —
   // used by the Real Preview window's click-to-navigate.
-  const scrollToCenter = (spriteX, spriteY) => {
+  const scrollToCenter = (spriteX: number, spriteY: number) => {
     const el = viewportRef.current
     if (!el) return
     const targetLeft = spriteX * scale + scale / 2 - el.clientWidth / 2

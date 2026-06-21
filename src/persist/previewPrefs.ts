@@ -3,7 +3,16 @@
 
 const KEY = 'beast.preview-panel'
 
-export function loadPreviewPrefs() {
+export interface PreviewPrefs {
+  open: boolean
+  x: number
+  y: number
+  w: number
+  h: number
+  scale: number
+}
+
+export function loadPreviewPrefs(): PreviewPrefs | null {
   try {
     const raw = localStorage.getItem(KEY)
     return raw ? JSON.parse(raw) : null
@@ -12,7 +21,7 @@ export function loadPreviewPrefs() {
   }
 }
 
-export function savePreviewPrefs(prefs) {
+export function savePreviewPrefs(prefs: PreviewPrefs): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs))
   } catch (err) {

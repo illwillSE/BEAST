@@ -10,7 +10,15 @@ const PALETTE = [
   '#7f1d1d', '#ef4444', '#f87171', '#fca5a5', '#a21caf', '#e879f9',
 ]
 
-export default function ColorPanel({ color, onColor, pinned, onTogglePin, onPeekSelect }) {
+interface ColorPanelProps {
+  color: string
+  onColor: (color: string) => void
+  pinned: boolean
+  onTogglePin: () => void
+  onPeekSelect?: () => void
+}
+
+export default function ColorPanel({ color, onColor, pinned, onTogglePin, onPeekSelect }: ColorPanelProps) {
   return (
     <div className="flex flex-col w-64 bg-panel">
       <div className="flex items-center justify-between px-3 h-9 border-b border-divider">

@@ -2,13 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { compositeFrame, hexToRgba, rgbaToHex } from '../document/model.js'
 import { getTool } from '../tools/registry.js'
 import { getColor } from '../theme/colors.js'
+import type { Sprite, CellTarget } from '../document/model.js'
+import type { Action } from '../document/reducer.js'
+import type { Rect, Floating, CropPending, Preview, ToolContext } from '../tools/registry.js'
 
 // Action types whose coordinate fields get mirrored across the active
 // symmetry axes — see mirroredDispatch below.
 const MIRRORABLE = new Set(['PAINT_LINE', 'FILL', 'PAINT_RECT', 'PAINT_ELLIPSE', 'GRADIENT_FILL'])
 
-function flipAction(action, w, h, axes) {
-  const out = { ...action }
+function flipAction(action: Action, w: number, h: number, axes: { v?: boolean; h?: boolean }): Action {
+  // TODO(ts): generic coordinate-field flip over a discriminated union needs
+  // an any here; tighten with a mapped/conditional type if this gets reused.
+  const out: any = { ...action }
   if (axes.v) {
     if ('x' in out) out.x = w - 1 - out.x
     if ('x0' in out) out.x0 = w - 1 - out.x0
@@ -20,6 +25,28 @@ function flipAction(action, w, h, axes) {
     if ('y1' in out) out.y1 = h - 1 - out.y1
   }
   return out
+}
+
+interface PixelCanvasProps {
+  sprite: Sprite
+  frameIndex: number
+  target: CellTarget
+  dispatch: (action: Action) => void
+  scale: number
+  color: string
+  tool: string
+  onColor: (hex: string) => void
+  onHover?: (pos: { x: number; y: number } | null) => void
+  selection: Rect | null
+  setSelection: (rect: Rect | null) => void
+  floating: Floating | null
+  setFloating: React.Dispatch<React.SetStateAction<Floating | null>>
+  commitFloating: () => void
+  cropPending: CropPending | null
+  setCropPending: React.Dispatch<React.SetStateAction<CropPending | null>>
+  filled: boolean
+  mirrorV: boolean
+  mirrorH: boolean
 }
 
 // Interactive pixel canvas, driven by the document model + tool registry. It
@@ -36,22 +63,22 @@ export default function PixelCanvas({
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, filled,
   mirrorV, mirrorH,
-}) {
-  const canvasRef = useRef(null)
-  const overlayRef = useRef(null)
-  const marqueeRef = useRef(null)
-  const imageRef = useRef(null)
+}: PixelCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const overlayRef = useRef<HTMLCanvasElement>(null)
+  const marqueeRef = useRef<HTMLCanvasElement>(null)
+  const imageRef = useRef<ImageData | null>(null)
   const draggingRef = useRef(false)
-  const lastRef = useRef(null)
-  const dragStateRef = useRef(null)
-  const [preview, setPreview] = useState(null)
+  const lastRef = useRef<{ x: number; y: number } | null>(null)
+  const dragStateRef = useRef<any>(null)
+  const [preview, setPreview] = useState<Preview | null>(null)
 
   const { w, h } = sprite
   const activeTool = getTool(tool)
 
   // Re-composite and blit whenever the sprite content or frame changes.
   useEffect(() => {
-    const ctx = canvasRef.current.getContext('2d')
+    const ctx = canvasRef.current!.getContext('2d')!
     if (!imageRef.current || imageRef.current.width !== w || imageRef.current.height !== h) {
       imageRef.current = ctx.createImageData(w, h)
     }
@@ -62,7 +89,7 @@ export default function PixelCanvas({
   // Re-draw the preview overlay: floating buffer and any in-progress shape
   // preview from the active tool. Pixel-art resolution, scaled with the canvas.
   useEffect(() => {
-    const ctx = overlayRef.current.getContext('2d')
+    const ctx = overlayRef.current!.getContext('2d')!
     ctx.clearRect(0, 0, w, h)
     if (floating) {
       const img = ctx.createImageData(floating.w, floating.h)
@@ -81,7 +108,7 @@ export default function PixelCanvas({
   // at any zoom level. The marquee also doubles as the pending crop window's
   // outline (live while it's moved).
   useEffect(() => {
-    const ctx = marqueeRef.current.getContext('2d')
+    const ctx = marqueeRef.current!.getContext('2d')!
     ctx.clearRect(0, 0, w * scale, h * scale)
 
     if (mirrorV || mirrorH) {
@@ -112,28 +139,28 @@ export default function PixelCanvas({
     ctx.strokeRect(rect.x * scale + 0.5, rect.y * scale + 0.5, rect.w * scale - 1, rect.h * scale - 1)
   }, [floating, selection, cropPending, preview, w, h, scale, mirrorV, mirrorH])
 
-  const cellFromEvent = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect()
+  const cellFromEvent = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current!.getBoundingClientRect()
     const x = Math.floor(((e.clientX - rect.left) / rect.width) * w)
     const y = Math.floor(((e.clientY - rect.top) / rect.height) * h)
     return { x, y }
   }
 
-  const inBounds = (x, y) => x >= 0 && y >= 0 && x < w && y < h
+  const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h
 
   // Read a composited pixel's color (for the eyedropper); null if transparent.
-  const sampleColor = (x, y) => {
+  const sampleColor = (x: number, y: number): string | null => {
     const img = imageRef.current
     if (!img || !inBounds(x, y)) return null
     const i = (y * w + x) * 4
     if (img.data[i + 3] === 0) return null
-    return rgbaToHex([img.data[i], img.data[i + 1], img.data[i + 2]])
+    return rgbaToHex([img.data[i], img.data[i + 1], img.data[i + 2], img.data[i + 3]])
   }
 
   // Dispatch wrapper that also dispatches mirrored copies of coordinate-bearing
   // actions across whichever symmetry axes are on, so tools never need to know
   // about mirroring themselves.
-  const mirroredDispatch = (action) => {
+  const mirroredDispatch = (action: Action) => {
     dispatch(action)
     if (!MIRRORABLE.has(action.type)) return
     if (mirrorV) dispatch(flipAction(action, w, h, { v: true }))
@@ -141,16 +168,16 @@ export default function PixelCanvas({
     if (mirrorV && mirrorH) dispatch(flipAction(action, w, h, { v: true, h: true }))
   }
 
-  const getRawCell = () => sprite.layers.find((l) => l.id === target.layerId).cells[target.frameIndex]
+  const getRawCell = () => sprite.layers.find((l) => l.id === target.layerId)!.cells[target.frameIndex]
 
-  const ctxFor = (x, y) => ({
+  const ctxFor = (x: number, y: number): ToolContext => ({
     x, y, target, color, dispatch: mirroredDispatch, setColor: onColor, sampleColor,
     w, h, filled, setPreview,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
     cropPending, setCropPending,
   })
 
-  const handleDown = (e) => {
+  const handleDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!activeTool) return
     const { x, y } = cellFromEvent(e)
     if (!inBounds(x, y)) return
@@ -159,21 +186,21 @@ export default function PixelCanvas({
       draggingRef.current = true
       dragStateRef.current = dragState
       lastRef.current = { x, y }
-      canvasRef.current.setPointerCapture(e.pointerId)
+      canvasRef.current!.setPointerCapture(e.pointerId)
     }
   }
 
-  const handleMove = (e) => {
+  const handleMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const { x, y } = cellFromEvent(e)
     onHover?.(inBounds(x, y) ? { x, y } : null)
     if (!draggingRef.current) return
-    activeTool.onDrag?.(ctxFor(x, y), lastRef.current, dragStateRef.current)
+    activeTool!.onDrag?.(ctxFor(x, y), lastRef.current!, dragStateRef.current)
     lastRef.current = { x, y }
   }
 
   const handleUp = () => {
     if (!draggingRef.current) return
-    const last = lastRef.current
+    const last = lastRef.current!
     const dragState = dragStateRef.current
     draggingRef.current = false
     dragStateRef.current = null

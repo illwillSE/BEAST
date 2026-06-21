@@ -18,11 +18,35 @@
 //   }
 
 import { tools } from '../tools/registry.js'
+import type { Action } from '../document/reducer.js'
+import type { Rect } from '../tools/registry.js'
 
-const toolShortcuts = Object.entries(tools)
+export interface ShortcutContext {
+  dispatch: (action: Action) => void
+  setTool: (id: string) => void
+  tool: string
+  filled: Record<string, boolean>
+  setVariant: (id: string, value: boolean) => void
+  copySelection: () => void
+  cutSelection: () => void
+  pasteClipboard: () => void
+  commitFloating: () => void
+  setSelection: (rect: Rect | null) => void
+  commitCrop: () => void
+  cancelCrop: () => void
+}
+
+interface Shortcut {
+  key: string
+  mod?: boolean
+  shift?: boolean
+  run(ctx: ShortcutContext): void
+}
+
+const toolShortcuts: Shortcut[] = Object.entries(tools)
   .filter(([, tool]) => tool.key)
   .map(([id, tool]) => ({
-    key: tool.key,
+    key: tool.key as string,
     run(ctx) {
       if (ctx.tool !== id || !tool.variants) { ctx.setTool(id); return }
       const values = tool.variants.map(([, v]) => v)
@@ -31,7 +55,7 @@ const toolShortcuts = Object.entries(tools)
     },
   }))
 
-export const shortcuts = [
+export const shortcuts: Shortcut[] = [
   { key: 'z', mod: true, run: (ctx) => ctx.dispatch({ type: 'UNDO' }) },
   { key: 'z', mod: true, shift: true, run: (ctx) => ctx.dispatch({ type: 'REDO' }) },
   { key: 'y', mod: true, run: (ctx) => ctx.dispatch({ type: 'REDO' }) },
@@ -43,7 +67,7 @@ export const shortcuts = [
   ...toolShortcuts,
 ]
 
-export function matchShortcut(e) {
+export function matchShortcut(e: KeyboardEvent): Shortcut | undefined {
   const mod = e.metaKey || e.ctrlKey
   const key = e.key.toLowerCase()
   return shortcuts.find((s) => key === s.key && !!s.mod === mod && !!s.shift === e.shiftKey)
@@ -51,7 +75,7 @@ export function matchShortcut(e) {
 
 // Don't fire letter shortcuts while the user is typing into a field (e.g.
 // renaming a sprite/layer).
-export function isTypingTarget(el) {
-  const tag = el.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
+export function isTypingTarget(el: EventTarget | null): boolean {
+  const tag = (el as HTMLElement)?.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el as HTMLElement)?.isContentEditable
 }

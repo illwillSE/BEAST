@@ -2,34 +2,54 @@ import { useEffect, useRef, useState } from 'react'
 import { X, ZoomIn, ZoomOut } from 'lucide-react'
 import { compositeFrame } from '../document/model.js'
 import { loadPreviewPrefs, savePreviewPrefs } from '../persist/previewPrefs.js'
+import type { Sprite } from '../document/model.js'
+import type { PreviewPrefs } from '../persist/previewPrefs.js'
 
-const DEFAULT_SIZE = { w: 220, h: 220 }
-const MIN_SIZE = { w: 160, h: 140 }
+interface Size {
+  w: number
+  h: number
+}
+
+interface Pos {
+  x: number
+  y: number
+}
+
+const DEFAULT_SIZE: Size = { w: 220, h: 220 }
+const MIN_SIZE: Size = { w: 160, h: 140 }
 const SCALE_MIN = 1
 const SCALE_MAX = 16
 
-const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 
-function defaultPos() {
+function defaultPos(): Pos {
   return { x: Math.max(20, window.innerWidth - 320), y: 60 }
 }
 
-function clampPos(pos, size) {
+function clampPos(pos: Pos, size: Size): Pos {
   return {
     x: clamp(pos.x, 0, Math.max(0, window.innerWidth - size.w)),
     y: clamp(pos.y, 0, Math.max(0, window.innerHeight - size.h)),
   }
 }
 
+interface PreviewWindowProps {
+  sprite: Sprite
+  frameIndex: number
+  onNavigate: (x: number, y: number) => void
+  open: boolean
+  onClose: () => void
+}
+
 // Free-floating "real size" preview of the active sprite/frame — independent
 // of the main canvas's zoom — that doubles as a navigator: clicking it
 // scrolls the main canvas (via onNavigate) to center on that pixel.
-export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, onClose }) {
-  const [size, setSize] = useState(() => {
+export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, onClose }: PreviewWindowProps) {
+  const [size, setSize] = useState<Size>(() => {
     const p = loadPreviewPrefs()
     return { w: p?.w ?? DEFAULT_SIZE.w, h: p?.h ?? DEFAULT_SIZE.h }
   })
-  const [pos, setPos] = useState(() => {
+  const [pos, setPos] = useState<Pos>(() => {
     const p = loadPreviewPrefs()
     const s = { w: p?.w ?? DEFAULT_SIZE.w, h: p?.h ?? DEFAULT_SIZE.h }
     const fallback = defaultPos()
@@ -37,16 +57,16 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
   })
   const [previewScale, setPreviewScale] = useState(() => loadPreviewPrefs()?.scale ?? 1)
 
-  const canvasRef = useRef(null)
-  const imageRef = useRef(null)
-  const dragRef = useRef(null)
-  const resizeRef = useRef(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const imageRef = useRef<ImageData | null>(null)
+  const dragRef = useRef<{ startX: number; startY: number; startPos: Pos } | null>(null)
+  const resizeRef = useRef<{ startX: number; startY: number; startSize: Size } | null>(null)
 
   const { w, h } = sprite
 
   useEffect(() => {
     if (!open || !canvasRef.current) return
-    const ctx = canvasRef.current.getContext('2d')
+    const ctx = canvasRef.current.getContext('2d')!
     if (!imageRef.current || imageRef.current.width !== w || imageRef.current.height !== h) {
       imageRef.current = ctx.createImageData(w, h)
     }
@@ -56,15 +76,15 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
 
   if (!open) return null
 
-  const persist = (overrides = {}) =>
+  const persist = (overrides: Partial<PreviewPrefs> = {}) =>
     savePreviewPrefs({ open, x: pos.x, y: pos.y, w: size.w, h: size.h, scale: previewScale, ...overrides })
 
-  const handleTitleDown = (e) => {
-    if (e.target.closest('button')) return
+  const handleTitleDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button')) return
     dragRef.current = { startX: e.clientX, startY: e.clientY, startPos: pos }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
-  const handleTitleMove = (e) => {
+  const handleTitleMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragRef.current) return
     const { startX, startY, startPos } = dragRef.current
     setPos(clampPos({ x: startPos.x + (e.clientX - startX), y: startPos.y + (e.clientY - startY) }, size))
@@ -75,11 +95,11 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
     persist()
   }
 
-  const handleResizeDown = (e) => {
+  const handleResizeDown = (e: React.PointerEvent<HTMLDivElement>) => {
     resizeRef.current = { startX: e.clientX, startY: e.clientY, startSize: size }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
-  const handleResizeMove = (e) => {
+  const handleResizeMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!resizeRef.current) return
     const { startX, startY, startSize } = resizeRef.current
     setSize({
@@ -93,7 +113,7 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
     persist()
   }
 
-  const adjustScale = (delta) => {
+  const adjustScale = (delta: number) => {
     const next = clamp(previewScale + delta, SCALE_MIN, SCALE_MAX)
     setPreviewScale(next)
     persist({ scale: next })
@@ -104,8 +124,8 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
     onClose()
   }
 
-  const handleCanvasClick = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect()
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current!.getBoundingClientRect()
     const x = clamp(Math.floor(((e.clientX - rect.left) / rect.width) * w), 0, w - 1)
     const y = clamp(Math.floor(((e.clientY - rect.top) / rect.height) * h), 0, h - 1)
     onNavigate(x, y)

@@ -5,6 +5,8 @@ Current state: first draw→undo→redo slice landed — pencil paints into the 
 behind the history reducer (`src/document/`). Layer/frame/sprite selection UI is
 still cosmetic; painting targets the first of each.
 
+add a type tool (with font select, maybe predefined) and emojis
+
 ## Core data model
 - [x] Layered + framed pixel document model — flat RGBA cells (`document/model.ts`).
 - [ ] Content-addressed storage for binary pixel data (BLAST sample-cache pattern).
@@ -173,25 +175,31 @@ type design surface as friction, not silent breakage; revisit those on Opus afte
 - [x] `document/model.ts` — core type vocabulary defined here (the keystone).
 
 **Design decisions (do these first — everything downstream conforms):**
-- [ ] **[Opus]** `document/reducer.js` → `.ts` — design the **action discriminated
-      union** (`STROKE_BEGIN`, `PAINT_LINE`, `FILL`, `CROP_SPRITE`, …) and the
-      history wrapper types. The one genuinely meaty file; getting the union shape
-      right first avoids churn downstream.
-- [ ] **[Opus]** `tools/registry.js` → `.ts` — define the `ToolContext` and `Tool`
-      interfaces from the documented ctx shape (registry.js lines ~23–29:
-      `onStart/onDrag/onEnd/cursor/key/variants`). Every tool conforms to these.
+- [x] **[Opus]** `document/reducer.js` → `.ts` — `Action` discriminated union +
+      `HistoryState`/`Stroke` wrapper types. Cell-editing actions intersect
+      `CellTarget` (`Action`, `HistoryState` exported for downstream importers).
+- [x] **[Opus]** `tools/registry.js` → `.ts` — `ToolContext` + generic `Tool<D>`
+      interfaces, plus exported UI types (`Rect`, `Floating`, `CropPending`,
+      `Preview`). The `tools` map is `Tool<any>` since each tool's drag-state
+      shape differs; `ToolContext.dispatch` reuses `Action` from the reducer.
 
 **Leaf modules (mechanical; tight typecheck loop):**
-- [ ] **[Sonnet]** `theme/colors.js` → `.ts`
-- [ ] **[Sonnet]** `shortcuts/registry.js` → `.ts`
-- [ ] **[Sonnet]** `hooks/useFoldable.js`, `hooks/usePeek.js` → `.ts`
-- [ ] **[Sonnet]** `persist/serialize.js`, `persist/zip.js`, `persist/autosave.js`,
+- [x] **[Sonnet]** `theme/colors.js` → `.ts`
+- [x] **[Sonnet]** `shortcuts/registry.js` → `.ts`
+- [x] **[Sonnet]** `hooks/useFoldable.js`, `hooks/usePeek.js` → `.ts`
+- [x] **[Sonnet]** `persist/serialize.js`, `persist/zip.js`, `persist/autosave.js`,
       `persist/previewPrefs.js` → `.ts`
 
 **Components (`.jsx`→`.tsx`, bulk/repetitive; do after the above):**
-- [ ] **[Sonnet]** `main.jsx`, `App.jsx`
-- [ ] **[Sonnet]** `components/`: Header, ColorPanel, SpriteList, PreviewWindow,
+- [x] **[Sonnet]** `main.jsx`, `App.jsx`
+- [x] **[Sonnet]** `components/`: Header, ColorPanel, SpriteList, PreviewWindow,
       FoldTab, NewSpriteDialog, SpritePreview, ResizeCanvasDialog, FramesTimeline,
       PixelCanvas, ToolRail, LayersPanel, CanvasStage, PinToggle
-- [ ] **[Sonnet]** Cleanup pass: remove any remaining `allowJs`/`any` crutches;
-      consider flipping on stricter flags (`noImplicitAny` is already on via `strict`).
+- [x] **[Sonnet]** Cleanup pass: removed `allowJs`/`checkJs` from `tsconfig.json`
+      (no `.js`/`.jsx` left to coexist with). Two intentional `any`s remain:
+      `PixelCanvas.tsx`'s `flipAction` helper (tagged `// TODO(ts):`) and its
+      `dragStateRef`, which mirrors `tools/registry.ts`'s own `Tool<any>`
+      design decision (per-tool drag-state shapes genuinely differ).
+
+Migration complete — every `src/` file is now `.ts`/`.tsx`; `npm run typecheck`
+and `npx vite build` both pass clean.
