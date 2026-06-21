@@ -1,5 +1,6 @@
 import { Plus, Copy, Trash2, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react'
 import PinToggle from './PinToggle.jsx'
+import SpritePreview from './SpritePreview.jsx'
 import type { Layer } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
 
@@ -8,6 +9,9 @@ interface LayersPanelProps {
   selectedId: string
   onSelect: (id: string) => void
   spriteId: string
+  w: number
+  h: number
+  frameIndex: number
   dispatch: (action: Action) => void
   pinned: boolean
   onTogglePin: () => void
@@ -20,7 +24,7 @@ interface LayersPanelProps {
 // row (hover to reveal). Each row's eye toggles that layer's visibility
 // independent of selection. The opacity slider edits the selected layer,
 // coalescing one drag into one undo step.
-export default function LayersPanel({ layers, selectedId, onSelect, spriteId, dispatch, pinned, onTogglePin, onPeekSelect }: LayersPanelProps) {
+export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w, h, frameIndex, dispatch, pinned, onTogglePin, onPeekSelect }: LayersPanelProps) {
   const ordered = [...layers].reverse()
   const selected = layers.find((l) => l.id === selectedId)
   const selectedIndex = layers.findIndex((l) => l.id === selectedId)
@@ -80,7 +84,12 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, di
                 {l.visible ? <Eye size={15} /> : <EyeOff size={15} />}
               </button>
               <button onClick={() => { onSelect(l.id); onPeekSelect?.() }} className="flex items-center gap-2 flex-1 min-w-0 text-left">
-                <span className="beast-checker w-7 h-7 rounded border border-edge shrink-0" />
+                <SpritePreview
+                  sprite={{ id: l.id, name: l.name, w, h, frameCount: l.cells.length, layers: [{ ...l, visible: true, opacity: 1 }] }}
+                  frameIndex={frameIndex}
+                  size={28}
+                  className="rounded border border-edge"
+                />
                 <span className={'flex-1 text-sm truncate ' + (isSelected ? 'text-accent-soft' : 'text-ink-soft')}>
                   {l.name}
                 </span>

@@ -349,6 +349,9 @@ export default function App() {
               selectedId={safeLayerId}
               onSelect={setLayerId}
               spriteId={activeSprite.id}
+              w={activeSprite.w}
+              h={activeSprite.h}
+              frameIndex={safeFrame}
               dispatch={dispatch}
               pinned
               onTogglePin={toggleSidebarPin}
@@ -364,6 +367,9 @@ export default function App() {
                     selectedId={safeLayerId}
                     onSelect={setLayerId}
                     spriteId={activeSprite.id}
+                    w={activeSprite.w}
+                    h={activeSprite.h}
+                    frameIndex={safeFrame}
                     dispatch={dispatch}
                     pinned={false}
                     onTogglePin={toggleSidebarPin}
