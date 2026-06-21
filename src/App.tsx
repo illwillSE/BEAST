@@ -347,7 +347,8 @@ export default function App() {
   }, [doc, ready])
 
   const handleSave = async () => {
-    downloadBlob(await projectToZipBlob(doc), 'beast-project.zip')
+    const filename = (doc.name.trim() || 'beast-project').replace(/[\\/:*?"<>|]+/g, '_')
+    downloadBlob(await projectToZipBlob(doc), `${filename}.zip`)
   }
 
   const handleOpen = async (file: File) => {
@@ -364,7 +365,8 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col text-ink-soft">
       <Header
-        projectName={activeSprite.name}
+        projectName={doc.name}
+        onRenameProject={(name) => dispatch({ type: 'RENAME_PROJECT', name })}
         onSave={handleSave}
         onOpen={handleOpen}
         previewOpen={previewOpen}

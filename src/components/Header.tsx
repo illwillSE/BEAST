@@ -1,9 +1,10 @@
 import { useRef } from 'react'
 import type { ReactNode } from 'react'
-import { Undo2, Redo2, FolderOpen, Save, Download, Settings, ChevronDown, ScanEye } from 'lucide-react'
+import { Undo2, Redo2, FolderOpen, Save, Download, Settings, ScanEye } from 'lucide-react'
 
 interface HeaderProps {
   projectName: string
+  onRenameProject: (name: string) => void
   onSave: () => void
   onOpen: (file: File) => void
   previewOpen: boolean
@@ -11,9 +12,9 @@ interface HeaderProps {
   onOpenSettings: () => void
 }
 
-// Top chrome: brand, current sprite name, undo/redo, open/save/export. Save,
-// Open, and Settings are wired; undo/redo/export are still placeholders.
-export default function Header({ projectName, onSave, onOpen, previewOpen, onTogglePreview, onOpenSettings }: HeaderProps) {
+// Top chrome: brand, project name, undo/redo, open/save/export. Save, Open,
+// and Settings are wired; undo/redo/export are still placeholders.
+export default function Header({ projectName, onRenameProject, onSave, onOpen, previewOpen, onTogglePreview, onOpenSettings }: HeaderProps) {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const pickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,16 +26,24 @@ export default function Header({ projectName, onSave, onOpen, previewOpen, onTog
   return (
     <header className="flex items-center gap-3 px-3 h-12 bg-panel border-b border-divider shrink-0">
       <div className="flex items-baseline gap-2 select-none">
-        <span className="text-accent font-extrabold tracking-tight text-lg">BEAST</span>
-        <span className="text-faint text-[11px] hidden sm:inline">pixel &amp; sprite editor</span>
+        <span className="inline-block origin-left text-lg font-black tracking-[0.2em] text-accent transition-transform duration-200 hover:scale-110 hover:text-accent-bright">BEAST</span>
+        <span className="hidden text-[10px] uppercase tracking-[0.05em] text-faint md:block">
+          {[['B', 'ig'], ['E', 'xtreme'], ['A', 'wesome'], ['S', 'prite'], ['T', 'ool']].map(([first, rest]) => (
+            <span key={first}>
+              <span className="text-[13px] font-bold text-yellow-400">{first}</span><span className="text-zinc-400">{rest}</span>{' '}
+            </span>
+          ))}
+        </span>
       </div>
 
       <div className="h-5 w-px bg-divider mx-1" />
 
-      <button className="flex items-center gap-1.5 px-2 py-1 rounded text-sm text-ink-soft hover:bg-surface-hover">
-        <span className="font-medium">{projectName}</span>
-        <ChevronDown size={14} className="text-faint" />
-      </button>
+      <input
+        value={projectName}
+        onChange={(e) => onRenameProject(e.target.value)}
+        spellCheck={false}
+        className="min-w-0 max-w-40 rounded border border-transparent bg-transparent px-2 py-1 text-sm text-ink-soft outline-none transition-colors hover:border-edge focus:border-accent-deep/50 focus:bg-well"
+      />
 
       <div className="flex items-center gap-1 ml-2">
         <IconBtn title="Undo"><Undo2 size={16} /></IconBtn>

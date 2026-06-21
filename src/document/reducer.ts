@@ -17,6 +17,7 @@ import {
   gradientFill,
   clearRegion,
   pasteRegion,
+  renameProject,
   addSprite,
   renameSprite,
   removeSprite,
@@ -65,6 +66,7 @@ export interface HistoryState {
 // carry the ids of the sprite/layer/frame they touch.
 export type Action =
   | { type: 'REPLACE'; doc: Doc }
+  | { type: 'RENAME_PROJECT'; name: string }
   | { type: 'STROKE_BEGIN' }
   | { type: 'STROKE_END' }
   | (CellTarget & { type: 'PAINT_LINE'; x0: number; y0: number; x1: number; y1: number; rgba: RGBA; size: number; shape: BrushShape })
@@ -152,6 +154,9 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
     case 'REPLACE':
       reseedUid(action.doc)
       return initHistory(action.doc)
+
+    case 'RENAME_PROJECT':
+      return editDoc(state, (doc) => renameProject(doc, action.name))
 
     case 'STROKE_BEGIN':
       return { ...state, stroke: { committed: false } }

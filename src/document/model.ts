@@ -35,6 +35,7 @@ export interface Sprite {
 }
 
 export interface Doc {
+  name: string
   sprites: Sprite[]
   palette: string[]
 }
@@ -110,12 +111,17 @@ export function createSprite({
 
 export function createDocument(): Doc {
   return {
+    name: 'Untitled Project',
     sprites: [
       createSprite({ name: 'sprite_1', w: 32, h: 32, frameCount: 4, layerNames: ['Background', 'Character', 'Highlights'] }),
       createSprite({ name: 'sprite_2', w: 16, h: 16, frameCount: 2, layerNames: ['Layer 1', 'Layer 2'] }),
     ],
     palette: [...DEFAULT_PALETTE],
   }
+}
+
+export function renameProject(doc: Doc, name: string): Doc {
+  return { ...doc, name }
 }
 
 // ── sprite CRUD ──────────────────────────────────────────────────────────

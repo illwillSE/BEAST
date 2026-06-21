@@ -30,6 +30,7 @@ interface ManifestSprite {
 
 export interface Manifest {
   version: number
+  name?: string
   sprites: ManifestSprite[]
   palette: string[]
 }
@@ -75,7 +76,7 @@ export function serializeProject(doc: Doc): { manifest: Manifest; blobs: Map<str
       }),
     })),
   }))
-  return { manifest: { version: VERSION, sprites, palette: doc.palette }, blobs }
+  return { manifest: { version: VERSION, name: doc.name, sprites, palette: doc.palette }, blobs }
 }
 
 // { manifest, blobs: Map<hash, Uint8Array|Uint8ClampedArray> } -> doc.
@@ -90,6 +91,7 @@ export function deserializeProject({
 }): Doc {
   const cache = new Map<string, Cell>()
   return {
+    name: manifest.name ?? 'Untitled Project',
     palette: manifest.palette ?? [...DEFAULT_PALETTE],
     sprites: manifest.sprites.map((sp) => {
       const len = sp.w * sp.h * 4
