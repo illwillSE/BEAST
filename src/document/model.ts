@@ -129,6 +129,20 @@ export function addSprite(doc: Doc, opts?: CreateSpriteOpts): Doc {
   return { ...doc, sprites: [...doc.sprites, createSprite(opts)] }
 }
 
+// A sprite seeded from imported pixel data (e.g. a decoded PNG) instead of a
+// blank cell — single layer, single frame.
+export function addSpriteFromImage(doc: Doc, name: string, w: number, h: number, cell: Cell): Doc {
+  const sprite: Sprite = {
+    id: uid('sp'),
+    name,
+    w,
+    h,
+    frameCount: 1,
+    layers: [{ id: uid('ly'), name: 'Layer 1', visible: true, opacity: 1, blendMode: 'normal', cells: [cell] }],
+  }
+  return { ...doc, sprites: [...doc.sprites, sprite] }
+}
+
 export function renameSprite(doc: Doc, spriteId: string, name: string): Doc {
   return { ...doc, sprites: doc.sprites.map((sp) => (sp.id === spriteId ? { ...sp, name } : sp)) }
 }

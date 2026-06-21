@@ -1,26 +1,35 @@
 import { useRef } from 'react'
 import type { ReactNode } from 'react'
-import { Undo2, Redo2, FolderOpen, Save, Download, Settings, ScanEye } from 'lucide-react'
+import { Undo2, Redo2, FolderOpen, Save, ImageUp, Download, Settings, ScanEye } from 'lucide-react'
 
 interface HeaderProps {
   projectName: string
   onRenameProject: (name: string) => void
   onSave: () => void
   onOpen: (file: File) => void
+  onImportPng: (file: File) => void
   previewOpen: boolean
   onTogglePreview: () => void
   onOpenSettings: () => void
 }
 
-// Top chrome: brand, project name, undo/redo, open/save/export. Save, Open,
-// and Settings are wired; undo/redo/export are still placeholders.
-export default function Header({ projectName, onRenameProject, onSave, onOpen, previewOpen, onTogglePreview, onOpenSettings }: HeaderProps) {
+// Top chrome: brand, project name, undo/redo, open/save/import/export. Save,
+// Open, Import PNG, and Settings are wired; undo/redo/export are still
+// placeholders.
+export default function Header({ projectName, onRenameProject, onSave, onOpen, onImportPng, previewOpen, onTogglePreview, onOpenSettings }: HeaderProps) {
   const fileRef = useRef<HTMLInputElement>(null)
+  const pngFileRef = useRef<HTMLInputElement>(null)
 
   const pickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = '' // allow re-opening the same file
     if (file) onOpen(file)
+  }
+
+  const pickPng = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-picking the same file
+    if (file) onImportPng(file)
   }
 
   return (
@@ -67,6 +76,14 @@ export default function Header({ projectName, onRenameProject, onSave, onOpen, p
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm bg-surface hover:bg-surface-hover text-ink-soft"
       >
         <Save size={15} /> Save
+      </button>
+      <input ref={pngFileRef} type="file" accept="image/png" className="hidden" onChange={pickPng} />
+      <button
+        onClick={() => pngFileRef.current?.click()}
+        title="Import PNG as a new sprite"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm bg-surface hover:bg-surface-hover text-ink-soft"
+      >
+        <ImageUp size={15} /> Import
       </button>
       <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm bg-accent-deep/15 hover:bg-accent-deep/25 text-accent-bright border border-accent-deep/40">
         <Download size={15} /> Export

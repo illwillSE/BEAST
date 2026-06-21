@@ -19,6 +19,7 @@ import {
   pasteRegion,
   renameProject,
   addSprite,
+  addSpriteFromImage,
   renameSprite,
   removeSprite,
   moveSprite,
@@ -77,6 +78,7 @@ export type Action =
   | (CellTarget & { type: 'CLEAR_REGION'; x: number; y: number; w: number; h: number })
   | (CellTarget & { type: 'PASTE_REGION'; x: number; y: number; w: number; h: number; data: Cell })
   | { type: 'ADD_SPRITE'; opts?: CreateSpriteOpts }
+  | { type: 'ADD_SPRITE_FROM_IMAGE'; name: string; w: number; h: number; cell: Cell }
   | { type: 'RENAME_SPRITE'; spriteId: string; name: string }
   | { type: 'REMOVE_SPRITE'; spriteId: string }
   | { type: 'MOVE_SPRITE'; spriteId: string; delta: number }
@@ -206,6 +208,9 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
 
     case 'ADD_SPRITE':
       return editDoc(state, (doc) => addSprite(doc, action.opts))
+
+    case 'ADD_SPRITE_FROM_IMAGE':
+      return editDoc(state, (doc) => addSpriteFromImage(doc, action.name, action.w, action.h, action.cell))
 
     case 'RENAME_SPRITE':
       return editDoc(state, (doc) => renameSprite(doc, action.spriteId, action.name))

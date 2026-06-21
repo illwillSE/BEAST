@@ -133,6 +133,31 @@ export default function App() {
     }
   }
 
+  // "Import PNG": decode the file and add it as a new sprite (single layer,
+  // single frame) sized to the image. Capped at the same max size as the New
+  // Sprite / Resize dialogs.
+  const MAX_SPRITE_SIZE = 256
+  const importSpritePng = async (file: File) => {
+    try {
+      const bitmap = await createImageBitmap(file)
+      if (bitmap.width > MAX_SPRITE_SIZE || bitmap.height > MAX_SPRITE_SIZE) {
+        window.alert(`That image is too large (max ${MAX_SPRITE_SIZE}×${MAX_SPRITE_SIZE}).`)
+        return
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = bitmap.width
+      canvas.height = bitmap.height
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(bitmap, 0, 0)
+      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const name = file.name.replace(/\.[^./]+$/, '') || 'Imported sprite'
+      dispatch({ type: 'ADD_SPRITE_FROM_IMAGE', name, w: bitmap.width, h: bitmap.height, cell: Uint8ClampedArray.from(data) })
+    } catch (err) {
+      console.warn('BEAST PNG import failed', err)
+      window.alert('Could not import that image.')
+    }
+  }
+
   // "Import from project": pull just the palette out of another saved .zip,
   // replacing the current one, without touching the current project's
   // sprites/layers/cells.
@@ -369,6 +394,7 @@ export default function App() {
         onRenameProject={(name) => dispatch({ type: 'RENAME_PROJECT', name })}
         onSave={handleSave}
         onOpen={handleOpen}
+        onImportPng={importSpritePng}
         previewOpen={previewOpen}
         onTogglePreview={() => setPreviewOpen((o) => !o)}
         onOpenSettings={() => setSettingsOpen(true)}
