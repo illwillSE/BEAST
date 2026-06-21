@@ -48,6 +48,7 @@ interface PixelCanvasProps {
   cropPending: CropPending | null
   setCropPending: React.Dispatch<React.SetStateAction<CropPending | null>>
   filled: boolean
+  brushSize: number
   mirrorV: boolean
   mirrorH: boolean
   onTemporaryToolComplete?: () => void
@@ -65,7 +66,7 @@ interface PixelCanvasProps {
 export default function PixelCanvas({
   sprite, frameIndex, target, dispatch, scale, fgColor, bgColor, tool, onFgColor, onHover,
   selection, setSelection, floating, setFloating, commitFloating,
-  cropPending, setCropPending, filled,
+  cropPending, setCropPending, filled, brushSize,
   mirrorV, mirrorH, onTemporaryToolComplete,
 }: PixelCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -224,7 +225,7 @@ export default function PixelCanvas({
 
   const ctxFor = (x: number, y: number): ToolContext => ({
     x, y, target, fgColor, bgColor, dispatch: mirroredDispatch, setFgColor: onFgColor, sampleColor,
-    w, h, filled, setPreview,
+    w, h, filled, brushSize, setPreview,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
     cropPending, setCropPending,
   })

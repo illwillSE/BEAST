@@ -3,6 +3,7 @@ import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 import PixelCanvas from './PixelCanvas.jsx'
 import PreviewWindow from './PreviewWindow.jsx'
 import ResizeCanvasDialog from './ResizeCanvasDialog.jsx'
+import { tools } from '../tools/registry.js'
 import type { Sprite, CellTarget } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
 import type { Rect, Floating, CropPending } from '../tools/registry.js'
@@ -23,6 +24,7 @@ interface CanvasStageProps {
   cropPending: CropPending | null
   setCropPending: React.Dispatch<React.SetStateAction<CropPending | null>>
   filled: boolean
+  brushSize: number
   mirrorV: boolean
   mirrorH: boolean
   onTemporaryToolComplete?: () => void
@@ -36,7 +38,7 @@ interface CanvasStageProps {
 export default function CanvasStage({
   tool, fgColor, bgColor, onFgColor, sprite, target, dispatch,
   selection, setSelection, floating, setFloating, commitFloating,
-  cropPending, setCropPending, filled,
+  cropPending, setCropPending, filled, brushSize,
   mirrorV, mirrorH, onTemporaryToolComplete, previewOpen, onClosePreview,
 }: CanvasStageProps) {
   const [scale, setScale] = useState(16)
@@ -98,6 +100,7 @@ export default function CanvasStage({
             cropPending={cropPending}
             setCropPending={setCropPending}
             filled={filled}
+            brushSize={brushSize}
             mirrorV={mirrorV}
             mirrorH={mirrorH}
             onTemporaryToolComplete={onTemporaryToolComplete}
@@ -115,6 +118,7 @@ export default function CanvasStage({
           {sprite.w} × {sprite.h}
         </span>
         <span className="text-muted capitalize">{tool}</span>
+        {tools[tool]?.sizes && <span className="tabular-nums">{brushSize}px</span>}
         <span className="tabular-nums">{pos ? `${pos.x}, ${pos.y}` : '–'}</span>
         <div className="flex-1" />
         <button className="text-muted hover:text-ink" onClick={() => setScale((s) => Math.max(1, s - 2))}>

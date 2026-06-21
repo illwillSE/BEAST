@@ -5,14 +5,16 @@
 // `key` (see src/tools/registry.js) instead of being duplicated here.
 // Pressing a tool's key while that tool is already active cycles its
 // `variants` (if any) instead of re-selecting it — e.g. R/O toggle rect and
-// ellipse between Outline and Filled.
+// ellipse between Outline and Filled. `[`/`]` step the active tool's
+// `sizes` (if any) down/up — e.g. pencil/eraser/line/rect/ellipse width.
 //
 // entry = { key, mod, shift, run(ctx) }
 //   key    e.key.toLowerCase(), e.g. 'z', 'escape'
 //   mod    require Cmd/Ctrl (default false)
 //   shift  require Shift (default false)
 //   run    ctx => void; ctx = {
-//     dispatch, setTool, setTemporaryTool, tool, filled, setVariant, copySelection,
+//     dispatch, setTool, setTemporaryTool, tool, filled, setVariant,
+//     brushSize, setBrushSize, copySelection,
 //     cutSelection, pasteClipboard, commitFloating, setSelection,
 //     commitCrop, cancelCrop, swapColors,
 //   }
@@ -28,6 +30,8 @@ export interface ShortcutContext {
   tool: string
   filled: Record<string, boolean>
   setVariant: (id: string, value: boolean) => void
+  brushSize: Record<string, number>
+  setBrushSize: (id: string, value: number) => void
   copySelection: () => void
   cutSelection: () => void
   pasteClipboard: () => void
@@ -57,6 +61,16 @@ const toolShortcuts: Shortcut[] = Object.entries(tools)
     },
   }))
 
+// Step the active tool's brush width down (-1) or up (+1) through its
+// `sizes` list; a no-op for tools without one (fill, select, move, ...).
+function stepBrushSize(ctx: ShortcutContext, delta: number) {
+  const sizes = tools[ctx.tool]?.sizes
+  if (!sizes) return
+  const i = sizes.indexOf(ctx.brushSize[ctx.tool] ?? sizes[0])
+  const next = sizes[Math.max(0, Math.min(sizes.length - 1, (i === -1 ? 0 : i) + delta))]
+  ctx.setBrushSize(ctx.tool, next)
+}
+
 export const shortcuts: Shortcut[] = [
   { key: 'z', mod: true, run: (ctx) => ctx.dispatch({ type: 'UNDO' }) },
   { key: 'z', mod: true, shift: true, run: (ctx) => ctx.dispatch({ type: 'REDO' }) },
@@ -68,6 +82,8 @@ export const shortcuts: Shortcut[] = [
   { key: 'escape', run: (ctx) => { ctx.commitFloating(); ctx.setSelection(null); ctx.cancelCrop() } },
   { key: 'i', shift: true, run: (ctx) => ctx.setTemporaryTool('eyedropper') },
   { key: 'x', run: (ctx) => ctx.swapColors() },
+  { key: '[', run: (ctx) => stepBrushSize(ctx, -1) },
+  { key: ']', run: (ctx) => stepBrushSize(ctx, 1) },
   ...toolShortcuts,
 ]
 

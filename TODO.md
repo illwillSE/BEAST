@@ -23,7 +23,6 @@ implemented; this file tracks what isn't, organized by area.
       whether the preview should follow playback too.
 
 ## Tools (v1 registry)
-- [~] Brush (incl. 1px pencil) — pencil drawing wired; brush sizes TBD.
 - [ ] Lasso (freehand polygon) select — deferred; only rectangular select is
       implemented for now.
 - [ ] Color select — select all pixels of a specific color (e.g. click a
@@ -33,7 +32,17 @@ implemented; this file tracks what isn't, organized by area.
       set) and an emoji picker/insert.
 - [ ] Eraser: decide whether it stays a separate tool (current) or is also
       reachable via right-click while another paint tool is active.
-- [ ] Adjustable pixel width (brush/stroke size), not just fixed 1px.
+- [ ] Brush width is currently per-tool (`brushSize: Record<string, number>` in
+      `App.tsx`, one independent value per tool id, mirroring the `filled`
+      outline/fill pattern). Make it one shared/global value instead, so
+      switching between pencil/eraser/line/rect/ellipse keeps the same width
+      rather than each tool remembering its own.
+- [ ] Brush width follow-ups (width itself is wired — square stamp, odd sizes
+      1/3/5/7, via `stampPoints` in `document/model.ts`, for pencil/eraser/line
+      and rect/ellipse outlines): round stamp option, even sizes, a brush-size
+      cursor preview (ghost outline following the pointer), and "pixel
+      perfect" diagonal-stroke thinning at width>1 (Aseprite-style — avoids
+      chunky-looking corners where a thick diagonal stroke overlaps itself).
 - [ ] Transform tools: flip horizontal / flip vertical (whole layer or
       selection content, not the live mirror-painting guides), and a
       move/nudge tool to shift layer content in place (distinct from the

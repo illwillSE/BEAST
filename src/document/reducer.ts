@@ -13,6 +13,7 @@ import {
   rectPoints,
   ellipsePoints,
   paintPoints,
+  stampPoints,
   gradientFill,
   clearRegion,
   pasteRegion,
@@ -57,10 +58,10 @@ export type Action =
   | { type: 'REPLACE'; doc: Doc }
   | { type: 'STROKE_BEGIN' }
   | { type: 'STROKE_END' }
-  | (CellTarget & { type: 'PAINT_LINE'; x0: number; y0: number; x1: number; y1: number; rgba: RGBA })
+  | (CellTarget & { type: 'PAINT_LINE'; x0: number; y0: number; x1: number; y1: number; rgba: RGBA; size: number })
   | (CellTarget & { type: 'FILL'; x: number; y: number; rgba: RGBA })
-  | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA })
-  | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA })
+  | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number })
+  | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number })
   | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; rgba0: RGBA; rgba1: RGBA })
   | (CellTarget & { type: 'CLEAR_REGION'; x: number; y: number; w: number; h: number })
   | (CellTarget & { type: 'PASTE_REGION'; x: number; y: number; w: number; h: number; data: Cell })
@@ -141,8 +142,8 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
       return state.stroke ? { ...state, stroke: null } : state
 
     case 'PAINT_LINE': {
-      const { x0, y0, x1, y1, rgba } = action
-      return editCell(state, action, (cell, sp) => paintLine(cell, sp.w, sp.h, x0, y0, x1, y1, rgba))
+      const { x0, y0, x1, y1, rgba, size } = action
+      return editCell(state, action, (cell, sp) => paintLine(cell, sp.w, sp.h, x0, y0, x1, y1, rgba, size))
     }
 
     case 'FILL': {
@@ -150,14 +151,18 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
       return editCell(state, action, (cell, sp) => floodFill(cell, sp.w, sp.h, x, y, rgba))
     }
 
+    // Width only widens the outline — a filled shape is already solid, so
+    // `size` is ignored when `filled` is true.
     case 'PAINT_RECT': {
-      const { x0, y0, x1, y1, filled, rgba } = action
-      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, rectPoints(x0, y0, x1, y1, filled), rgba))
+      const { x0, y0, x1, y1, filled, rgba, size } = action
+      const pts = rectPoints(x0, y0, x1, y1, filled)
+      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, filled ? pts : stampPoints(pts, size), rgba))
     }
 
     case 'PAINT_ELLIPSE': {
-      const { x0, y0, x1, y1, filled, rgba } = action
-      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, ellipsePoints(x0, y0, x1, y1, filled), rgba))
+      const { x0, y0, x1, y1, filled, rgba, size } = action
+      const pts = ellipsePoints(x0, y0, x1, y1, filled)
+      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, filled ? pts : stampPoints(pts, size), rgba))
     }
 
     case 'GRADIENT_FILL': {

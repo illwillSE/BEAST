@@ -387,8 +387,31 @@ export function paintPoints(cell: Cell, w: number, h: number, points: Point[], r
   for (const [x, y] of points) paintPixel(cell, w, h, x, y, rgba)
 }
 
-export function paintLine(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba: RGBA) {
-  paintPoints(cell, w, h, linePoints(x0, y0, x1, y1), rgba)
+// Expand each point into a size×size square stamp centered on it, deduped —
+// the brush-width primitive shared by strokes/lines/outlines. `size` is
+// expected odd (1/3/5/7) so the stamp centers on a single pixel; size<=1 is a
+// no-op pass-through.
+export function stampPoints(points: Point[], size: number): Point[] {
+  if (size <= 1) return points
+  const r = (size - 1) / 2
+  const seen = new Set<string>()
+  const out: Point[] = []
+  for (const [x, y] of points) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const px = x + dx, py = y + dy
+        const key = `${px},${py}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push([px, py])
+      }
+    }
+  }
+  return out
+}
+
+export function paintLine(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba: RGBA, size: number) {
+  paintPoints(cell, w, h, stampPoints(linePoints(x0, y0, x1, y1), size), rgba)
 }
 
 // Compute the 4-connected region matching the RGBA at (x,y), without mutating.

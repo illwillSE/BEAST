@@ -47,7 +47,7 @@ function groupForTool(id: string): string | null {
     if (!t) continue
     if (t.sub) {
       if (t.sub.some((s) => s.id === id)) return t.id
-    } else if (t.id === id && tools[t.id].variants) {
+    } else if (t.id === id && (tools[t.id].variants || tools[t.id].sizes)) {
       return t.id
     }
   }
@@ -86,6 +86,7 @@ interface FlyoutItem {
   Icon?: Icon
   active: boolean
   onClick: () => void
+  divider?: boolean
 }
 
 interface FlyoutProps {
@@ -94,24 +95,30 @@ interface FlyoutProps {
 }
 
 // Shared popout for every tool with sub-options (rect/ellipse fill style,
-// select/crop, mirror axes). Each item supplies its own onClick, so the
-// caller decides what selecting it does — including collapsing the flyout.
+// brush width, select/crop, mirror axes). Each item supplies its own
+// onClick, so the caller decides what selecting it does — including
+// collapsing the flyout. A `divider` item renders a separator instead of a
+// button, for grouping unrelated option sets (e.g. fill style vs. width).
 function Flyout({ items, activeClass = 'bg-accent-deep/20 text-accent-bright' }: FlyoutProps) {
   return (
     <div className="absolute left-full top-0 ml-1 z-10 flex flex-col gap-0.5 p-1 bg-panel border border-divider rounded shadow-lg">
-      {items.map((it) => (
-        <button
-          key={it.id}
-          onClick={it.onClick}
-          className={
-            'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] whitespace-nowrap text-left ' +
-            (it.active ? activeClass : 'text-muted hover:text-ink hover:bg-surface-hover')
-          }
-        >
-          {it.Icon && <it.Icon size={13} />}
-          {it.label}
-        </button>
-      ))}
+      {items.map((it) =>
+        it.divider ? (
+          <div key={it.id} className="h-px mx-1 my-0.5 bg-divider" />
+        ) : (
+          <button
+            key={it.id}
+            onClick={it.onClick}
+            className={
+              'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] whitespace-nowrap text-left ' +
+              (it.active ? activeClass : 'text-muted hover:text-ink hover:bg-surface-hover')
+            }
+          >
+            {it.Icon && <it.Icon size={13} />}
+            {it.label}
+          </button>
+        )
+      )}
     </div>
   )
 }
@@ -121,13 +128,15 @@ interface ToolRailProps {
   onPick: (id: string) => void
   filled: Record<string, boolean>
   onFilled: (id: string, value: boolean) => void
+  brushSize: Record<string, number>
+  onBrushSize: (id: string, value: number) => void
   mirrorV: boolean
   mirrorH: boolean
   onMirrorV: () => void
   onMirrorH: () => void
 }
 
-export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mirrorH, onMirrorV, onMirrorH }: ToolRailProps): ReactNode {
+export default function ToolRail({ active, onPick, filled, onFilled, brushSize, onBrushSize, mirrorV, mirrorH, onMirrorV, onMirrorH }: ToolRailProps): ReactNode {
   // Which tool's flyout (if any) is popped out. Picking an item from a flyout
   // collapses it; clicking the rail icon again pops it back out.
   const [openGroup, setOpenGroup] = useState<string | null>(null)
@@ -174,8 +183,24 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
         }
 
         const variants = tools[t.id].variants
-        if (variants) {
+        const sizes = tools[t.id].sizes
+        if (variants || sizes) {
           const key = tools[t.id].key
+          const items: FlyoutItem[] = [
+            ...(variants ?? []).map(([label, val]) => ({
+              id: `v:${val}`,
+              label,
+              active: (filled[t.id] ?? false) === val,
+              onClick: () => { onFilled(t.id, val); setOpenGroup(null) },
+            })),
+            ...(variants && sizes ? [{ id: 'd', label: '', active: false, onClick: () => {}, divider: true }] : []),
+            ...(sizes ?? []).map((sz) => ({
+              id: `s:${sz}`,
+              label: `${sz}px`,
+              active: (brushSize[t.id] ?? sizes![0]) === sz,
+              onClick: () => { onBrushSize(t.id, sz); setOpenGroup(null) },
+            })),
+          ]
           return (
             <div key={t.id} className="relative">
               <RailButton
@@ -185,16 +210,7 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
                 filled={filled[t.id] ?? false}
                 onClick={() => { onPick(t.id); toggleGroup(t.id) }}
               />
-              {openGroup === t.id && (
-                <Flyout
-                  items={variants.map(([label, val]) => ({
-                    id: String(val),
-                    label,
-                    active: (filled[t.id] ?? false) === val,
-                    onClick: () => { onFilled(t.id, val); setOpenGroup(null) },
-                  }))}
-                />
-              )}
+              {openGroup === t.id && <Flyout items={items} />}
             </div>
           )
         }

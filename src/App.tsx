@@ -55,6 +55,8 @@ export default function App() {
   const [mirrorH, setMirrorH] = useState(false)
   const [filled, setFilled] = useState<Record<string, boolean>>({ rect: false, ellipse: false })
   const setToolVariant = (id: string, v: boolean) => setFilled((f) => ({ ...f, [id]: v }))
+  const [brushSize, setBrushSize] = useState<Record<string, number>>({ pencil: 1, eraser: 1, line: 1, rect: 1, ellipse: 1 })
+  const setToolSize = (id: string, v: number) => setBrushSize((b) => ({ ...b, [id]: v }))
   const selectTool = (id: string) => {
     setTemporaryToolReturn(null)
     setTool(id)
@@ -218,7 +220,7 @@ export default function App() {
   useEffect(() => {
     const ctx = {
       dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
-      tool, filled, setVariant: setToolVariant,
+      tool, filled, setVariant: setToolVariant, brushSize, setBrushSize: setToolSize,
       copySelection, cutSelection, pasteClipboard, commitFloating, setSelection,
       commitCrop, cancelCrop, swapColors,
     }
@@ -231,7 +233,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [floating, selection, clipboard, activeSprite, safeLayerId, safeFrame, tool, filled, cropPending, fgColor, bgColor])
+  }, [floating, selection, clipboard, activeSprite, safeLayerId, safeFrame, tool, filled, brushSize, cropPending, fgColor, bgColor])
 
   // Restore the autosaved project on mount, then enable autosaving.
   const [ready, setReady] = useState(false)
@@ -285,6 +287,8 @@ export default function App() {
           onPick={selectTool}
           filled={filled}
           onFilled={setToolVariant}
+          brushSize={brushSize}
+          onBrushSize={setToolSize}
           mirrorV={mirrorV}
           mirrorH={mirrorH}
           onMirrorV={() => setMirrorV((v) => !v)}
@@ -335,6 +339,7 @@ export default function App() {
           cropPending={cropPending}
           setCropPending={setCropPending}
           filled={filled[tool] ?? false}
+          brushSize={brushSize[tool] ?? 1}
           mirrorV={mirrorV}
           mirrorH={mirrorH}
           onTemporaryToolComplete={temporaryToolReturn ? completeTemporaryTool : undefined}
