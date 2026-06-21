@@ -100,6 +100,7 @@ export default function PixelCanvas({
   const onionRef = useRef<HTMLCanvasElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const marqueeRef = useRef<HTMLCanvasElement>(null)
+  const selectionRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<ImageData | null>(null)
   const draggingRef = useRef(false)
   const lastRef = useRef<{ x: number; y: number } | null>(null)
@@ -218,14 +219,39 @@ export default function PixelCanvas({
       ctx.stroke()
       return
     }
+  }, [mirrorV, mirrorH, hoverCell, playing, tool, brushSize, brushShape, preview, w, h, scale])
 
+  // Selection marquee, on its own canvas with CSS mix-blend-mode: difference
+  // so the dashed outline is always the true inverse of whatever's beneath
+  // it (sprite pixels, onion ghosts...), instead of a fixed accent color
+  // that can vanish against similarly-colored content (e.g. amber accent on
+  // yellow pixels). Canvas's own globalCompositeOperation can't do this here
+  // since it only blends within one canvas's own pixels, not against the
+  // other stacked canvas layers below — mix-blend-mode is a CSS compositing
+  // step instead. Animated dash offset gives the classic "marching ants" look.
+  useEffect(() => {
+    const ctx = selectionRef.current!.getContext('2d')!
     const rect = preview?.kind === 'marquee' ? preview.rect : !floating && (selection || cropPending) ? (selection || cropPending) : null
-    if (!rect) return
-    ctx.strokeStyle = getColor('accent-bright')
-    ctx.lineWidth = 1
-    ctx.setLineDash([4, 3])
-    ctx.strokeRect(rect.x * scale + 0.5, rect.y * scale + 0.5, rect.w * scale - 1, rect.h * scale - 1)
-  }, [floating, selection, cropPending, preview, w, h, scale, mirrorV, mirrorH, hoverCell, playing, tool, brushSize, brushShape])
+
+    if (!rect) {
+      ctx.clearRect(0, 0, w * scale, h * scale)
+      return
+    }
+
+    let rafId: number
+    const draw = () => {
+      ctx.clearRect(0, 0, w * scale, h * scale)
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 1
+      ctx.setLineDash([4, 3])
+      ctx.lineDashOffset = -(performance.now() / 30) % 7
+      ctx.strokeRect(rect.x * scale + 0.5, rect.y * scale + 0.5, rect.w * scale - 1, rect.h * scale - 1)
+      rafId = requestAnimationFrame(draw)
+    }
+    draw()
+
+    return () => cancelAnimationFrame(rafId)
+  }, [floating, selection, cropPending, preview, w, h, scale])
 
   const cellFromClient = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect()
@@ -424,6 +450,19 @@ export default function PixelCanvas({
           width: w * scale,
           height: h * scale,
           pointerEvents: 'none',
+        }}
+      />
+      <canvas
+        ref={selectionRef}
+        width={w * scale}
+        height={h * scale}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: w * scale,
+          height: h * scale,
+          pointerEvents: 'none',
+          mixBlendMode: 'difference',
         }}
       />
       {magnifier && <EyedropperMagnifier {...magnifier} />}

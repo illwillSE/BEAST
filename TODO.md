@@ -11,6 +11,11 @@ implemented; this file tracks what isn't, organized by area.
 ## Canvas
 - [x] Crop tool: resize handles on all edges/corners, with an appropriate
       resize cursor on hover.
+- [ ] Bug: making a rect selection with the select tool, then switching to
+      the crop tool while that selection is still active, behaves weird
+      (crop tool likely isn't expecting a pre-existing `selection` to seed
+      `cropPending` from — needs repro + fix in `tools/registry.ts` /
+      `PixelCanvas.tsx`).
 - [ ] Sane max canvas size cap for performance.
 - [ ] A clear canvas button.
 
