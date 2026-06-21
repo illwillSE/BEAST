@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { ZoomIn, ZoomOut } from 'lucide-react'
+import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 import PixelCanvas from './PixelCanvas.jsx'
 import PreviewWindow from './PreviewWindow.jsx'
 import ResizeCanvasDialog from './ResizeCanvasDialog.jsx'
@@ -47,6 +47,17 @@ export default function CanvasStage({
   const resizeSprite = (x: number, y: number, w: number, h: number) => {
     dispatch({ type: 'CROP_SPRITE', spriteId: sprite.id, x, y, w, h })
     setResizeOpen(false)
+  }
+
+  // Fits the sprite to the viewport, accounting for the viewport's p-6 padding.
+  const fitToFrame = () => {
+    const el = viewportRef.current
+    if (!el) return
+    const PADDING = 48
+    const availW = el.clientWidth - PADDING
+    const availH = el.clientHeight - PADDING
+    const next = Math.floor(Math.min(availW / sprite.w, availH / sprite.h))
+    setScale(Math.max(1, Math.min(40, next)))
   }
 
   // Scrolls the canvas viewport so the given sprite pixel is centered —
@@ -112,6 +123,12 @@ export default function CanvasStage({
         <span className="text-text tabular-nums">{scale * 100}%</span>
         <button className="text-muted hover:text-ink" onClick={() => setScale((s) => Math.min(40, s + 2))}>
           <ZoomIn size={14} />
+        </button>
+        <button title="Fit to frame" className="text-muted hover:text-ink" onClick={fitToFrame}>
+          <Maximize2 size={14} />
+        </button>
+        <button title="Actual size (100%)" className="text-muted hover:text-ink text-[11px]" onClick={() => setScale(1)}>
+          1:1
         </button>
       </div>
 

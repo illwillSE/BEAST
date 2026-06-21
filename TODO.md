@@ -13,8 +13,6 @@ implemented; this file tracks what isn't, organized by area.
       drag-from-inside to reposition), with an appropriate resize cursor on hover.
 - [ ] Sane max canvas size cap for performance.
 - [ ] A clear canvas button.
-- [ ] Canvas zoom: a "fit to frame" option (zooms in or out as needed to fit
-      the sprite in the viewport) and a 1:1 button.
 
 ## Real Preview
 - [ ] No keyboard shortcut to toggle it — only the header button. The shortcut
@@ -28,6 +26,9 @@ implemented; this file tracks what isn't, organized by area.
 - [~] Brush (incl. 1px pencil) — pencil drawing wired; brush sizes TBD.
 - [ ] Lasso (freehand polygon) select — deferred; only rectangular select is
       implemented for now.
+- [ ] Color select — select all pixels of a specific color (e.g. click a
+      color, or eyedropper-style sample) across the layer/canvas, for use as
+      a mask or to drive color replace.
 - [ ] Type tool — render text onto the canvas (font select, maybe a predefined
       set) and an emoji picker/insert.
 - [ ] Eraser: decide whether it stays a separate tool (current) or is also
