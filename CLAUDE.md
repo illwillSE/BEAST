@@ -56,7 +56,7 @@ blocks, BEAST is a **layered + framed pixel document** edited with painting tool
   character on a layer stack, animate it across frames).
 - **Audience:** General audience (not kid-specific). **English only** to start. **Single mode** — no
   Beginner/Advanced split.
-- **Tech stack:** React 18 + Vite 6 + Tailwind v4. Browser-only, no backend.
+- **Tech stack:** React 18 + Vite 6 + Tailwind v4 + TypeScript (strict). Browser-only, no backend.
 - **Carry over BLAST's proven (non-audio) patterns**, adapted not copied blindly:
   - the **theme palette** (dark slate + amber accent; Canvas/SVG read tokens via `getColor()`),
   - the **history-backed undo/redo reducer**,
@@ -96,12 +96,11 @@ blocks, BEAST is a **layered + framed pixel document** edited with painting tool
 - `npm run preview` — serve the production build locally
 - `npm run deploy` — build + publish `dist/` to GitHub Pages (`gh-pages`); the release path
 
-### TypeScript migration (in progress, started 2026-06-21)
+### TypeScript
 
-Migrating JS→TS **incrementally**, **strict from day one**. `tsconfig.json` has `allowJs: true` +
-`checkJs: false`, so `.js`/`.jsx` and `.ts`/`.tsx` coexist — only renamed files are type-checked.
-Vite resolves `.js` import specifiers to their `.ts` files, so renaming a module needs **no edits to
-its importers**. Migration order is bottom-up (data model → reducer → tools → persist/hooks →
-components last). `src/document/model.ts` is done; the rest is still `.js`/`.jsx`.
+The codebase is **fully TypeScript** (`strict` mode) — the incremental JS→TS migration
+(started 2026-06-21, bottom-up: data model → reducer → tools → persist/hooks → components)
+finished the same day. No `.js`/`.jsx` remain; `tsconfig.json` has no `allowJs`/`checkJs`
+crutches left either.
 
 ## Architecture
