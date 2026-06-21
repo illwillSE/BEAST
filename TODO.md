@@ -3,10 +3,6 @@
 Deferred / planned work — open items only. See [README.md](./README.md) for what's already
 implemented; this file tracks what isn't, organized by area.
 
-SHIFT+I doesnt show magnifier until movement. let it work all over the app?
-fix layer and frame delete as sprite delete
-gradient - fix line and go from fg->bg (implement after fg+bg)
-
 ## Core data models
 - [ ] Content-addressed storage for binary pixel data (BLAST sample-cache pattern).
 - [ ] (optional) Per-sprite undo — scope history per sprite so undo/redo only
@@ -41,6 +37,13 @@ gradient - fix line and go from fg->bg (implement after fg+bg)
       selection content, not the live mirror-painting guides), and a
       move/nudge tool to shift layer content in place (distinct from the
       existing select-then-move-floating-region workflow).
+- [ ] Gradient fill currently always fades the drag color to transparent
+      (`gradientFill` in `document/model.ts`, fixed two-stop color→transparent
+      by design, per its own comment). Once the foreground/background color
+      pair below lands, change it to fade fg→bg instead. Also revisit the
+      drag preview (`tools/registry.ts` gradient entry, rendered in
+      `PixelCanvas.tsx`) — it currently only draws the Bresenham line between
+      drag endpoints, not anything representing the gradient spread itself.
 
 ## Color
 - [ ] Docked sidebar (`LayersPanel` + `ColorPanel` both pinned) can still clip
@@ -57,11 +60,17 @@ gradient - fix line and go from fg->bg (implement after fg+bg)
       "active color" slot plus a swap control, distinct from the current
       single `color` state (`App.tsx`). Decide how it interacts with tools:
       e.g. eraser/right-click paint with bg instead of fg, and a keyboard
-      shortcut to swap (X is the common convention). 
+      shortcut to swap (X is the common convention).
 - [ ] Managed swatch palette (loadable/savable) — palette is currently a single
       in-memory list (`App.tsx` `palette` state, seeded from
       `ColorPanel.DEFAULT_PALETTE`); no save/load or multiple named palettes
       yet. The header's "New palette" button is still a placeholder for this.
+- [ ] Eyedropper magnifier doesn't appear until the pointer moves — it's only
+      set inside the move handler (`PixelCanvas.tsx`, `handleMove`), not on
+      activation/click, so Shift+I (or selecting Eyedropper) shows nothing
+      until you first move the mouse over the canvas. Also decide: should the
+      magnifier work everywhere in the app (e.g. hovering UI/palette swatches),
+      or stay canvas-only as it is now?
 - [ ] Eyedropper magnifier can go stale: the Shift+I temporary-tool revert
       clears it on pick, but switching away from the eyedropper via its
       keyboard shortcut or the toolbar — while hovering, without moving the
@@ -76,6 +85,13 @@ gradient - fix line and go from fg->bg (implement after fg+bg)
       behavior, or if it should only revert after a successful pick.
 
 ## Layers
+- [ ] Delete button doesn't match sprite delete's UX: in `SpriteList.tsx` the
+      delete icon is hidden until row hover (`opacity-0 group-hover:opacity-100`)
+      and fully disappears when disabled (last sprite). In `LayersPanel.tsx`
+      (and `FramesTimeline.tsx`, same pattern for frames) the delete icon is
+      always visible and just dims (`disabled:opacity-30`) when it's the last
+      layer/frame. Make layer and frame delete match the sprite-delete
+      hover-reveal behavior for consistency.
 - [ ] Drag-and-drop reordering — swap layer stack order by dragging a row,
       instead of (or in addition to) the move up/down buttons.
 - [ ] Shift+click a layer's eye to solo it — hide all other layers (shift+click

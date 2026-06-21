@@ -21,6 +21,9 @@ undo/redo behind every edit.
 - **Tools** — Pencil, Eraser, Fill, Gradient fill, Eyedropper, Line, Rectangle, Ellipse
   (outline or filled), rectangular Select with Move/Cut/Copy/Paste, Crop, and
   vertical/horizontal mirror (symmetry) toggles layered on top of any paint tool.
+- **Color** — a free RGBA picker (HSV square, hue/alpha sliders, editable
+  hex/RGBA fields) with a foldable gradient section to save space when
+  docked, plus a swatch palette you can add mixed colors to.
 - **Layers** — add/duplicate/remove/reorder, per-layer visibility and opacity.
 - **Sprites** — add/rename/delete/reorder, each with its own thumbnail preview.
 - **Animation frames** — add/remove/duplicate/reorder.
