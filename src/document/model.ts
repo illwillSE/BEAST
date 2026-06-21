@@ -10,6 +10,9 @@ export type Cell = Uint8ClampedArray
 export type RGBA = readonly [number, number, number, number]
 // An [x, y] integer cell coordinate.
 export type Point = [number, number]
+// A brush stamp shape — square/round fill the whole footprint, the line
+// shapes are a 1px-thick flat nib at a fixed orientation (calligraphy-style).
+export type BrushShape = 'square' | 'round' | 'line-h' | 'line-v' | 'line-diag1' | 'line-diag2'
 
 export interface Layer {
   id: string
@@ -415,31 +418,59 @@ export function paintPoints(cell: Cell, w: number, h: number, points: Point[], r
   for (const [x, y] of points) paintPixel(cell, w, h, x, y, rgba)
 }
 
-// Expand each point into a size×size square stamp centered on it, deduped —
-// the brush-width primitive shared by strokes/lines/outlines. `size` is
-// expected odd (1/3/5/7) so the stamp centers on a single pixel; size<=1 is a
-// no-op pass-through.
-export function stampPoints(points: Point[], size: number): Point[] {
-  if (size <= 1) return points
-  const r = (size - 1) / 2
-  const seen = new Set<string>()
+// The dx/dy offsets of one brush stamp, relative to its anchor point. Sizes
+// 1-20, including even sizes which have no single center pixel — every shape
+// shares one bias convention for that case (lo..hi skews toward -x/-y).
+export function shapeOffsets(size: number, shape: BrushShape): Point[] {
+  if (size <= 1) return [[0, 0]]
+  const lo = -Math.floor(size / 2)
+  const hi = Math.ceil(size / 2) - 1
   const out: Point[] = []
-  for (const [x, y] of points) {
-    for (let dy = -r; dy <= r; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        const px = x + dx, py = y + dy
-        const key = `${px},${py}`
-        if (seen.has(key)) continue
-        seen.add(key)
-        out.push([px, py])
+  if (shape === 'line-h') {
+    for (let dx = lo; dx <= hi; dx++) out.push([dx, 0])
+  } else if (shape === 'line-v') {
+    for (let dy = lo; dy <= hi; dy++) out.push([0, dy])
+  } else if (shape === 'line-diag1') {
+    for (let t = lo; t <= hi; t++) out.push([t, t])
+  } else if (shape === 'line-diag2') {
+    for (let t = lo; t <= hi; t++) out.push([t, -t])
+  } else if (shape === 'round') {
+    const center = (lo + hi) / 2
+    const r = size / 2
+    for (let dy = lo; dy <= hi; dy++) {
+      for (let dx = lo; dx <= hi; dx++) {
+        if ((dx - center) ** 2 + (dy - center) ** 2 <= r * r) out.push([dx, dy])
       }
+    }
+  } else {
+    for (let dy = lo; dy <= hi; dy++) {
+      for (let dx = lo; dx <= hi; dx++) out.push([dx, dy])
     }
   }
   return out
 }
 
-export function paintLine(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba: RGBA, size: number) {
-  paintPoints(cell, w, h, stampPoints(linePoints(x0, y0, x1, y1), size), rgba)
+// Expand each point into a brush stamp centered (or even-size biased) on it,
+// deduped — the brush-width primitive shared by strokes/lines/outlines.
+export function stampPoints(points: Point[], size: number, shape: BrushShape = 'square'): Point[] {
+  if (size <= 1) return points
+  const offsets = shapeOffsets(size, shape)
+  const seen = new Set<string>()
+  const out: Point[] = []
+  for (const [x, y] of points) {
+    for (const [dx, dy] of offsets) {
+      const px = x + dx, py = y + dy
+      const key = `${px},${py}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push([px, py])
+    }
+  }
+  return out
+}
+
+export function paintLine(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba: RGBA, size: number, shape: BrushShape = 'square') {
+  paintPoints(cell, w, h, stampPoints(linePoints(x0, y0, x1, y1), size, shape), rgba)
 }
 
 // Compute the 4-connected region matching the RGBA at (x,y), without mutating.

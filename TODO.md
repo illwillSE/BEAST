@@ -32,25 +32,19 @@ implemented; this file tracks what isn't, organized by area.
       set) and an emoji picker/insert.
 - [ ] Eraser: decide whether it stays a separate tool (current) or is also
       reachable via right-click while another paint tool is active.
-- [ ] Brush pixel size + shape — one combined effort. Today width is wired
-      (square stamp, odd sizes 1/3/5/7, via `stampPoints` in
-      `document/model.ts`, for pencil/eraser/line and rect/ellipse outlines)
-      but per-tool (`brushSize: Record<string, number>` in `App.tsx`, one
-      independent value per tool id, mirroring `filled`) and only selectable in
-      the rail flyouts. Build:
-      - One shared/global size value instead of per-tool, so switching between
-        pencil/eraser/line/rect/ellipse keeps the same width.
-      - A **round** stamp option alongside the current square; also even sizes.
-      - A single UI home: its own canvas button in `CanvasStage.tsx` (separate
-        from the zoom readout, so zoom/render size isn't conflated with brush
-        size) that pops up a menu to choose size + shape and replaces the rail
-        flyouts for this. The button shows the current selection — the shape
-        rendered at its smallest possible size (disregarding the selected
-        size), plus the size value.
-      - Later polish: a brush-size cursor preview (ghost outline following the
-        pointer), and "pixel perfect" diagonal-stroke thinning at width>1
-        (Aseprite-style — avoids chunky corners where a thick diagonal stroke
-        overlaps itself).
+- [x] Brush pixel size + shape — global (not per-tool) `brushSize`/`brushShape`
+      state in `App.tsx`, consumed by pencil/eraser/line/rect/ellipse (flagged
+      via `hasBrushSize` in `tools/registry.ts`). 6 shapes — square, round, and
+      a flat line nib in 4 orientations (h/v/diag×2) — at any size 1-20 via
+      `shapeOffsets`/`stampPoints` in `document/model.ts`. Picked from a
+      `BrushSizeButton` popover in `CanvasStage.tsx`'s status bar (replaced the
+      old per-tool rail flyouts for width).
+- [x] Brush cursor preview — a live outline of the brush footprint
+      (`brushOutline` in `PixelCanvas.tsx`, traces the silhouette of
+      `shapeOffsets` rather than every internal grid line) follows the
+      pointer on the marquee canvas whenever a `hasBrushSize` tool is active.
+- [ ] "Pixel perfect" diagonal-stroke thinning at width>1 (Aseprite-style —
+      avoids chunky corners where a thick diagonal stroke overlaps itself).
 - [ ] Transform tools: flip horizontal / flip vertical (whole layer or
       selection content, not the live mirror-painting guides), and a
       move/nudge tool to shift layer content in place (distinct from the

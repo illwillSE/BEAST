@@ -18,7 +18,7 @@ import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
 import { projectToZipBlob, projectFromZipFile, projectPaletteFromZipFile, downloadBlob } from './persist/zip.js'
 import { matchShortcut, isTypingTarget } from './shortcuts/registry.js'
-import type { Cell, Doc, Sprite } from './document/model.js'
+import type { BrushShape, Cell, Doc, Sprite } from './document/model.js'
 import type { Rect, Floating, CropPending } from './tools/registry.js'
 
 interface Clipboard {
@@ -53,8 +53,8 @@ export default function App() {
   const [mirrorH, setMirrorH] = useState(false)
   const [filled, setFilled] = useState<Record<string, boolean>>({ rect: false, ellipse: false })
   const setToolVariant = (id: string, v: boolean) => setFilled((f) => ({ ...f, [id]: v }))
-  const [brushSize, setBrushSize] = useState<Record<string, number>>({ pencil: 1, eraser: 1, line: 1, rect: 1, ellipse: 1 })
-  const setToolSize = (id: string, v: number) => setBrushSize((b) => ({ ...b, [id]: v }))
+  const [brushSize, setBrushSize] = useState(1)
+  const [brushShape, setBrushShape] = useState<BrushShape>('square')
   const selectTool = (id: string) => {
     setTemporaryToolReturn(null)
     setTool(id)
@@ -310,7 +310,7 @@ export default function App() {
   useEffect(() => {
     const ctx = {
       dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
-      tool, filled, setVariant: setToolVariant, brushSize, setBrushSize: setToolSize,
+      tool, filled, setVariant: setToolVariant, brushSize, setBrushSize,
       copySelection, cutSelection, pasteClipboard, commitFloating, setSelection,
       commitCrop, cancelCrop, swapColors, stepFrame,
     }
@@ -380,8 +380,6 @@ export default function App() {
               onPick={selectTool}
               filled={filled}
               onFilled={setToolVariant}
-              brushSize={brushSize}
-              onBrushSize={setToolSize}
               mirrorV={mirrorV}
               mirrorH={mirrorH}
               onMirrorV={() => setMirrorV((v) => !v)}
@@ -432,7 +430,10 @@ export default function App() {
               cropPending={cropPending}
               setCropPending={setCropPending}
               filled={filled[tool] ?? false}
-              brushSize={brushSize[tool] ?? 1}
+              brushSize={brushSize}
+              brushShape={brushShape}
+              onBrushSize={setBrushSize}
+              onBrushShape={setBrushShape}
               mirrorV={mirrorV}
               mirrorH={mirrorH}
               onTemporaryToolComplete={temporaryToolReturn ? completeTemporaryTool : undefined}

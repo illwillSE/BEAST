@@ -47,7 +47,7 @@ function groupForTool(id: string): string | null {
     if (!t) continue
     if (t.sub) {
       if (t.sub.some((s) => s.id === id)) return t.id
-    } else if (t.id === id && (tools[t.id].variants || tools[t.id].sizes)) {
+    } else if (t.id === id && tools[t.id].variants) {
       return t.id
     }
   }
@@ -128,15 +128,13 @@ interface ToolRailProps {
   onPick: (id: string) => void
   filled: Record<string, boolean>
   onFilled: (id: string, value: boolean) => void
-  brushSize: Record<string, number>
-  onBrushSize: (id: string, value: number) => void
   mirrorV: boolean
   mirrorH: boolean
   onMirrorV: () => void
   onMirrorH: () => void
 }
 
-export default function ToolRail({ active, onPick, filled, onFilled, brushSize, onBrushSize, mirrorV, mirrorH, onMirrorV, onMirrorH }: ToolRailProps): ReactNode {
+export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mirrorH, onMirrorV, onMirrorH }: ToolRailProps): ReactNode {
   // Which tool's flyout (if any) is popped out. Picking an item from a flyout
   // collapses it; clicking the rail icon again pops it back out.
   const [openGroup, setOpenGroup] = useState<string | null>(null)
@@ -183,24 +181,14 @@ export default function ToolRail({ active, onPick, filled, onFilled, brushSize, 
         }
 
         const variants = tools[t.id].variants
-        const sizes = tools[t.id].sizes
-        if (variants || sizes) {
+        if (variants) {
           const key = tools[t.id].key
-          const items: FlyoutItem[] = [
-            ...(variants ?? []).map(([label, val]) => ({
-              id: `v:${val}`,
-              label,
-              active: (filled[t.id] ?? false) === val,
-              onClick: () => { onFilled(t.id, val); setOpenGroup(null) },
-            })),
-            ...(variants && sizes ? [{ id: 'd', label: '', active: false, onClick: () => {}, divider: true }] : []),
-            ...(sizes ?? []).map((sz) => ({
-              id: `s:${sz}`,
-              label: `${sz}px`,
-              active: (brushSize[t.id] ?? sizes![0]) === sz,
-              onClick: () => { onBrushSize(t.id, sz); setOpenGroup(null) },
-            })),
-          ]
+          const items: FlyoutItem[] = variants.map(([label, val]) => ({
+            id: `v:${val}`,
+            label,
+            active: (filled[t.id] ?? false) === val,
+            onClick: () => { onFilled(t.id, val); setOpenGroup(null) },
+          }))
           return (
             <div key={t.id} className="relative">
               <RailButton

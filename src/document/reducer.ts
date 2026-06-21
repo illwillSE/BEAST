@@ -41,7 +41,7 @@ import {
   setPalette,
   reseedUid,
 } from './model.js'
-import type { Cell, CellTarget, CreateSpriteOpts, Doc, RGBA, Sprite } from './model.js'
+import type { BrushShape, Cell, CellTarget, CreateSpriteOpts, Doc, RGBA, Sprite } from './model.js'
 
 // An open gesture (STROKE_BEGIN…STROKE_END). `committed` flips true once the
 // first edit of the gesture has snapshotted history, so later edits in the same
@@ -65,10 +65,10 @@ export type Action =
   | { type: 'REPLACE'; doc: Doc }
   | { type: 'STROKE_BEGIN' }
   | { type: 'STROKE_END' }
-  | (CellTarget & { type: 'PAINT_LINE'; x0: number; y0: number; x1: number; y1: number; rgba: RGBA; size: number })
+  | (CellTarget & { type: 'PAINT_LINE'; x0: number; y0: number; x1: number; y1: number; rgba: RGBA; size: number; shape: BrushShape })
   | (CellTarget & { type: 'FILL'; x: number; y: number; rgba: RGBA })
-  | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number })
-  | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number })
+  | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape })
+  | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape })
   | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; rgba0: RGBA; rgba1: RGBA })
   | (CellTarget & { type: 'CLEAR_REGION'; x: number; y: number; w: number; h: number })
   | (CellTarget & { type: 'PASTE_REGION'; x: number; y: number; w: number; h: number; data: Cell })
@@ -156,8 +156,8 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
       return state.stroke ? { ...state, stroke: null } : state
 
     case 'PAINT_LINE': {
-      const { x0, y0, x1, y1, rgba, size } = action
-      return editCell(state, action, (cell, sp) => paintLine(cell, sp.w, sp.h, x0, y0, x1, y1, rgba, size))
+      const { x0, y0, x1, y1, rgba, size, shape } = action
+      return editCell(state, action, (cell, sp) => paintLine(cell, sp.w, sp.h, x0, y0, x1, y1, rgba, size, shape))
     }
 
     case 'FILL': {
@@ -168,15 +168,15 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
     // Width only widens the outline — a filled shape is already solid, so
     // `size` is ignored when `filled` is true.
     case 'PAINT_RECT': {
-      const { x0, y0, x1, y1, filled, rgba, size } = action
+      const { x0, y0, x1, y1, filled, rgba, size, shape } = action
       const pts = rectPoints(x0, y0, x1, y1, filled)
-      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, filled ? pts : stampPoints(pts, size), rgba))
+      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, filled ? pts : stampPoints(pts, size, shape), rgba))
     }
 
     case 'PAINT_ELLIPSE': {
-      const { x0, y0, x1, y1, filled, rgba, size } = action
+      const { x0, y0, x1, y1, filled, rgba, size, shape } = action
       const pts = ellipsePoints(x0, y0, x1, y1, filled)
-      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, filled ? pts : stampPoints(pts, size), rgba))
+      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, filled ? pts : stampPoints(pts, size, shape), rgba))
     }
 
     case 'GRADIENT_FILL': {

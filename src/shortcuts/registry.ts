@@ -5,8 +5,8 @@
 // `key` (see src/tools/registry.js) instead of being duplicated here.
 // Pressing a tool's key while that tool is already active cycles its
 // `variants` (if any) instead of re-selecting it — e.g. R/O toggle rect and
-// ellipse between Outline and Filled. `[`/`]` step the active tool's
-// `sizes` (if any) down/up — e.g. pencil/eraser/line/rect/ellipse width.
+// ellipse between Outline and Filled. `[`/`]` step the global brush size
+// down/up while a brush-size tool is active (pencil/eraser/line/rect/ellipse).
 //
 // entry = { key, mod, shift, run(ctx) }
 //   key    e.key.toLowerCase(), e.g. 'z', 'escape'
@@ -18,6 +18,10 @@
 //     cutSelection, pasteClipboard, commitFloating, setSelection,
 //     commitCrop, cancelCrop, swapColors, stepFrame,
 //   }
+//
+// brushSize/setBrushSize are global now (one value for every brush-size tool,
+// not per-tool) — `[`/`]` step it by 1, clamped to [1, 20], only when the
+// active tool has `hasBrushSize` (see src/tools/registry.js).
 
 import { tools } from '../tools/registry.js'
 import type { Action } from '../document/reducer.js'
@@ -30,8 +34,8 @@ export interface ShortcutContext {
   tool: string
   filled: Record<string, boolean>
   setVariant: (id: string, value: boolean) => void
-  brushSize: Record<string, number>
-  setBrushSize: (id: string, value: number) => void
+  brushSize: number
+  setBrushSize: (value: number) => void
   copySelection: () => void
   cutSelection: () => void
   pasteClipboard: () => void
@@ -62,14 +66,11 @@ const toolShortcuts: Shortcut[] = Object.entries(tools)
     },
   }))
 
-// Step the active tool's brush width down (-1) or up (+1) through its
-// `sizes` list; a no-op for tools without one (fill, select, move, ...).
+// Step the global brush width down (-1) or up (+1), clamped to [1, 20]; a
+// no-op while the active tool doesn't use brush size (fill, select, move, ...).
 function stepBrushSize(ctx: ShortcutContext, delta: number) {
-  const sizes = tools[ctx.tool]?.sizes
-  if (!sizes) return
-  const i = sizes.indexOf(ctx.brushSize[ctx.tool] ?? sizes[0])
-  const next = sizes[Math.max(0, Math.min(sizes.length - 1, (i === -1 ? 0 : i) + delta))]
-  ctx.setBrushSize(ctx.tool, next)
+  if (!tools[ctx.tool]?.hasBrushSize) return
+  ctx.setBrushSize(Math.max(1, Math.min(20, ctx.brushSize + delta)))
 }
 
 export const shortcuts: Shortcut[] = [

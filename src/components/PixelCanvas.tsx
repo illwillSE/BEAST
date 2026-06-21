@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { compositeFrame, hexToRgba, rgbaToHex, pasteRegion } from '../document/model.js'
-import { getTool } from '../tools/registry.js'
+import { compositeFrame, hexToRgba, rgbaToHex, pasteRegion, shapeOffsets } from '../document/model.js'
+import { getTool, tools } from '../tools/registry.js'
 import { getColor } from '../theme/colors.js'
 import { getLastPointer } from '../hooks/lastPointer.js'
 import EyedropperMagnifier, { MAG_RADIUS } from './EyedropperMagnifier.jsx'
-import type { Sprite, CellTarget, RGBA } from '../document/model.js'
+import type { Sprite, CellTarget, RGBA, BrushShape } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
 import type { Rect, Floating, CropPending, Preview, ToolContext } from '../tools/registry.js'
 
@@ -29,6 +29,24 @@ function flipAction(action: Action, w: number, h: number, axes: { v?: boolean; h
   return out
 }
 
+// The silhouette of a brush stamp, as unit-cell edge segments relative to its
+// anchor (0,0) — every edge of a filled cell that borders an unfilled one.
+// Used to draw the hover cursor outline without tracing every internal grid
+// line (which would be noisy at larger sizes).
+function brushOutline(size: number, shape: BrushShape): [number, number, number, number][] {
+  const offsets = shapeOffsets(size, shape)
+  const filled = new Set(offsets.map(([x, y]) => `${x},${y}`))
+  const has = (x: number, y: number) => filled.has(`${x},${y}`)
+  const segs: [number, number, number, number][] = []
+  for (const [x, y] of offsets) {
+    if (!has(x - 1, y)) segs.push([x, y, x, y + 1])
+    if (!has(x + 1, y)) segs.push([x + 1, y, x + 1, y + 1])
+    if (!has(x, y - 1)) segs.push([x, y, x + 1, y])
+    if (!has(x, y + 1)) segs.push([x, y + 1, x + 1, y + 1])
+  }
+  return segs
+}
+
 interface PixelCanvasProps {
   sprite: Sprite
   frameIndex: number
@@ -49,6 +67,7 @@ interface PixelCanvasProps {
   setCropPending: React.Dispatch<React.SetStateAction<CropPending | null>>
   filled: boolean
   brushSize: number
+  brushShape: BrushShape
   mirrorV: boolean
   mirrorH: boolean
   onTemporaryToolComplete?: () => void
@@ -74,7 +93,7 @@ const ONION_NEXT_ALPHA = 0.25
 export default function PixelCanvas({
   sprite, frameIndex, target, dispatch, scale, fgColor, bgColor, tool, onFgColor, onHover,
   selection, setSelection, floating, setFloating, commitFloating,
-  cropPending, setCropPending, filled, brushSize,
+  cropPending, setCropPending, filled, brushSize, brushShape,
   mirrorV, mirrorH, onTemporaryToolComplete, playing, onionSkin,
 }: PixelCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -88,6 +107,7 @@ export default function PixelCanvas({
   const shiftRef = useRef(false)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [magnifier, setMagnifier] = useState<{ clientX: number; clientY: number; pixels: (RGBA | null)[] } | null>(null)
+  const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(null)
 
   const { w, h } = sprite
   const activeTool = getTool(tool)
@@ -146,10 +166,10 @@ export default function PixelCanvas({
     }
   }, [floating, preview, w, h])
 
-  // Re-draw the selection marquee and mirror axis guides — both thin dashed
-  // lines at CSS-pixel resolution (not the pixel-art grid), so they stay 1px
-  // at any zoom level. The marquee also doubles as the pending crop window's
-  // outline (live while it's moved).
+  // Re-draw the selection marquee, mirror axis guides, and brush cursor
+  // outline — all thin lines at CSS-pixel resolution (not the pixel-art
+  // grid), so they stay 1px at any zoom level. The marquee also doubles as
+  // the pending crop window's outline (live while it's moved).
   useEffect(() => {
     const ctx = marqueeRef.current!.getContext('2d')!
     ctx.clearRect(0, 0, w * scale, h * scale)
@@ -174,6 +194,20 @@ export default function PixelCanvas({
       }
     }
 
+    // Brush cursor outline — the stamp footprint at the hovered cell, so you
+    // can see where you're about to paint before clicking.
+    if (hoverCell && !playing && tools[tool]?.hasBrushSize) {
+      ctx.strokeStyle = getColor('accent-bright')
+      ctx.lineWidth = 1
+      ctx.setLineDash([])
+      ctx.beginPath()
+      for (const [x0, y0, x1, y1] of brushOutline(brushSize, brushShape)) {
+        ctx.moveTo((hoverCell.x + x0) * scale, (hoverCell.y + y0) * scale)
+        ctx.lineTo((hoverCell.x + x1) * scale, (hoverCell.y + y1) * scale)
+      }
+      ctx.stroke()
+    }
+
     if (preview?.kind === 'line') {
       ctx.strokeStyle = getColor('accent-bright')
       ctx.lineWidth = 1
@@ -191,7 +225,7 @@ export default function PixelCanvas({
     ctx.lineWidth = 1
     ctx.setLineDash([4, 3])
     ctx.strokeRect(rect.x * scale + 0.5, rect.y * scale + 0.5, rect.w * scale - 1, rect.h * scale - 1)
-  }, [floating, selection, cropPending, preview, w, h, scale, mirrorV, mirrorH])
+  }, [floating, selection, cropPending, preview, w, h, scale, mirrorV, mirrorH, hoverCell, playing, tool, brushSize, brushShape])
 
   const cellFromClient = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect()
@@ -282,7 +316,7 @@ export default function PixelCanvas({
 
   const ctxFor = (x: number, y: number): ToolContext => ({
     x, y, target, fgColor, bgColor, dispatch: mirroredDispatch, setFgColor: onFgColor, sampleColor,
-    w, h, filled, brushSize, setPreview, shiftKey: shiftRef.current,
+    w, h, filled, brushSize, brushShape, setPreview, shiftKey: shiftRef.current,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
     cropPending, setCropPending,
   })
@@ -307,6 +341,7 @@ export default function PixelCanvas({
   const handleMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const { x, y } = cellFromEvent(e)
     onHover?.(inBounds(x, y) ? { x, y } : null)
+    setHoverCell(inBounds(x, y) ? { x, y } : null)
     if (tool === 'eyedropper' && inBounds(x, y)) {
       setMagnifier({ clientX: e.clientX, clientY: e.clientY, pixels: sampleRegion(x, y) })
     } else if (magnifier) {
@@ -350,7 +385,7 @@ export default function PixelCanvas({
         onPointerDown={handleDown}
         onPointerMove={handleMove}
         onPointerUp={handleUp}
-        onPointerLeave={() => { handleUp(); onHover?.(null); setMagnifier(null) }}
+        onPointerLeave={() => { handleUp(); onHover?.(null); setMagnifier(null); setHoverCell(null) }}
         style={{
           position: 'absolute',
           inset: 0,

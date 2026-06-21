@@ -19,14 +19,15 @@
 //                            as a flyout in ToolRail and cycled by repeat
 //                            presses of `key` (e.g. rect/ellipse Outline ↔
 //                            Filled).
-//   sizes                    optional odd brush widths (e.g. [1,3,5,7]) shown
-//                            as a flyout in ToolRail and stepped by `[`/`]`;
-//                            the chosen width reaches the tool as ctx.brushSize.
+//   hasBrushSize             marks a tool as consuming the global brush
+//                            size/shape (stepped by `[`/`]`, picked via the
+//                            BrushSizeButton popover); reaches the tool as
+//                            ctx.brushSize / ctx.brushShape.
 //
 
 // ctx = {
 //   x, y, target, fgColor, bgColor, dispatch, setFgColor, sampleColor, w, h,
-//   filled, brushSize, setPreview, selection, setSelection, floating, setFloating,
+//   filled, brushSize, brushShape, setPreview, selection, setSelection, floating, setFloating,
 //   commitFloating, getRawCell, cropPending, setCropPending,
 // } where x,y are in-bounds integer cell coordinates and target =
 // { spriteId, layerId, frameIndex }. `dispatch` mirrors actions across the
@@ -36,7 +37,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import {
   hexToRgba, linePoints, rectPoints, ellipsePoints, copyRegion, stampPoints,
 } from '../document/model.js'
-import type { Cell, CellTarget, Point, RGBA } from '../document/model.js'
+import type { BrushShape, Cell, CellTarget, Point, RGBA } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
 
 // A rectangular region in cell coordinates (selection / crop window / paste box).
@@ -85,6 +86,7 @@ export interface ToolContext {
   h: number
   filled: boolean
   brushSize: number
+  brushShape: BrushShape
   setPreview: (preview: Preview | null) => void
   shiftKey: boolean
   selection: Rect | null
@@ -105,7 +107,7 @@ export interface Tool<D = unknown> {
   cursor?: string
   key?: string
   variants?: [string, boolean][]
-  sizes?: number[]
+  hasBrushSize?: true
   onStart?(ctx: ToolContext): D | boolean | void
   onDrag?(ctx: ToolContext, prev: Coord, drag: D): void
   onEnd?(ctx: ToolContext, drag: D): void
@@ -117,11 +119,11 @@ function strokeTool(rgbaFor: (ctx: ToolContext) => RGBA): Tool<boolean> {
     cursor: 'crosshair',
     onStart(ctx) {
       ctx.dispatch({ type: 'STROKE_BEGIN' })
-      ctx.dispatch({ type: 'PAINT_LINE', ...ctx.target, x0: ctx.x, y0: ctx.y, x1: ctx.x, y1: ctx.y, rgba: rgbaFor(ctx), size: ctx.brushSize })
+      ctx.dispatch({ type: 'PAINT_LINE', ...ctx.target, x0: ctx.x, y0: ctx.y, x1: ctx.x, y1: ctx.y, rgba: rgbaFor(ctx), size: ctx.brushSize, shape: ctx.brushShape })
       return true
     },
     onDrag(ctx, prev) {
-      ctx.dispatch({ type: 'PAINT_LINE', ...ctx.target, x0: prev.x, y0: prev.y, x1: ctx.x, y1: ctx.y, rgba: rgbaFor(ctx), size: ctx.brushSize })
+      ctx.dispatch({ type: 'PAINT_LINE', ...ctx.target, x0: prev.x, y0: prev.y, x1: ctx.x, y1: ctx.y, rgba: rgbaFor(ctx), size: ctx.brushSize, shape: ctx.brushShape })
     },
     onEnd(ctx) {
       ctx.dispatch({ type: 'STROKE_END' })
@@ -157,8 +159,8 @@ function normalizeRect(x0: number, y0: number, x1: number, y1: number): Rect {
 }
 
 export const tools: Record<string, Tool<any>> = {
-  pencil: { key: 'b', sizes: [1, 3, 5, 7], ...strokeTool((ctx) => hexToRgba(ctx.fgColor)) },
-  eraser: { key: 'e', sizes: [1, 3, 5, 7], ...strokeTool(() => [0, 0, 0, 0]) },
+  pencil: { key: 'b', hasBrushSize: true, ...strokeTool((ctx) => hexToRgba(ctx.fgColor)) },
+  eraser: { key: 'e', hasBrushSize: true, ...strokeTool(() => [0, 0, 0, 0]) },
 
   fill: {
     key: 'g',
@@ -200,20 +202,20 @@ export const tools: Record<string, Tool<any>> = {
 
   line: {
     key: 'l',
-    sizes: [1, 3, 5, 7],
+    hasBrushSize: true,
     cursor: 'crosshair',
     onStart(ctx) {
       return { x0: ctx.x, y0: ctx.y }
     },
     onDrag(ctx, _prev, start) {
-      const pts = stampPoints(linePoints(start.x0, start.y0, ctx.x, ctx.y), ctx.brushSize)
+      const pts = stampPoints(linePoints(start.x0, start.y0, ctx.x, ctx.y), ctx.brushSize, ctx.brushShape)
       ctx.setPreview({ kind: 'pixels', points: pts, color: ctx.fgColor })
     },
     onEnd(ctx, start) {
       commitBracketed(ctx, {
         type: 'PAINT_LINE', ...ctx.target,
         x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y,
-        rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize,
+        rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize, shape: ctx.brushShape,
       })
       ctx.setPreview(null)
     },
@@ -222,7 +224,7 @@ export const tools: Record<string, Tool<any>> = {
   rect: {
     key: 'r',
     variants: [['Outline', false], ['Filled', true]],
-    sizes: [1, 3, 5, 7],
+    hasBrushSize: true,
     cursor: 'crosshair',
     onStart(ctx) {
       return { x0: ctx.x, y0: ctx.y }
@@ -230,14 +232,14 @@ export const tools: Record<string, Tool<any>> = {
     onDrag(ctx, _prev, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       const pts = rectPoints(start.x0, start.y0, x1, y1, ctx.filled)
-      ctx.setPreview({ kind: 'pixels', points: ctx.filled ? pts : stampPoints(pts, ctx.brushSize), color: ctx.fgColor })
+      ctx.setPreview({ kind: 'pixels', points: ctx.filled ? pts : stampPoints(pts, ctx.brushSize, ctx.brushShape), color: ctx.fgColor })
     },
     onEnd(ctx, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       commitBracketed(ctx, {
         type: 'PAINT_RECT', ...ctx.target,
         x0: start.x0, y0: start.y0, x1, y1, filled: ctx.filled,
-        rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize,
+        rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize, shape: ctx.brushShape,
       })
       ctx.setPreview(null)
     },
@@ -246,7 +248,7 @@ export const tools: Record<string, Tool<any>> = {
   ellipse: {
     key: 'o',
     variants: [['Outline', false], ['Filled', true]],
-    sizes: [1, 3, 5, 7],
+    hasBrushSize: true,
     cursor: 'crosshair',
     onStart(ctx) {
       return { x0: ctx.x, y0: ctx.y }
@@ -254,14 +256,14 @@ export const tools: Record<string, Tool<any>> = {
     onDrag(ctx, _prev, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       const pts = ellipsePoints(start.x0, start.y0, x1, y1, ctx.filled)
-      ctx.setPreview({ kind: 'pixels', points: ctx.filled ? pts : stampPoints(pts, ctx.brushSize), color: ctx.fgColor })
+      ctx.setPreview({ kind: 'pixels', points: ctx.filled ? pts : stampPoints(pts, ctx.brushSize, ctx.brushShape), color: ctx.fgColor })
     },
     onEnd(ctx, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       commitBracketed(ctx, {
         type: 'PAINT_ELLIPSE', ...ctx.target,
         x0: start.x0, y0: start.y0, x1, y1, filled: ctx.filled,
-        rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize,
+        rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize, shape: ctx.brushShape,
       })
       ctx.setPreview(null)
     },
