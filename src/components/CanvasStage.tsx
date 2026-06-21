@@ -24,6 +24,7 @@ interface CanvasStageProps {
   filled: boolean
   mirrorV: boolean
   mirrorH: boolean
+  onTemporaryToolComplete?: () => void
   previewOpen: boolean
   onClosePreview: () => void
 }
@@ -35,7 +36,7 @@ export default function CanvasStage({
   tool, color, onColor, sprite, target, dispatch,
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, filled,
-  mirrorV, mirrorH, previewOpen, onClosePreview,
+  mirrorV, mirrorH, onTemporaryToolComplete, previewOpen, onClosePreview,
 }: CanvasStageProps) {
   const [scale, setScale] = useState(16)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
@@ -86,6 +87,7 @@ export default function CanvasStage({
             filled={filled}
             mirrorV={mirrorV}
             mirrorH={mirrorH}
+            onTemporaryToolComplete={onTemporaryToolComplete}
           />
         </div>
       </div>

@@ -30,6 +30,7 @@ interface Clipboard {
 // autosaves to the browser and can be saved/loaded as a .zip.
 export default function App() {
   const [tool, setTool] = useState('pencil')
+  const [temporaryToolReturn, setTemporaryToolReturn] = useState<string | null>(null)
   const [color, setColor] = useState('#fbbf24')
 
   // Select/move/clipboard state. `selection` is a rect on the active layer's
@@ -45,6 +46,20 @@ export default function App() {
   const [mirrorH, setMirrorH] = useState(false)
   const [filled, setFilled] = useState<Record<string, boolean>>({ rect: false, ellipse: false })
   const setToolVariant = (id: string, v: boolean) => setFilled((f) => ({ ...f, [id]: v }))
+  const selectTool = (id: string) => {
+    setTemporaryToolReturn(null)
+    setTool(id)
+  }
+  const selectTemporaryTool = (id: string) => {
+    if (tool === id) return
+    setTemporaryToolReturn(tool)
+    setTool(id)
+  }
+  const completeTemporaryTool = () => {
+    if (!temporaryToolReturn) return
+    setTool(temporaryToolReturn)
+    setTemporaryToolReturn(null)
+  }
   const [previewOpen, setPreviewOpen] = useState(() => loadPreviewPrefs()?.open ?? false)
 
   // Foldable chrome panels — each pinned open by default (today's layout).
@@ -126,7 +141,7 @@ export default function App() {
     const y = Math.max(0, Math.floor((activeSprite.h - clipboard.h) / 2))
     setFloating({ x, y, w: clipboard.w, h: clipboard.h, data: clipboard.data.slice(), target })
     setSelection({ x, y, w: clipboard.w, h: clipboard.h })
-    setTool('move')
+    selectTool('move')
   }
 
   // Apply the pending crop window (CROP_SPRITE on the sprite it was drawn
@@ -186,7 +201,8 @@ export default function App() {
   // (see each tool's `key` in tools/registry.js).
   useEffect(() => {
     const ctx = {
-      dispatch, setTool, tool, filled, setVariant: setToolVariant,
+      dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
+      tool, filled, setVariant: setToolVariant,
       copySelection, cutSelection, pasteClipboard, commitFloating, setSelection,
       commitCrop, cancelCrop,
     }
@@ -250,7 +266,7 @@ export default function App() {
       <div className="flex-1 flex min-h-0">
         <ToolRail
           active={tool}
-          onPick={setTool}
+          onPick={selectTool}
           filled={filled}
           onFilled={setToolVariant}
           mirrorV={mirrorV}
@@ -304,6 +320,7 @@ export default function App() {
           filled={filled[tool] ?? false}
           mirrorV={mirrorV}
           mirrorH={mirrorH}
+          onTemporaryToolComplete={temporaryToolReturn ? completeTemporaryTool : undefined}
           previewOpen={previewOpen}
           onClosePreview={() => setPreviewOpen(false)}
         />

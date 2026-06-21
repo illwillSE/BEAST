@@ -34,7 +34,6 @@ implemented; this file tracks what isn't, organized by area.
 ## Color
 - [ ] Managed swatch palette (loadable/savable).
 - [ ] Free RGBA picker; add mixed color to palette.
-- [ ] Shift+I for temporary color picker (after picking, return to previous tool).
 
 ## Layers
 - [ ] Drag-and-drop reordering — swap layer stack order by dragging a row,

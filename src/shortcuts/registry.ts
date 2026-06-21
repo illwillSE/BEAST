@@ -12,7 +12,7 @@
 //   mod    require Cmd/Ctrl (default false)
 //   shift  require Shift (default false)
 //   run    ctx => void; ctx = {
-//     dispatch, setTool, tool, filled, setVariant, copySelection,
+//     dispatch, setTool, setTemporaryTool, tool, filled, setVariant, copySelection,
 //     cutSelection, pasteClipboard, commitFloating, setSelection,
 //     commitCrop, cancelCrop,
 //   }
@@ -24,6 +24,7 @@ import type { Rect } from '../tools/registry.js'
 export interface ShortcutContext {
   dispatch: (action: Action) => void
   setTool: (id: string) => void
+  setTemporaryTool: (id: string) => void
   tool: string
   filled: Record<string, boolean>
   setVariant: (id: string, value: boolean) => void
@@ -64,6 +65,7 @@ export const shortcuts: Shortcut[] = [
   { key: 'v', mod: true, run: (ctx) => ctx.pasteClipboard() },
   { key: 'enter', run: (ctx) => { ctx.commitFloating(); ctx.commitCrop() } },
   { key: 'escape', run: (ctx) => { ctx.commitFloating(); ctx.setSelection(null); ctx.cancelCrop() } },
+  { key: 'i', shift: true, run: (ctx) => ctx.setTemporaryTool('eyedropper') },
   ...toolShortcuts,
 ]
 

@@ -48,6 +48,7 @@ interface PixelCanvasProps {
   filled: boolean
   mirrorV: boolean
   mirrorH: boolean
+  onTemporaryToolComplete?: () => void
 }
 
 // Interactive pixel canvas, driven by the document model + tool registry. It
@@ -63,7 +64,7 @@ export default function PixelCanvas({
   sprite, frameIndex, target, dispatch, scale, color, tool, onColor, onHover,
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, filled,
-  mirrorV, mirrorH,
+  mirrorV, mirrorH, onTemporaryToolComplete,
 }: PixelCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
@@ -201,6 +202,10 @@ export default function PixelCanvas({
     const { x, y } = cellFromEvent(e)
     if (!inBounds(x, y)) return
     const dragState = activeTool.onStart?.(ctxFor(x, y))
+    if (tool === 'eyedropper' && onTemporaryToolComplete) {
+      setMagnifier(null)
+      onTemporaryToolComplete()
+    }
     if (dragState) {
       draggingRef.current = true
       dragStateRef.current = dragState
