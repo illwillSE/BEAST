@@ -1,23 +1,31 @@
 import { useState } from 'react'
-import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, ChevronUp, ChevronDown, Maximize2 } from 'lucide-react'
 import NewSpriteDialog from './NewSpriteDialog.jsx'
+import ResizeCanvasDialog from './ResizeCanvasDialog.jsx'
 import SpritePreview from './SpritePreview.jsx'
 
 // A BEAST project holds many sprites (like BLAST holds many sounds). Selecting
 // one makes it the paint target; the header buttons add/move/delete the
 // selected sprite. Double-click a name to rename it. Each thumbnail shows the
-// sprite's frame 0 composited across its layers. Resizing/cropping a sprite's
-// canvas is the Crop tool (drag a rect on the canvas) — see tools/registry.js.
+// sprite's frame 0 composited across its layers. A sprite's canvas can also be
+// resized via the Crop tool (drag a rect on the canvas, tools/registry.js) or
+// the Resize dialog here (explicit W×H + anchor).
 export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
   const [newSpriteOpen, setNewSpriteOpen] = useState(false)
+  const [resizeOpen, setResizeOpen] = useState(false)
 
   const selectedIndex = sprites.findIndex((s) => s.id === selectedId)
+  const selectedSprite = sprites.find((s) => s.id === selectedId)
 
   const createSprite = (w, h) => {
     dispatch({ type: 'ADD_SPRITE', opts: { name: `Sprite ${sprites.length + 1}`, w, h } })
     setNewSpriteOpen(false)
+  }
+  const resizeSprite = (x, y, w, h) => {
+    dispatch({ type: 'CROP_SPRITE', spriteId: selectedSprite.id, x, y, w, h })
+    setResizeOpen(false)
   }
   const removeSprite = () => selectedId && sprites.length > 1 && dispatch({ type: 'REMOVE_SPRITE', spriteId: selectedId })
   const moveSprite = (delta) => selectedId && dispatch({ type: 'MOVE_SPRITE', spriteId: selectedId, delta })
@@ -36,6 +44,14 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) 
         <div className="flex items-center gap-1 text-muted">
           <button title="New sprite" className="hover:text-ink" onClick={() => setNewSpriteOpen(true)}>
             <Plus size={15} />
+          </button>
+          <button
+            title="Resize canvas"
+            className="hover:text-ink disabled:opacity-30 disabled:hover:text-muted"
+            disabled={!selectedSprite}
+            onClick={() => setResizeOpen(true)}
+          >
+            <Maximize2 size={14} />
           </button>
           <button
             title="Move up"
@@ -114,6 +130,14 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) 
         onCreate={createSprite}
         onClose={() => setNewSpriteOpen(false)}
       />
+      {selectedSprite && (
+        <ResizeCanvasDialog
+          open={resizeOpen}
+          sprite={selectedSprite}
+          onResize={resizeSprite}
+          onClose={() => setResizeOpen(false)}
+        />
+      )}
     </div>
   )
 }

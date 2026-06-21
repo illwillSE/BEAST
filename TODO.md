@@ -29,6 +29,15 @@ still cosmetic; painting targets the first of each.
       edge extends the canvas there (transparent fill); dragging inside crops
       away everything outside the rect. No size cap on the extend direction
       yet — see the cap item below.
+      Note: the crop-tool's marquee preview canvas is sized to the sprite's
+      *current* W×H, so dragging past an edge to grow shows no visual
+      feedback for the grown area while dragging (it still works on commit).
+      Not fixed — see the dedicated dialog below instead.
+- [x] Resize Canvas dialog (`components/ResizeCanvasDialog.jsx`) — explicit
+      W×H fields + a 9-point anchor picker (Photoshop-style), opened from
+      SpriteList's new resize icon next to "+". Dispatches the same
+      `CROP_SPRITE` action as the Crop tool, so it's undoable and reuses
+      `cropSprite`'s generic grow/shrink logic.
 - [ ] Sane max canvas size cap for performance.
 
 ## Real Preview
