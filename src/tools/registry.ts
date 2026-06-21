@@ -10,7 +10,10 @@
 //   onDrag(ctx, prev, drag)  pointer move during a drag; `prev` is the last
 //                            cell, `drag` is onStart's return value.
 //   onEnd(ctx, drag)         pointer up after a drag.
-//   cursor                   CSS cursor while the tool is active.
+//   cursor                   CSS cursor while the tool is active; a string or
+//                            a function of the hovered cell's ctx for tools
+//                            whose cursor depends on position (e.g. crop's
+//                            resize handles).
 //   key                      single-letter keyboard shortcut that selects this
 //                            tool (see src/shortcuts/registry.js). Pressing it
 //                            again while the tool is already active cycles
@@ -84,6 +87,7 @@ export interface ToolContext {
   sampleColor: (x: number, y: number) => string | null
   w: number
   h: number
+  scale: number
   filled: boolean
   brushSize: number
   brushShape: BrushShape
@@ -104,7 +108,7 @@ export interface ToolContext {
 // falsy value. Each registry entry uses its own D, so the `tools` map below is
 // typed Tool<any>.
 export interface Tool<D = unknown> {
-  cursor?: string
+  cursor?: string | ((ctx: ToolContext) => string)
   key?: string
   variants?: [string, boolean][]
   hasBrushSize?: true
@@ -156,6 +160,59 @@ function normalizeRect(x0: number, y0: number, x1: number, y1: number): Rect {
     w: Math.abs(x1 - x0) + 1,
     h: Math.abs(y1 - y0) + 1,
   }
+}
+
+// Crop resize handles: one per edge/corner of the pending crop rect. Hit
+// radius is a fixed CSS-pixel tolerance converted to cells via the current
+// zoom, so handles stay easy to grab at any scale instead of shrinking to
+// nothing when zoomed in or ballooning when zoomed out.
+type CropHandle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+
+const HANDLE_HIT_PX = 6
+
+const HANDLE_CURSORS: Record<CropHandle, string> = {
+  n: 'ns-resize', s: 'ns-resize',
+  e: 'ew-resize', w: 'ew-resize',
+  ne: 'nesw-resize', sw: 'nesw-resize',
+  nw: 'nwse-resize', se: 'nwse-resize',
+}
+
+const HANDLE_DIRS: Record<CropHandle, { h?: 'l' | 'r'; v?: 't' | 'b' }> = {
+  n: { v: 't' }, s: { v: 'b' }, e: { h: 'r' }, w: { h: 'l' },
+  ne: { h: 'r', v: 't' }, nw: { h: 'l', v: 't' }, se: { h: 'r', v: 'b' }, sw: { h: 'l', v: 'b' },
+}
+
+// Which handle (if any) the cell (ctx.x, ctx.y) is within grabbing range of.
+function cropHandleAt(ctx: ToolContext, p: Rect): CropHandle | null {
+  const r = Math.max(1, Math.round(HANDLE_HIT_PX / ctx.scale))
+  const left = p.x, right = p.x + p.w - 1, top = p.y, bottom = p.y + p.h - 1
+  const nearLeft = Math.abs(ctx.x - left) <= r
+  const nearRight = Math.abs(ctx.x - right) <= r
+  const nearTop = Math.abs(ctx.y - top) <= r
+  const nearBottom = Math.abs(ctx.y - bottom) <= r
+  if (nearTop && nearLeft) return 'nw'
+  if (nearTop && nearRight) return 'ne'
+  if (nearBottom && nearLeft) return 'sw'
+  if (nearBottom && nearRight) return 'se'
+  const inX = ctx.x >= left - r && ctx.x <= right + r
+  const inY = ctx.y >= top - r && ctx.y <= bottom + r
+  if (nearTop && inX) return 'n'
+  if (nearBottom && inX) return 's'
+  if (nearLeft && inY) return 'w'
+  if (nearRight && inY) return 'e'
+  return null
+}
+
+// Recompute a rect dragging one edge/corner of `orig` to (x, y); the opposite
+// edge(s) stay anchored in place.
+function resizeRect(orig: Rect, handle: CropHandle, x: number, y: number): Rect {
+  const dir = HANDLE_DIRS[handle]
+  const left = orig.x, right = orig.x + orig.w - 1, top = orig.y, bottom = orig.y + orig.h - 1
+  const x0 = dir.h === 'l' ? x : left
+  const x1 = dir.h === 'r' ? x : right
+  const y0 = dir.v === 't' ? y : top
+  const y1 = dir.v === 'b' ? y : bottom
+  return normalizeRect(x0, y0, x1, y1)
 }
 
 export const tools: Record<string, Tool<any>> = {
@@ -290,19 +347,30 @@ export const tools: Record<string, Tool<any>> = {
   // Crop (or extend) the canvas to a dragged rectangle — same marquee gesture
   // as select, but the rect doesn't apply on release: it becomes a pending
   // crop window (ctx.cropPending) that stays editable. Dragging from inside
-  // the pending window moves it; dragging from outside redraws it. It commits
-  // (CROP_SPRITE) on Enter or on switching away from the crop tool, and
-  // cancels on Escape (see App's commitCrop/cancelCrop). Dragging past an
-  // edge extends the canvas there (transparent); dragging inside crops away
-  // everything outside the rect.
+  // the pending window moves it; dragging an edge/corner handle resizes it;
+  // dragging from outside redraws it. It commits (CROP_SPRITE) on Enter or on
+  // switching away from the crop tool, and cancels on Escape (see App's
+  // commitCrop/cancelCrop). Dragging past an edge extends the canvas there
+  // (transparent); dragging inside crops away everything outside the rect.
   crop: {
     key: 'c',
-    cursor: 'crosshair',
+    cursor(ctx) {
+      const p = ctx.cropPending
+      if (!p) return 'crosshair'
+      const handle = cropHandleAt(ctx, p)
+      if (handle) return HANDLE_CURSORS[handle]
+      if (ctx.x >= p.x && ctx.y >= p.y && ctx.x < p.x + p.w && ctx.y < p.y + p.h) return 'move'
+      return 'crosshair'
+    },
     onStart(ctx) {
       ctx.commitFloating()
       const p = ctx.cropPending
-      if (p && ctx.x >= p.x && ctx.y >= p.y && ctx.x < p.x + p.w && ctx.y < p.y + p.h) {
-        return { mode: 'move', dx: ctx.x - p.x, dy: ctx.y - p.y }
+      if (p) {
+        const handle = cropHandleAt(ctx, p)
+        if (handle) return { mode: 'resize', handle, orig: p }
+        if (ctx.x >= p.x && ctx.y >= p.y && ctx.x < p.x + p.w && ctx.y < p.y + p.h) {
+          return { mode: 'move', dx: ctx.x - p.x, dy: ctx.y - p.y }
+        }
       }
       return { mode: 'draw', x0: ctx.x, y0: ctx.y }
     },
@@ -311,10 +379,14 @@ export const tools: Record<string, Tool<any>> = {
         ctx.setCropPending((p) => (p ? { ...p, x: ctx.x - drag.dx, y: ctx.y - drag.dy } : p))
         return
       }
+      if (drag.mode === 'resize') {
+        ctx.setCropPending((p) => (p ? { ...resizeRect(drag.orig, drag.handle, ctx.x, ctx.y), target: p.target } : p))
+        return
+      }
       ctx.setPreview({ kind: 'marquee', rect: normalizeRect(drag.x0, drag.y0, ctx.x, ctx.y) })
     },
     onEnd(ctx, drag) {
-      if (drag.mode === 'move') return
+      if (drag.mode === 'move' || drag.mode === 'resize') return
       ctx.setCropPending({ ...normalizeRect(drag.x0, drag.y0, ctx.x, ctx.y), target: ctx.target })
       ctx.setPreview(null)
     },

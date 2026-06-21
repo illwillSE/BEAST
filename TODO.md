@@ -9,8 +9,8 @@ implemented; this file tracks what isn't, organized by area.
       affects the active sprite, not the whole project. Currently global.
 
 ## Canvas
-- [ ] Crop tool: resize handles on all edges/corners (currently only
-      drag-from-inside to reposition), with an appropriate resize cursor on hover.
+- [x] Crop tool: resize handles on all edges/corners, with an appropriate
+      resize cursor on hover.
 - [ ] Sane max canvas size cap for performance.
 - [ ] A clear canvas button.
 
@@ -32,17 +32,6 @@ implemented; this file tracks what isn't, organized by area.
       set) and an emoji picker/insert.
 - [ ] Eraser: decide whether it stays a separate tool (current) or is also
       reachable via right-click while another paint tool is active.
-- [x] Brush pixel size + shape — global (not per-tool) `brushSize`/`brushShape`
-      state in `App.tsx`, consumed by pencil/eraser/line/rect/ellipse (flagged
-      via `hasBrushSize` in `tools/registry.ts`). 6 shapes — square, round, and
-      a flat line nib in 4 orientations (h/v/diag×2) — at any size 1-20 via
-      `shapeOffsets`/`stampPoints` in `document/model.ts`. Picked from a
-      `BrushSizeButton` popover in `CanvasStage.tsx`'s status bar (replaced the
-      old per-tool rail flyouts for width).
-- [x] Brush cursor preview — a live outline of the brush footprint
-      (`brushOutline` in `PixelCanvas.tsx`, traces the silhouette of
-      `shapeOffsets` rather than every internal grid line) follows the
-      pointer on the marquee canvas whenever a `hasBrushSize` tool is active.
 - [ ] "Pixel perfect" diagonal-stroke thinning at width>1 (Aseprite-style —
       avoids chunky corners where a thick diagonal stroke overlaps itself).
 - [ ] Transform tools: flip horizontal / flip vertical (whole layer or
@@ -79,16 +68,6 @@ implemented; this file tracks what isn't, organized by area.
       (`handleDown`/`ctxFor` currently treat all clicks the same) and
       suppressing the canvas's `contextmenu` event; decide which tools it
       applies to (eraser already paints transparent, so it wouldn't apply there).
-- [x] Managed swatch palette — `palette: string[]` lives in `Doc` now
-      (`document/model.ts`), edited via undoable reducer actions
-      (`ADD_SWATCH`/`REMOVE_SWATCH`/`EDIT_SWATCH`/`REORDER_SWATCH`/`MERGE_SWATCHES`/`SET_PALETTE`
-      in `document/reducer.ts`), and rides the existing project
-      serialization — it's part of `Manifest` (`persist/serialize.ts`), so it
-      saves/loads with the project ZIP and the localStorage/IndexedDB
-      autosave for free. `ColorPanel.tsx`: right-click a swatch to overwrite
-      it with the current color, hover for a delete button, drag to
-      reorder, merge in colors from an image file, or replace the whole
-      palette with one read from another saved project (via toolbar icons).
 - [ ] Multiple named palettes per project — deliberately deferred; a project
       currently holds exactly one palette. The header's "New palette" `+`
       button is still an unwired placeholder for this.
@@ -100,36 +79,12 @@ implemented; this file tracks what isn't, organized by area.
 ## Layers
 - [ ] Drag-and-drop reordering — swap layer stack order by dragging a row,
       instead of (or in addition to) the move up/down buttons.
-- [x] Shift+click a layer's eye to solo it — hide all other layers (shift+click
-      again, or click a hidden one's eye, to restore prior visibility). State
-      tracked in `LayersPanel.tsx` (`solo` local state: soloed layer id + a
-      snapshot of prior per-layer visibility), reset on sprite switch.
 - [ ] Layer mix option.
 
 ## Sprites
-- [x] Remember selected layer (and frame) per sprite when switching — kept in
-      a `spriteId -> {layerId, frameIndex}` ref (`App.tsx` `spriteSelectionRef`),
-      saved on each `selectSprite` call and restored on return; falls back to
-      top layer / frame 1 for a sprite visited for the first time. Cleared on
-      `resetSelection` (project load) since sprite ids change.
+
 
 ## Animation
-- [x] Drag-and-drop reordering — dragging a thumbnail dispatches the new
-      `REORDER_FRAME` action (lift-and-insert via `reorderFrame` in
-      `document/model.ts`), distinct from `MOVE_FRAME`'s adjacent swap used by
-      the ◂▸ buttons. Disabled while playing.
-- [x] Onion-skinning — toggle in `FramesTimeline.tsx`; ghosts of the immediate
-      prev/next frame only (not deeper), rendered behind the main canvas in
-      `PixelCanvas.tsx`. Previous frame is tinted `--color-onion-prev` (red) at
-      40% alpha, next frame `--color-onion-next` (emerald) at 25% alpha — flat
-      silhouette tint, not color-blended — so direction reads at a glance.
-      Revisit the ghost count/opacity/tint if it doesn't read well in practice.
-- [x] Loop playback (play/stop) — `requestAnimationFrame` accumulator loop in
-      `App.tsx` driving the existing global `frameIndex`. Painting is disabled
-      while playing (`PixelCanvas.tsx` `handleDown`); Play is disabled at
-      frameCount <= 1.
-- [x] Global FPS for the whole animation — controlled slider (1-24) in
-      `FramesTimeline.tsx`, lifted to `App.tsx` state.
 
 ## Persistence
 - [ ] Cell-hash is cyrb53 (non-crypto) — fine for in-project dedup, but revisit

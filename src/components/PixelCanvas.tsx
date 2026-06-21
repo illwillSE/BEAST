@@ -316,7 +316,7 @@ export default function PixelCanvas({
 
   const ctxFor = (x: number, y: number): ToolContext => ({
     x, y, target, fgColor, bgColor, dispatch: mirroredDispatch, setFgColor: onFgColor, sampleColor,
-    w, h, filled, brushSize, brushShape, setPreview, shiftKey: shiftRef.current,
+    w, h, scale, filled, brushSize, brushShape, setPreview, shiftKey: shiftRef.current,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
     cropPending, setCropPending,
   })
@@ -392,7 +392,11 @@ export default function PixelCanvas({
           width: w * scale,
           height: h * scale,
           imageRendering: 'pixelated',
-          cursor: playing ? 'default' : activeTool?.cursor ?? 'default',
+          cursor: playing
+            ? 'default'
+            : typeof activeTool?.cursor === 'function'
+              ? activeTool.cursor(ctxFor(hoverCell?.x ?? 0, hoverCell?.y ?? 0))
+              : activeTool?.cursor ?? 'default',
           touchAction: 'none',
           display: 'block',
         }}
