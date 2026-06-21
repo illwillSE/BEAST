@@ -12,7 +12,7 @@ import EyedropperMagnifier from './components/EyedropperMagnifier.jsx'
 import useFoldable from './hooks/useFoldable.js'
 import usePeek from './hooks/usePeek.js'
 import { useGlobalEyedropper } from './hooks/useGlobalEyedropper.js'
-import { createDocument, copyRegion, rgbaToHex } from './document/model.js'
+import { createDocument, copyRegion, rgbaToHex, compositeFrame } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
@@ -376,6 +376,20 @@ export default function App() {
     downloadBlob(await projectToZipBlob(doc), `${filename}.zip`)
   }
 
+  const handleExportPng = async () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = activeSprite.w
+    canvas.height = activeSprite.h
+    const ctx = canvas.getContext('2d')!
+    const imageData = ctx.createImageData(activeSprite.w, activeSprite.h)
+    compositeFrame(activeSprite, safeFrame, imageData)
+    ctx.putImageData(imageData, 0, 0)
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+    if (!blob) return
+    const filename = (activeSprite.name.trim() || 'sprite').replace(/[\\/:*?"<>|]+/g, '_')
+    downloadBlob(blob, `${filename}.png`)
+  }
+
   const handleOpen = async (file: File) => {
     try {
       const loaded = await projectFromZipFile(file)
@@ -395,6 +409,7 @@ export default function App() {
         onSave={handleSave}
         onOpen={handleOpen}
         onImportPng={importSpritePng}
+        onExportPng={handleExportPng}
         previewOpen={previewOpen}
         onTogglePreview={() => setPreviewOpen((o) => !o)}
         onOpenSettings={() => setSettingsOpen(true)}

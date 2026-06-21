@@ -8,15 +8,16 @@ interface HeaderProps {
   onSave: () => void
   onOpen: (file: File) => void
   onImportPng: (file: File) => void
+  onExportPng: () => void
   previewOpen: boolean
   onTogglePreview: () => void
   onOpenSettings: () => void
 }
 
 // Top chrome: brand, project name, undo/redo, open/save/import/export. Save,
-// Open, Import PNG, and Settings are wired; undo/redo/export are still
+// Open, Import PNG, Export PNG, and Settings are wired; undo/redo are still
 // placeholders.
-export default function Header({ projectName, onRenameProject, onSave, onOpen, onImportPng, previewOpen, onTogglePreview, onOpenSettings }: HeaderProps) {
+export default function Header({ projectName, onRenameProject, onSave, onOpen, onImportPng, onExportPng, previewOpen, onTogglePreview, onOpenSettings }: HeaderProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const pngFileRef = useRef<HTMLInputElement>(null)
 
@@ -85,7 +86,11 @@ export default function Header({ projectName, onRenameProject, onSave, onOpen, o
       >
         <ImageUp size={15} /> Import
       </button>
-      <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm bg-accent-deep/15 hover:bg-accent-deep/25 text-accent-bright border border-accent-deep/40">
+      <button
+        onClick={onExportPng}
+        title="Export the current frame as PNG"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm bg-accent-deep/15 hover:bg-accent-deep/25 text-accent-bright border border-accent-deep/40"
+      >
         <Download size={15} /> Export
       </button>
       <IconBtn title="Settings" onClick={onOpenSettings}><Settings size={16} /></IconBtn>
