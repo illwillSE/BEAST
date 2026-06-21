@@ -93,8 +93,10 @@ implemented; this file tracks what isn't, organized by area.
 ## Layers
 - [ ] Drag-and-drop reordering — swap layer stack order by dragging a row,
       instead of (or in addition to) the move up/down buttons.
-- [ ] Shift+click a layer's eye to solo it — hide all other layers (shift+click
-      again, or click a hidden one's eye, to restore prior visibility).
+- [x] Shift+click a layer's eye to solo it — hide all other layers (shift+click
+      again, or click a hidden one's eye, to restore prior visibility). State
+      tracked in `LayersPanel.tsx` (`solo` local state: soloed layer id + a
+      snapshot of prior per-layer visibility), reset on sprite switch.
 - [ ] Layer mix option.
 
 ## Sprites

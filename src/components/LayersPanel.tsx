@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Plus, Copy, Trash2, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react'
 import PinToggle from './PinToggle.jsx'
 import SpritePreview from './SpritePreview.jsx'
@@ -35,6 +36,43 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
   const removeLayer = (layerId: string) => layers.length > 1 && dispatch({ type: 'REMOVE_LAYER', spriteId, layerId })
   const moveLayer = (delta: number) => selected && dispatch({ type: 'MOVE_LAYER', spriteId, layerId: selected.id, delta })
   const toggleVisible = (l: Layer) => dispatch({ type: 'SET_LAYER_VISIBLE', spriteId, layerId: l.id, visible: !l.visible })
+
+  // Shift+click an eye to solo that layer (hide all others), remembering prior
+  // visibility so it can be restored by shift+clicking the soloed layer again
+  // or by plain-clicking any hidden layer's eye while soloed.
+  const [solo, setSolo] = useState<{ spriteId: string; layerId: string; prev: Record<string, boolean> } | null>(null)
+  useEffect(() => setSolo(null), [spriteId])
+
+  const restoreSolo = (s: { prev: Record<string, boolean> }) => {
+    layers.forEach((x) => {
+      const v = s.prev[x.id]
+      if (v !== undefined && v !== x.visible) dispatch({ type: 'SET_LAYER_VISIBLE', spriteId, layerId: x.id, visible: v })
+    })
+    setSolo(null)
+  }
+
+  const handleEyeClick = (l: Layer, e: React.MouseEvent) => {
+    if (e.shiftKey) {
+      if (solo && solo.spriteId === spriteId && solo.layerId === l.id) {
+        restoreSolo(solo)
+      } else {
+        const prev: Record<string, boolean> = {}
+        layers.forEach((x) => (prev[x.id] = x.visible))
+        layers.forEach((x) => {
+          const shouldBeVisible = x.id === l.id
+          if (x.visible !== shouldBeVisible) dispatch({ type: 'SET_LAYER_VISIBLE', spriteId, layerId: x.id, visible: shouldBeVisible })
+        })
+        setSolo({ spriteId, layerId: l.id, prev })
+      }
+      return
+    }
+    if (solo && solo.spriteId === spriteId && !l.visible) {
+      restoreSolo(solo)
+      return
+    }
+    toggleVisible(l)
+    if (solo) setSolo(null)
+  }
 
   return (
     <div className="flex flex-col w-64 bg-panel border-b border-divider">
@@ -77,8 +115,8 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
               }
             >
               <button
-                title={l.visible ? 'Hide layer' : 'Show layer'}
-                onClick={() => toggleVisible(l)}
+                title={l.visible ? 'Hide layer (shift-click to solo)' : 'Show layer (shift-click to solo)'}
+                onClick={(e) => handleEyeClick(l, e)}
                 className={l.visible ? 'text-ink-soft hover:text-ink' : 'text-dim hover:text-ink'}
               >
                 {l.visible ? <Eye size={15} /> : <EyeOff size={15} />}
