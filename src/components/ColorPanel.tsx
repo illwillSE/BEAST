@@ -172,35 +172,6 @@ export default function ColorPanel({ fgColor, bgColor, onFgColor, onBgColor, onS
       </div>
 
       <div className="p-3 flex flex-col gap-3">
-        {/* fg/bg slots: click a swatch to edit it below, swap to exchange them */}
-        <div className="flex items-center gap-2">
-          <div className="relative w-9 h-9 shrink-0">
-            <button
-              onClick={() => setActiveSlot('bg')}
-              title="Background color"
-              className={
-                'absolute right-0 bottom-0 w-6 h-6 rounded border beast-checker shadow ' +
-                (activeSlot === 'bg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
-              }
-            >
-              <div className="w-full h-full rounded" style={{ background: bgColor }} />
-            </button>
-            <button
-              onClick={() => setActiveSlot('fg')}
-              title="Foreground color"
-              className={
-                'absolute left-0 top-0 z-10 w-6 h-6 rounded border beast-checker shadow ' +
-                (activeSlot === 'fg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
-              }
-            >
-              <div className="w-full h-full rounded" style={{ background: fgColor }} />
-            </button>
-          </div>
-          <button onClick={onSwap} title="Swap foreground/background (X)" className="text-muted hover:text-ink">
-            <ArrowLeftRight size={15} />
-          </button>
-        </div>
-
         <button
           onClick={() => setGradientOpen((v) => !v)}
           className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-faint hover:text-ink-soft"
@@ -268,10 +239,32 @@ export default function ColorPanel({ fgColor, bgColor, onFgColor, onBgColor, onS
           </>
         )}
 
-        {/* current swatch + hex */}
+        {/* swap, fg/bg slots, hex */}
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded border border-edge-2 shrink-0 beast-checker shadow-inner">
-            <div className="w-full h-full rounded" style={{ background: currentHex }} />
+          <button onClick={onSwap} title="Swap foreground/background (X)" className="text-muted hover:text-ink shrink-0">
+            <ArrowLeftRight size={15} />
+          </button>
+          <div className="relative w-9 h-9 shrink-0">
+            <button
+              onClick={() => setActiveSlot('bg')}
+              title="Background color"
+              className={
+                'absolute right-0 bottom-0 w-6 h-6 rounded border beast-checker shadow ' +
+                (activeSlot === 'bg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
+              }
+            >
+              <div className="w-full h-full rounded" style={{ background: bgColor }} />
+            </button>
+            <button
+              onClick={() => setActiveSlot('fg')}
+              title="Foreground color"
+              className={
+                'absolute left-0 top-0 z-10 w-6 h-6 rounded border beast-checker shadow ' +
+                (activeSlot === 'fg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
+              }
+            >
+              <div className="w-full h-full rounded" style={{ background: fgColor }} />
+            </button>
           </div>
           <input
             value={hexInput}
