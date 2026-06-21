@@ -51,6 +51,18 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
+/* Hides the native number-input spin buttons, which otherwise eat most of
+   the width in a cramped field (e.g. the RGBA readout), clipping 3-digit
+   values like 255. */
+.beast-no-spinner {
+  -moz-appearance: textfield;
+}
+.beast-no-spinner::-webkit-outer-spin-button,
+.beast-no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* Transparency checkerboard for the canvas backdrop (mockup placeholder). */
 .beast-checker {
   background-image:

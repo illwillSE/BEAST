@@ -30,7 +30,16 @@ export interface Sprite {
 
 export interface Doc {
   sprites: Sprite[]
+  palette: string[]
 }
+
+// Seed palette for new/empty documents.
+export const DEFAULT_PALETTE = [
+  '#0b0d11', '#1e293b', '#475569', '#94a3b8', '#e2e8f0', '#ffffff',
+  '#7c2d12', '#b45309', '#f59e0b', '#fbbf24', '#fde68a', '#fef3c7',
+  '#14532d', '#15803d', '#34d399', '#6ee7b7', '#0ea5e9', '#7dd3fc',
+  '#7f1d1d', '#ef4444', '#f87171', '#fca5a5', '#a21caf', '#e879f9',
+]
 
 // Identifies one cell — the (layer, frame) pair within a sprite that tools edit.
 export interface CellTarget {
@@ -99,6 +108,7 @@ export function createDocument(): Doc {
       createSprite({ name: 'sprite_1', w: 32, h: 32, frameCount: 4, layerNames: ['Background', 'Character', 'Highlights'] }),
       createSprite({ name: 'sprite_2', w: 16, h: 16, frameCount: 2, layerNames: ['Layer 1', 'Layer 2'] }),
     ],
+    palette: [...DEFAULT_PALETTE],
   }
 }
 
@@ -574,4 +584,44 @@ export function hexToRgba(hex: string): RGBA {
 export function rgbaToHex([r, g, b, a]: RGBA): string {
   const c = (n: number) => n.toString(16).padStart(2, '0')
   return '#' + c(r) + c(g) + c(b) + (a < 255 ? c(a) : '')
+}
+
+// ── palette CRUD ─────────────────────────────────────────────────────────
+export function addSwatch(doc: Doc, hex: string): Doc {
+  return doc.palette.includes(hex) ? doc : { ...doc, palette: [...doc.palette, hex] }
+}
+
+export function removeSwatch(doc: Doc, index: number): Doc {
+  return { ...doc, palette: doc.palette.filter((_, i) => i !== index) }
+}
+
+// Overwrites the swatch at `index` in place, rather than appending.
+export function editSwatch(doc: Doc, index: number, hex: string): Doc {
+  return { ...doc, palette: doc.palette.map((c, i) => (i === index ? hex : c)) }
+}
+
+export function setPalette(doc: Doc, palette: string[]): Doc {
+  return { ...doc, palette }
+}
+
+export function reorderSwatch(doc: Doc, from: number, to: number): Doc {
+  if (from === to) return doc
+  const palette = [...doc.palette]
+  const [moved] = palette.splice(from, 1)
+  palette.splice(to, 0, moved)
+  return { ...doc, palette }
+}
+
+// Merges `colors` into the palette, skipping ones already present (in the
+// palette or earlier in `colors`) — used by both "import from image" and
+// "import from another project".
+export function mergeSwatches(doc: Doc, colors: string[]): Doc {
+  const seen = new Set(doc.palette)
+  const fresh: string[] = []
+  for (const c of colors) {
+    if (seen.has(c)) continue
+    seen.add(c)
+    fresh.push(c)
+  }
+  return fresh.length ? { ...doc, palette: [...doc.palette, ...fresh] } : doc
 }

@@ -4,7 +4,7 @@ import ToolRail from './components/ToolRail.jsx'
 import SpriteList from './components/SpriteList.jsx'
 import CanvasStage from './components/CanvasStage.jsx'
 import LayersPanel from './components/LayersPanel.jsx'
-import ColorPanel, { DEFAULT_PALETTE } from './components/ColorPanel.jsx'
+import ColorPanel from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
 import SettingsModal from './components/SettingsModal.jsx'
 import FoldTab from './components/FoldTab.jsx'
@@ -12,11 +12,11 @@ import EyedropperMagnifier from './components/EyedropperMagnifier.jsx'
 import useFoldable from './hooks/useFoldable.js'
 import usePeek from './hooks/usePeek.js'
 import { useGlobalEyedropper } from './hooks/useGlobalEyedropper.js'
-import { createDocument, copyRegion } from './document/model.js'
+import { createDocument, copyRegion, rgbaToHex } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
-import { projectToZipBlob, projectFromZipFile, downloadBlob } from './persist/zip.js'
+import { projectToZipBlob, projectFromZipFile, projectPaletteFromZipFile, downloadBlob } from './persist/zip.js'
 import { matchShortcut, isTypingTarget } from './shortcuts/registry.js'
 import type { Cell, Doc, Sprite } from './document/model.js'
 import type { Rect, Floating, CropPending } from './tools/registry.js'
@@ -40,9 +40,6 @@ export default function App() {
     setFgColor(bgColor)
     setBgColor(fgColor)
   }
-  const [palette, setPalette] = useState<string[]>(DEFAULT_PALETTE)
-  const addSwatch = (hex: string) => setPalette((p) => (p.includes(hex) ? p : [...p, hex]))
-
   // Select/move/clipboard state. `selection` is a rect on the active layer's
   // current frame; `floating` is pixels lifted out of the layer by a move or
   // paste, rendered on top until something commits them (see commitFloating).
@@ -100,6 +97,54 @@ export default function App() {
 
   const [state, dispatch] = useReducer(historyReducer, undefined, () => initHistory(createDocument()))
   const doc = state.present
+  const palette = doc.palette
+  const addSwatch = (hex: string) => dispatch({ type: 'ADD_SWATCH', hex })
+  const removeSwatch = (index: number) => dispatch({ type: 'REMOVE_SWATCH', index })
+  const editSwatch = (index: number, hex: string) => dispatch({ type: 'EDIT_SWATCH', index, hex })
+  const reorderSwatch = (from: number, to: number) => dispatch({ type: 'REORDER_SWATCH', from, to })
+
+  // "Import from image": decode the file to pixel data and merge its
+  // distinct opaque colors into the palette. Capped so dropping a photo
+  // (thousands of colors) doesn't flood the swatch grid — pixel-art source
+  // images are normally already flat-color.
+  const MAX_IMPORTED_COLORS = 256
+  const importImagePalette = async (file: File) => {
+    try {
+      const bitmap = await createImageBitmap(file)
+      const canvas = document.createElement('canvas')
+      canvas.width = bitmap.width
+      canvas.height = bitmap.height
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(bitmap, 0, 0)
+      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const colors = new Set<string>()
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] === 0) continue
+        colors.add(rgbaToHex([data[i], data[i + 1], data[i + 2], data[i + 3]]))
+        if (colors.size > MAX_IMPORTED_COLORS) {
+          window.alert(`That image has too many distinct colors (>${MAX_IMPORTED_COLORS}) — pick a flat-color/indexed image instead.`)
+          return
+        }
+      }
+      dispatch({ type: 'MERGE_SWATCHES', colors: [...colors] })
+    } catch (err) {
+      console.warn('BEAST image color import failed', err)
+      window.alert('Could not read colors from that image.')
+    }
+  }
+
+  // "Import from project": pull just the palette out of another saved .zip,
+  // replacing the current one, without touching the current project's
+  // sprites/layers/cells.
+  const importProjectPalette = async (file: File) => {
+    try {
+      const colors = await projectPaletteFromZipFile(file)
+      dispatch({ type: 'SET_PALETTE', palette: colors })
+    } catch (err) {
+      console.warn('BEAST project palette import failed', err)
+      window.alert('Could not read a palette from that file — it is not a valid BEAST project.')
+    }
+  }
 
   // Active selection. The active sprite falls back to the first if the id is
   // stale (e.g. just after loading a different project); layer/frame are
@@ -442,6 +487,11 @@ export default function App() {
               onSwap={swapColors}
               palette={palette}
               onAddSwatch={addSwatch}
+              onRemoveSwatch={removeSwatch}
+              onEditSwatch={editSwatch}
+              onReorderSwatch={reorderSwatch}
+              onImportImage={importImagePalette}
+              onImportProjectPalette={importProjectPalette}
               pinned
               onTogglePin={toggleSidebarPin}
               onPeekSelect={undefined}
@@ -459,6 +509,11 @@ export default function App() {
                     onSwap={swapColors}
                     palette={palette}
                     onAddSwatch={addSwatch}
+                    onRemoveSwatch={removeSwatch}
+                    onEditSwatch={editSwatch}
+                    onReorderSwatch={reorderSwatch}
+                    onImportImage={importImagePalette}
+                    onImportProjectPalette={importProjectPalette}
                     pinned={false}
                     onTogglePin={toggleSidebarPin}
                     onPeekSelect={colorPeek.close}

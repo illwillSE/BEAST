@@ -32,6 +32,17 @@ export async function projectFromZipFile(file: File | Blob): Promise<Doc> {
   return deserializeProject({ manifest, blobs })
 }
 
+// Reads just the palette out of a saved project .zip, without touching its
+// sprites/layers/cells — used to import a palette from another project
+// without loading that project.
+export async function projectPaletteFromZipFile(file: File | Blob): Promise<string[]> {
+  const zip = await JSZip.loadAsync(file)
+  const manifestFile = zip.file('manifest.json')
+  if (!manifestFile) throw new Error('Not a BEAST project: manifest.json missing')
+  const manifest = JSON.parse(await manifestFile.async('string'))
+  return manifest.palette ?? []
+}
+
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

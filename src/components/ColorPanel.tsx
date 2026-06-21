@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, ChevronDown, ChevronRight, ArrowLeftRight } from 'lucide-react'
+import { Plus, ChevronDown, ChevronRight, ArrowLeftRight, Trash2, ImagePlus, FolderInput } from 'lucide-react'
 import PinToggle from './PinToggle.jsx'
 import { hexToRgba, rgbaToHex } from '../document/model.js'
 import { useEyedropperSampler } from '../hooks/eyedropperSamplers.js'
@@ -7,12 +7,6 @@ import { useEyedropperSampler } from '../hooks/eyedropperSamplers.js'
 // Color: a managed swatch palette + a free RGBA picker (HSV square, hue/alpha
 // sliders, numeric RGBA fields, hex field) for mixing any color and adding it
 // to the palette.
-export const DEFAULT_PALETTE = [
-  '#0b0d11', '#1e293b', '#475569', '#94a3b8', '#e2e8f0', '#ffffff',
-  '#7c2d12', '#b45309', '#f59e0b', '#fbbf24', '#fde68a', '#fef3c7',
-  '#14532d', '#15803d', '#34d399', '#6ee7b7', '#0ea5e9', '#7dd3fc',
-  '#7f1d1d', '#ef4444', '#f87171', '#fca5a5', '#a21caf', '#e879f9',
-]
 
 interface Hsva {
   h: number // 0–360
@@ -78,6 +72,11 @@ interface ColorPanelProps {
   onSwap: () => void
   palette: string[]
   onAddSwatch: (hex: string) => void
+  onRemoveSwatch: (index: number) => void
+  onEditSwatch: (index: number, hex: string) => void
+  onReorderSwatch: (from: number, to: number) => void
+  onImportImage: (file: File) => void
+  onImportProjectPalette: (file: File) => void
   pinned: boolean
   onTogglePin: () => void
   onPeekSelect?: () => void
@@ -87,7 +86,10 @@ interface ColorPanelProps {
 // switched by clicking either swatch — so the rest of this component's
 // logic (HSV derivation, hex field, palette highlight) stays keyed off a
 // single `color`/`onColor` pair, same as before the fg/bg split.
-export default function ColorPanel({ fgColor, bgColor, onFgColor, onBgColor, onSwap, palette, onAddSwatch, pinned, onTogglePin, onPeekSelect }: ColorPanelProps) {
+export default function ColorPanel({
+  fgColor, bgColor, onFgColor, onBgColor, onSwap, palette, onAddSwatch, onRemoveSwatch, onEditSwatch,
+  onReorderSwatch, onImportImage, onImportProjectPalette, pinned, onTogglePin, onPeekSelect,
+}: ColorPanelProps) {
   const [activeSlot, setActiveSlot] = useState<'fg' | 'bg'>('fg')
   const color = activeSlot === 'fg' ? fgColor : bgColor
   const onColor = activeSlot === 'fg' ? onFgColor : onBgColor
@@ -179,6 +181,21 @@ export default function ColorPanel({ fgColor, bgColor, onFgColor, onBgColor, onS
     else setHexInput(currentHex)
   }
 
+  // Swatch reorder via native drag-and-drop.
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const handleDrop = (index: number) => {
+    if (dragIndex !== null && dragIndex !== index) onReorderSwatch(dragIndex, index)
+    setDragIndex(null)
+  }
+
+  const imageFileRef = useRef<HTMLInputElement>(null)
+  const projectFileRef = useRef<HTMLInputElement>(null)
+  const pickFile = (onPick: (file: File) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-picking the same file
+    if (file) onPick(file)
+  }
+
   return (
     <div className="flex flex-col w-64 bg-panel">
       <div className="flex items-center justify-between px-3 h-9 border-b border-divider">
@@ -186,7 +203,17 @@ export default function ColorPanel({ fgColor, bgColor, onFgColor, onBgColor, onS
           <span className="text-[11px] uppercase tracking-wide text-faint font-semibold">Color</span>
           <PinToggle pinned={pinned} onClick={onTogglePin} />
         </div>
-        <button title="New palette" className="text-muted hover:text-ink"><Plus size={15} /></button>
+        <div className="flex items-center gap-1.5 text-muted">
+          <input ref={imageFileRef} type="file" accept="image/*" className="hidden" onChange={pickFile(onImportImage)} />
+          <input ref={projectFileRef} type="file" accept=".zip" className="hidden" onChange={pickFile(onImportProjectPalette)} />
+          <button title="Import palette from image" className="hover:text-ink" onClick={() => imageFileRef.current?.click()}>
+            <ImagePlus size={15} />
+          </button>
+          <button title="Replace palette with one from another project" className="hover:text-ink" onClick={() => projectFileRef.current?.click()}>
+            <FolderInput size={15} />
+          </button>
+          <button title="New palette" className="hover:text-ink"><Plus size={15} /></button>
+        </div>
       </div>
 
       <div className="p-3 flex flex-col gap-3">
@@ -304,25 +331,41 @@ export default function ColorPanel({ fgColor, bgColor, onFgColor, onBgColor, onS
                 max={255}
                 value={{ r, g, b, a: hsva.a }[ch]}
                 onChange={(e) => setChannel(ch, e.target.valueAsNumber)}
-                className="w-full min-w-0 bg-transparent text-xs text-ink-soft text-right tabular-nums py-1"
+                className="beast-no-spinner w-full min-w-0 bg-transparent text-xs text-ink-soft text-right tabular-nums py-1"
               />
             </label>
           ))}
         </div>
 
-        {/* swatch palette */}
+        {/* swatch palette — drag to reorder, right-click to overwrite with
+            the current color, hover for the delete button */}
         <div className="grid grid-cols-6 gap-1.5">
-          {palette.map((c) => (
-            <button
-              key={c}
-              onClick={() => { onColor(c); onPeekSelect?.() }}
-              title={c}
-              className={
-                'aspect-square rounded border ' +
-                (color === c ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge hover:border-edge-hover')
-              }
-              style={{ background: c }}
-            />
+          {palette.map((c, i) => (
+            <div key={i} className="relative group aspect-square">
+              <button
+                draggable
+                onDragStart={() => setDragIndex(i)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => handleDrop(i)}
+                onDragEnd={() => setDragIndex(null)}
+                onClick={() => { onColor(c); onPeekSelect?.() }}
+                onContextMenu={(e) => { e.preventDefault(); onEditSwatch(i, currentHex) }}
+                title={`${c} — right-click to overwrite with current color, drag to reorder`}
+                className={
+                  'w-full h-full rounded border ' +
+                  (color === c ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge hover:border-edge-hover') +
+                  (dragIndex === i ? ' opacity-40' : '')
+                }
+                style={{ background: c }}
+              />
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemoveSwatch(i) }}
+                title="Remove swatch"
+                className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full bg-well border border-edge text-faint hover:text-danger"
+              >
+                <Trash2 size={10} />
+              </button>
+            </div>
           ))}
           <button
             onClick={() => onAddSwatch(currentHex)}

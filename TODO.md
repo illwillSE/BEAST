@@ -85,10 +85,23 @@ implemented; this file tracks what isn't, organized by area.
       (`handleDown`/`ctxFor` currently treat all clicks the same) and
       suppressing the canvas's `contextmenu` event; decide which tools it
       applies to (eraser already paints transparent, so it wouldn't apply there).
-- [ ] Managed swatch palette (loadable/savable) — palette is currently a single
-      in-memory list (`App.tsx` `palette` state, seeded from
-      `ColorPanel.DEFAULT_PALETTE`); no save/load or multiple named palettes
-      yet. The header's "New palette" button is still a placeholder for this.
+- [x] Managed swatch palette — `palette: string[]` lives in `Doc` now
+      (`document/model.ts`), edited via undoable reducer actions
+      (`ADD_SWATCH`/`REMOVE_SWATCH`/`EDIT_SWATCH`/`REORDER_SWATCH`/`MERGE_SWATCHES`/`SET_PALETTE`
+      in `document/reducer.ts`), and rides the existing project
+      serialization — it's part of `Manifest` (`persist/serialize.ts`), so it
+      saves/loads with the project ZIP and the localStorage/IndexedDB
+      autosave for free. `ColorPanel.tsx`: right-click a swatch to overwrite
+      it with the current color, hover for a delete button, drag to
+      reorder, merge in colors from an image file, or replace the whole
+      palette with one read from another saved project (via toolbar icons).
+- [ ] Multiple named palettes per project — deliberately deferred; a project
+      currently holds exactly one palette. The header's "New palette" `+`
+      button is still an unwired placeholder for this.
+- [ ] Standalone palette export/import (a plain file, separate from the
+      project ZIP — e.g. JSON or the Lospec `.hex` community format) —
+      deliberately deferred; palette only travels inside the project file
+      for now.
 
 ## Layers
 - [ ] Drag-and-drop reordering — swap layer stack order by dragging a row,

@@ -5,6 +5,7 @@
 // dedupe to a single blob. Reconstruction repopulates cells from the blob set,
 // like BLAST's sample cache.
 
+import { DEFAULT_PALETTE } from '../document/model.js'
 import type { Cell, Doc } from '../document/model.js'
 
 const VERSION = 1
@@ -29,6 +30,7 @@ interface ManifestSprite {
 export interface Manifest {
   version: number
   sprites: ManifestSprite[]
+  palette: string[]
 }
 
 // cyrb53 — a fast non-cryptographic hash over the cell bytes. Good enough for
@@ -71,7 +73,7 @@ export function serializeProject(doc: Doc): { manifest: Manifest; blobs: Map<str
       }),
     })),
   }))
-  return { manifest: { version: VERSION, sprites }, blobs }
+  return { manifest: { version: VERSION, sprites, palette: doc.palette }, blobs }
 }
 
 // { manifest, blobs: Map<hash, Uint8Array|Uint8ClampedArray> } -> doc.
@@ -86,6 +88,7 @@ export function deserializeProject({
 }): Doc {
   const cache = new Map<string, Cell>()
   return {
+    palette: manifest.palette ?? [...DEFAULT_PALETTE],
     sprites: manifest.sprites.map((sp) => {
       const len = sp.w * sp.h * 4
       const cellFor = (hash: string): Cell => {

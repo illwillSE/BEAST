@@ -33,6 +33,12 @@ import {
   removeFrame,
   moveFrame,
   reorderFrame,
+  addSwatch,
+  removeSwatch,
+  editSwatch,
+  reorderSwatch,
+  mergeSwatches,
+  setPalette,
   reseedUid,
 } from './model.js'
 import type { Cell, CellTarget, CreateSpriteOpts, Doc, RGBA, Sprite } from './model.js'
@@ -82,6 +88,12 @@ export type Action =
   | { type: 'REMOVE_FRAME'; spriteId: string; frameIndex: number }
   | { type: 'MOVE_FRAME'; spriteId: string; frameIndex: number; delta: number }
   | { type: 'REORDER_FRAME'; spriteId: string; from: number; to: number }
+  | { type: 'ADD_SWATCH'; hex: string }
+  | { type: 'REMOVE_SWATCH'; index: number }
+  | { type: 'EDIT_SWATCH'; index: number; hex: string }
+  | { type: 'REORDER_SWATCH'; from: number; to: number }
+  | { type: 'MERGE_SWATCHES'; colors: string[] }
+  | { type: 'SET_PALETTE'; palette: string[] }
   | { type: 'UNDO' }
   | { type: 'REDO' }
 
@@ -232,6 +244,24 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
 
     case 'REORDER_FRAME':
       return editDoc(state, (doc) => reorderFrame(doc, action.spriteId, action.from, action.to))
+
+    case 'ADD_SWATCH':
+      return editDoc(state, (doc) => addSwatch(doc, action.hex))
+
+    case 'REMOVE_SWATCH':
+      return editDoc(state, (doc) => removeSwatch(doc, action.index))
+
+    case 'EDIT_SWATCH':
+      return editDoc(state, (doc) => editSwatch(doc, action.index, action.hex))
+
+    case 'REORDER_SWATCH':
+      return editDoc(state, (doc) => reorderSwatch(doc, action.from, action.to))
+
+    case 'MERGE_SWATCHES':
+      return editDoc(state, (doc) => mergeSwatches(doc, action.colors))
+
+    case 'SET_PALETTE':
+      return editDoc(state, (doc) => setPalette(doc, action.palette))
 
     case 'UNDO': {
       if (!state.past.length) return state
