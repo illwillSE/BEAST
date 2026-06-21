@@ -32,17 +32,25 @@ implemented; this file tracks what isn't, organized by area.
       set) and an emoji picker/insert.
 - [ ] Eraser: decide whether it stays a separate tool (current) or is also
       reachable via right-click while another paint tool is active.
-- [ ] Brush width is currently per-tool (`brushSize: Record<string, number>` in
-      `App.tsx`, one independent value per tool id, mirroring the `filled`
-      outline/fill pattern). Make it one shared/global value instead, so
-      switching between pencil/eraser/line/rect/ellipse keeps the same width
-      rather than each tool remembering its own.
-- [ ] Brush width follow-ups (width itself is wired — square stamp, odd sizes
-      1/3/5/7, via `stampPoints` in `document/model.ts`, for pencil/eraser/line
-      and rect/ellipse outlines): round stamp option, even sizes, a brush-size
-      cursor preview (ghost outline following the pointer), and "pixel
-      perfect" diagonal-stroke thinning at width>1 (Aseprite-style — avoids
-      chunky-looking corners where a thick diagonal stroke overlaps itself).
+- [ ] Brush pixel size + shape — one combined effort. Today width is wired
+      (square stamp, odd sizes 1/3/5/7, via `stampPoints` in
+      `document/model.ts`, for pencil/eraser/line and rect/ellipse outlines)
+      but per-tool (`brushSize: Record<string, number>` in `App.tsx`, one
+      independent value per tool id, mirroring `filled`) and only selectable in
+      the rail flyouts. Build:
+      - One shared/global size value instead of per-tool, so switching between
+        pencil/eraser/line/rect/ellipse keeps the same width.
+      - A **round** stamp option alongside the current square; also even sizes.
+      - A single UI home: its own canvas button in `CanvasStage.tsx` (separate
+        from the zoom readout, so zoom/render size isn't conflated with brush
+        size) that pops up a menu to choose size + shape and replaces the rail
+        flyouts for this. The button shows the current selection — the shape
+        rendered at its smallest possible size (disregarding the selected
+        size), plus the size value.
+      - Later polish: a brush-size cursor preview (ghost outline following the
+        pointer), and "pixel perfect" diagonal-stroke thinning at width>1
+        (Aseprite-style — avoids chunky corners where a thick diagonal stroke
+        overlaps itself).
 - [ ] Transform tools: flip horizontal / flip vertical (whole layer or
       selection content, not the live mirror-painting guides), and a
       move/nudge tool to shift layer content in place (distinct from the
@@ -50,6 +58,16 @@ implemented; this file tracks what isn't, organized by area.
 - [ ] Gradient drag preview (`tools/registry.ts` gradient entry, rendered in
       `PixelCanvas.tsx`) only draws the Bresenham line between drag endpoints,
       not anything representing the gradient spread itself (now fg→bg).
+- [ ] Gradient fill shape option: linear (current — `gradientFill` in
+      `document/model.ts` projects onto the drag vector) vs. circular/radial
+      (fade by distance from the drag start point instead). Needs a toggle
+      alongside the existing fg/bg color pickers.
+- [ ] Gradient angle/direction lock: Shift-constrain the drag to 0/45/90°
+      increments, same idea as the rect/ellipse square-circle Shift constraint.
+- [ ] Gradient dithering option — smooth fg→bg steps can band visibly at small
+      pixel-art sizes; an ordered-dither mode would break up the bands.
+- [ ] Multi-stop gradient (3+ colors, not just fg→bg) — bigger lift, needs a
+      color-stop editing UI in `ColorPanel.tsx`, not just a toggle.
 
 ## Color
 - [ ] Docked sidebar (`LayersPanel` + `ColorPanel` both pinned) can still clip
