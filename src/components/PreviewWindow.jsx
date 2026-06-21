@@ -60,6 +60,7 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
     savePreviewPrefs({ open, x: pos.x, y: pos.y, w: size.w, h: size.h, scale: previewScale, ...overrides })
 
   const handleTitleDown = (e) => {
+    if (e.target.closest('button')) return
     dragRef.current = { startX: e.clientX, startY: e.clientY, startPos: pos }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
