@@ -16,9 +16,10 @@ interface LayersPanelProps {
 
 // Layer stack for the selected sprite. Listed top-of-stack first (the model
 // stores bottom-to-top). Selecting a layer makes it the paint target; the
-// header buttons add/duplicate/move/delete the selected layer. Each row's eye
-// toggles that layer's visibility independent of selection. The opacity
-// slider edits the selected layer, coalescing one drag into one undo step.
+// header buttons add/duplicate/move the selected layer; delete lives on each
+// row (hover to reveal). Each row's eye toggles that layer's visibility
+// independent of selection. The opacity slider edits the selected layer,
+// coalescing one drag into one undo step.
 export default function LayersPanel({ layers, selectedId, onSelect, spriteId, dispatch, pinned, onTogglePin, onPeekSelect }: LayersPanelProps) {
   const ordered = [...layers].reverse()
   const selected = layers.find((l) => l.id === selectedId)
@@ -27,7 +28,7 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, di
 
   const addLayer = () => dispatch({ type: 'ADD_LAYER', spriteId, name: `Layer ${layers.length + 1}` })
   const duplicateLayer = () => selected && dispatch({ type: 'DUPLICATE_LAYER', spriteId, layerId: selected.id })
-  const removeLayer = () => selected && layers.length > 1 && dispatch({ type: 'REMOVE_LAYER', spriteId, layerId: selected.id })
+  const removeLayer = (layerId: string) => layers.length > 1 && dispatch({ type: 'REMOVE_LAYER', spriteId, layerId })
   const moveLayer = (delta: number) => selected && dispatch({ type: 'MOVE_LAYER', spriteId, layerId: selected.id, delta })
   const toggleVisible = (l: Layer) => dispatch({ type: 'SET_LAYER_VISIBLE', spriteId, layerId: l.id, visible: !l.visible })
 
@@ -57,14 +58,6 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, di
           >
             <ChevronDown size={14} />
           </button>
-          <button
-            title="Delete"
-            className="hover:text-danger disabled:opacity-30 disabled:hover:text-muted"
-            disabled={layers.length <= 1}
-            onClick={removeLayer}
-          >
-            <Trash2 size={14} />
-          </button>
         </div>
       </div>
 
@@ -75,7 +68,7 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, di
             <div
               key={l.id}
               className={
-                'flex items-center gap-2 p-1.5 rounded border ' +
+                'group flex items-center gap-2 p-1.5 rounded border ' +
                 (isSelected ? 'bg-accent-deep/15 border-accent-deep/50' : 'border-transparent hover:bg-surface-hover')
               }
             >
@@ -91,6 +84,14 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, di
                 <span className={'flex-1 text-sm truncate ' + (isSelected ? 'text-accent-soft' : 'text-ink-soft')}>
                   {l.name}
                 </span>
+              </button>
+              <button
+                title="Delete"
+                className="shrink-0 opacity-0 group-hover:opacity-100 text-muted hover:text-danger disabled:opacity-0"
+                disabled={layers.length <= 1}
+                onClick={() => removeLayer(l.id)}
+              >
+                <Trash2 size={14} />
               </button>
             </div>
           )

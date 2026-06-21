@@ -82,13 +82,6 @@ implemented; this file tracks what isn't, organized by area.
       behavior, or if it should only revert after a successful pick.
 
 ## Layers
-- [ ] Delete button doesn't match sprite delete's UX: in `SpriteList.tsx` the
-      delete icon is hidden until row hover (`opacity-0 group-hover:opacity-100`)
-      and fully disappears when disabled (last sprite). In `LayersPanel.tsx`
-      (and `FramesTimeline.tsx`, same pattern for frames) the delete icon is
-      always visible and just dims (`disabled:opacity-30`) when it's the last
-      layer/frame. Make layer and frame delete match the sprite-delete
-      hover-reveal behavior for consistency.
 - [ ] Drag-and-drop reordering — swap layer stack order by dragging a row,
       instead of (or in addition to) the move up/down buttons.
 - [ ] Shift+click a layer's eye to solo it — hide all other layers (shift+click

@@ -18,9 +18,10 @@ interface FramesTimelineProps {
 
 // Bottom timeline: animation frames + playback controls (loop), global FPS, and
 // an onion-skin toggle. Selecting a frame makes it the paint target; the side
-// buttons add/duplicate/move/delete the active frame and follow it with
-// selection. Each frame thumbnail shows that frame composited across the
-// sprite's layers. Playback, FPS, and onion-skin are still static (see TODO).
+// buttons add/duplicate/move the active frame and follow it with selection;
+// delete lives on each thumbnail (hover to reveal). Each frame thumbnail shows
+// that frame composited across the sprite's layers. Playback, FPS, and
+// onion-skin are still static (see TODO).
 export default function FramesTimeline({ sprite, frameCount, active, onPick, spriteId, dispatch, pinned, onTogglePin, onPeekSelect }: FramesTimelineProps) {
   const addFrame = () => {
     const at = active + 1
@@ -32,10 +33,11 @@ export default function FramesTimeline({ sprite, frameCount, active, onPick, spr
     dispatch({ type: 'DUPLICATE_FRAME', spriteId, frameIndex: active })
     onPick(at)
   }
-  const removeFrame = () => {
+  const removeFrame = (frameIndex: number) => {
     if (frameCount <= 1) return
-    dispatch({ type: 'REMOVE_FRAME', spriteId, frameIndex: active })
-    onPick(Math.min(active, frameCount - 2))
+    dispatch({ type: 'REMOVE_FRAME', spriteId, frameIndex })
+    if (frameIndex === active) onPick(Math.min(active, frameCount - 2))
+    else if (frameIndex < active) onPick(active - 1)
   }
   const moveFrame = (delta: number) => {
     const to = active + delta
@@ -71,24 +73,33 @@ export default function FramesTimeline({ sprite, frameCount, active, onPick, spr
       {/* frame strip */}
       <div className="flex-1 flex items-center gap-2 overflow-x-auto py-2">
         {Array.from({ length: frameCount }, (_, i) => (
-          <button
+          <div
             key={i}
-            onClick={() => { onPick(i); onPeekSelect?.() }}
             className={
-              'relative shrink-0 rounded border p-1 ' +
+              'group relative shrink-0 rounded border p-1 ' +
               (active === i ? 'border-accent-deep bg-accent-deep/10' : 'border-edge hover:border-edge-hover')
             }
           >
-            <SpritePreview sprite={sprite} frameIndex={i} size={64} className="rounded-sm" />
-            <span
-              className={
-                'absolute top-1 left-1 text-[10px] px-1 rounded-sm tabular-nums ' +
-                (active === i ? 'bg-accent-deep text-bg' : 'bg-well/80 text-faint')
-              }
+            <button onClick={() => { onPick(i); onPeekSelect?.() }}>
+              <SpritePreview sprite={sprite} frameIndex={i} size={64} className="rounded-sm" />
+              <span
+                className={
+                  'absolute top-1 left-1 text-[10px] px-1 rounded-sm tabular-nums ' +
+                  (active === i ? 'bg-accent-deep text-bg' : 'bg-well/80 text-faint')
+                }
+              >
+                {i + 1}
+              </span>
+            </button>
+            <button
+              title="Delete frame"
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-muted hover:text-danger disabled:opacity-0 bg-well/80 rounded-sm"
+              disabled={frameCount <= 1}
+              onClick={() => removeFrame(i)}
             >
-              {i + 1}
-            </span>
-          </button>
+              <Trash2 size={12} />
+            </button>
+          </div>
         ))}
         <div className="shrink-0 grid grid-cols-2 gap-1 ml-1">
           <button title="Add frame" className="grid place-items-center w-8 h-8 rounded border border-dashed border-edge text-muted hover:text-ink hover:border-edge-hover" onClick={addFrame}>
@@ -112,14 +123,6 @@ export default function FramesTimeline({ sprite, frameCount, active, onPick, spr
             onClick={() => moveFrame(1)}
           >
             <ChevronRight size={14} />
-          </button>
-          <button
-            title="Delete frame"
-            className="col-span-2 grid place-items-center w-full h-8 rounded border border-edge text-muted hover:text-danger disabled:opacity-30 disabled:hover:text-muted"
-            disabled={frameCount <= 1}
-            onClick={removeFrame}
-          >
-            <Trash2 size={14} />
           </button>
         </div>
       </div>
