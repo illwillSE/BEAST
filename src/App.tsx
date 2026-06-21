@@ -7,8 +7,10 @@ import LayersPanel from './components/LayersPanel.jsx'
 import ColorPanel, { DEFAULT_PALETTE } from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
 import FoldTab from './components/FoldTab.jsx'
+import EyedropperMagnifier from './components/EyedropperMagnifier.jsx'
 import useFoldable from './hooks/useFoldable.js'
 import usePeek from './hooks/usePeek.js'
+import { useGlobalEyedropper } from './hooks/useGlobalEyedropper.js'
 import { createDocument, copyRegion } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
@@ -67,6 +69,13 @@ export default function App() {
     setTool(temporaryToolReturn)
     setTemporaryToolReturn(null)
   }
+
+  // Lets the eyedropper sample colors anywhere in the app, not just the pixel
+  // canvas (which has its own precise, pixel-data-backed picking below).
+  const globalMagnifier = useGlobalEyedropper(tool === 'eyedropper', (hex) => {
+    setFgColor(hex)
+    completeTemporaryTool()
+  })
   const [previewOpen, setPreviewOpen] = useState(() => loadPreviewPrefs()?.open ?? false)
 
   // Foldable chrome panels — each pinned open by default (today's layout).
@@ -434,6 +443,8 @@ export default function App() {
           )}
         </div>
       )}
+
+      {globalMagnifier && <EyedropperMagnifier {...globalMagnifier} />}
     </div>
   )
 }

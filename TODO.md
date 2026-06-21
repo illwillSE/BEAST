@@ -62,24 +62,6 @@ implemented; this file tracks what isn't, organized by area.
       in-memory list (`App.tsx` `palette` state, seeded from
       `ColorPanel.DEFAULT_PALETTE`); no save/load or multiple named palettes
       yet. The header's "New palette" button is still a placeholder for this.
-- [ ] Eyedropper magnifier doesn't appear until the pointer moves — it's only
-      set inside the move handler (`PixelCanvas.tsx`, `handleMove`), not on
-      activation/click, so Shift+I (or selecting Eyedropper) shows nothing
-      until you first move the mouse over the canvas. Also decide: should the
-      magnifier work everywhere in the app (e.g. hovering UI/palette swatches),
-      or stay canvas-only as it is now?
-- [ ] Eyedropper magnifier can go stale: the Shift+I temporary-tool revert
-      clears it on pick, but switching away from the eyedropper via its
-      keyboard shortcut or the toolbar — while hovering, without moving the
-      mouse afterward — leaves the magnifier popup frozen on screen. It's
-      only cleared reactively in `handleMove`/`onPointerLeave`
-      (`PixelCanvas.tsx`), not when the `tool` prop itself changes. Fix:
-      clear `magnifier` in a `useEffect` keyed on `tool` instead of
-      point-patching just the temporary-tool completion path.
-- [ ] Shift+I currently reverts to the previous tool after *any* click while
-      the temporary eyedropper is active, even if the sampled pixel is
-      transparent (no color actually picked). Decide if that's the desired
-      behavior, or if it should only revert after a successful pick.
 
 ## Layers
 - [ ] Drag-and-drop reordering — swap layer stack order by dragging a row,

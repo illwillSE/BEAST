@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { compositeFrame, hexToRgba, rgbaToHex } from '../document/model.js'
 import { getTool } from '../tools/registry.js'
 import { getColor } from '../theme/colors.js'
+import { getLastPointer } from '../hooks/lastPointer.js'
 import EyedropperMagnifier, { MAG_RADIUS } from './EyedropperMagnifier.jsx'
 import type { Sprite, CellTarget, RGBA } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
@@ -154,21 +155,24 @@ export default function PixelCanvas({
     ctx.strokeRect(rect.x * scale + 0.5, rect.y * scale + 0.5, rect.w * scale - 1, rect.h * scale - 1)
   }, [floating, selection, cropPending, preview, w, h, scale, mirrorV, mirrorH])
 
-  const cellFromEvent = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  const cellFromClient = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect()
-    const x = Math.floor(((e.clientX - rect.left) / rect.width) * w)
-    const y = Math.floor(((e.clientY - rect.top) / rect.height) * h)
+    const x = Math.floor(((clientX - rect.left) / rect.width) * w)
+    const y = Math.floor(((clientY - rect.top) / rect.height) * h)
     return { x, y }
   }
 
+  const cellFromEvent = (e: React.PointerEvent<HTMLCanvasElement>) => cellFromClient(e.clientX, e.clientY)
+
   const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h
 
-  // Read a composited pixel's color (for the eyedropper); null if transparent.
+  // Read a composited pixel's color (for the eyedropper); null only if out of
+  // bounds — a transparent pixel is itself a selectable color (paints as an
+  // eraser would, via paintPixel's direct overwrite).
   const sampleColor = (x: number, y: number): string | null => {
     const img = imageRef.current
     if (!img || !inBounds(x, y)) return null
     const i = (y * w + x) * 4
-    if (img.data[i + 3] === 0) return null
     return rgbaToHex([img.data[i], img.data[i + 1], img.data[i + 2], img.data[i + 3]])
   }
 
@@ -188,6 +192,22 @@ export default function PixelCanvas({
     }
     return pixels
   }
+
+  // Show/hide the magnifier on tool change rather than only reactively from
+  // pointer events: clears it immediately if the eyedropper is switched away
+  // from (it would otherwise stay frozen on screen until the next pointer
+  // move), and shows it right away if switched to while already hovering the
+  // canvas (toolbar click / keyboard shortcut), instead of waiting for the
+  // user to first move the mouse.
+  useEffect(() => {
+    if (tool !== 'eyedropper') { setMagnifier(null); return }
+    const pos = getLastPointer()
+    if (!pos) return
+    const rect = canvasRef.current!.getBoundingClientRect()
+    if (pos.clientX < rect.left || pos.clientX >= rect.right || pos.clientY < rect.top || pos.clientY >= rect.bottom) return
+    const { x, y } = cellFromClient(pos.clientX, pos.clientY)
+    if (inBounds(x, y)) setMagnifier({ clientX: pos.clientX, clientY: pos.clientY, pixels: sampleRegion(x, y) })
+  }, [tool])
 
   // Dispatch wrapper that also dispatches mirrored copies of coordinate-bearing
   // actions across whichever symmetry axes are on, so tools never need to know
@@ -253,6 +273,7 @@ export default function PixelCanvas({
     <div style={{ position: 'relative', width: w * scale, height: h * scale }}>
       <canvas
         ref={canvasRef}
+        data-eyedropper-owner
         width={w}
         height={h}
         onPointerDown={handleDown}

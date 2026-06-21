@@ -142,7 +142,7 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
   }, [active])
 
   return (
-    <div className="flex flex-col items-center gap-1 p-2 bg-panel border-r border-divider shrink-0">
+    <div data-eyedropper-owner className="flex flex-col items-center gap-1 p-2 bg-panel border-r border-divider shrink-0">
       {TOOLS.map((t, i) => {
         if (t === null) return <div key={`d${i}`} className="h-px w-7 bg-divider my-1" />
 

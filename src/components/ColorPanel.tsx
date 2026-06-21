@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Plus, ChevronDown, ChevronRight, ArrowLeftRight } from 'lucide-react'
 import PinToggle from './PinToggle.jsx'
 import { hexToRgba, rgbaToHex } from '../document/model.js'
+import { useEyedropperSampler } from '../hooks/eyedropperSamplers.js'
 
 // Color: a managed swatch palette + a free RGBA picker (HSV square, hue/alpha
 // sliders, numeric RGBA fields, hex field) for mixing any color and adding it
@@ -115,6 +116,23 @@ export default function ColorPanel({ fgColor, bgColor, onFgColor, onBgColor, onS
   const hueRef = useRef<HTMLDivElement>(null)
   const alphaRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<'sv' | 'hue' | 'alpha' | null>(null)
+
+  // Same math as applyDrag below, so the eyedropper picks exactly the color
+  // that clicking/dragging at that spot would set.
+  useEyedropperSampler(svRef, (clientX, clientY) => {
+    const { x, y } = fractionAt(svRef.current!, clientX, clientY)
+    const [sr, sg, sb] = hsvToRgb(hsva.h, x, 1 - y)
+    return [sr, sg, sb, 255]
+  })
+  useEyedropperSampler(hueRef, (clientX, clientY) => {
+    const { x } = fractionAt(hueRef.current!, clientX, clientY)
+    const [hr, hg, hb] = hsvToRgb(x * 360, 1, 1)
+    return [hr, hg, hb, 255]
+  })
+  useEyedropperSampler(alphaRef, (clientX, clientY) => {
+    const { x } = fractionAt(alphaRef.current!, clientX, clientY)
+    return [r, g, b, clamp255(x * 255)]
+  })
 
   const applyDrag = (kind: 'sv' | 'hue' | 'alpha', clientX: number, clientY: number) => {
     if (kind === 'sv' && svRef.current) {
