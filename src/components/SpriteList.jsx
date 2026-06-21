@@ -3,6 +3,7 @@ import { Plus, Trash2, ChevronUp, ChevronDown, Maximize2 } from 'lucide-react'
 import NewSpriteDialog from './NewSpriteDialog.jsx'
 import ResizeCanvasDialog from './ResizeCanvasDialog.jsx'
 import SpritePreview from './SpritePreview.jsx'
+import PinToggle from './PinToggle.jsx'
 
 // A BEAST project holds many sprites (like BLAST holds many sounds). Selecting
 // one makes it the paint target; the header buttons add/move/delete the
@@ -10,7 +11,7 @@ import SpritePreview from './SpritePreview.jsx'
 // sprite's frame 0 composited across its layers. A sprite's canvas can also be
 // resized via the Crop tool (drag a rect on the canvas, tools/registry.js) or
 // the Resize dialog here (explicit W×H + anchor).
-export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) {
+export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pinned, onTogglePin, onPeekSelect }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
   const [newSpriteOpen, setNewSpriteOpen] = useState(false)
@@ -40,7 +41,10 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) 
   return (
     <div className="flex flex-col bg-panel border-r border-divider w-44 shrink-0">
       <div className="flex items-center justify-between px-3 h-9 border-b border-divider">
-        <span className="text-[11px] uppercase tracking-wide text-faint font-semibold">Sprites</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] uppercase tracking-wide text-faint font-semibold">Sprites</span>
+          <PinToggle pinned={pinned} onClick={onTogglePin} />
+        </div>
         <div className="flex items-center gap-1 text-muted">
           <button title="New sprite" className="hover:text-ink" onClick={() => setNewSpriteOpen(true)}>
             <Plus size={15} />
@@ -104,7 +108,7 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch }) 
           return (
             <button
               key={s.id}
-              onClick={() => onSelect(s.id)}
+              onClick={() => { onSelect(s.id); onPeekSelect?.() }}
               onDoubleClick={() => startRename(s)}
               className={
                 'flex items-center gap-2 p-1.5 rounded border text-left ' +

@@ -1,12 +1,13 @@
 import { Play, Plus, Copy, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
 import SpritePreview from './SpritePreview.jsx'
+import PinToggle from './PinToggle.jsx'
 
 // Bottom timeline: animation frames + playback controls (loop), global FPS, and
 // an onion-skin toggle. Selecting a frame makes it the paint target; the side
 // buttons add/duplicate/move/delete the active frame and follow it with
 // selection. Each frame thumbnail shows that frame composited across the
 // sprite's layers. Playback, FPS, and onion-skin are still static (see TODO).
-export default function FramesTimeline({ sprite, frameCount, active, onPick, spriteId, dispatch }) {
+export default function FramesTimeline({ sprite, frameCount, active, onPick, spriteId, dispatch, pinned, onTogglePin, onPeekSelect }) {
   const addFrame = () => {
     const at = active + 1
     dispatch({ type: 'ADD_FRAME', spriteId, atIndex: at })
@@ -33,6 +34,10 @@ export default function FramesTimeline({ sprite, frameCount, active, onPick, spr
     <div className="flex items-stretch gap-3 px-3 h-28 bg-panel border-t border-divider shrink-0">
       {/* playback controls */}
       <div className="flex flex-col justify-center gap-2 pr-3 border-r border-divider shrink-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] uppercase tracking-wide text-faint font-semibold">Frames</span>
+          <PinToggle pinned={pinned} onClick={onTogglePin} />
+        </div>
         <button className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-accent-deep/15 hover:bg-accent-deep/25 text-accent-bright border border-accent-deep/40 text-sm">
           <Play size={15} /> Play
         </button>
@@ -54,7 +59,7 @@ export default function FramesTimeline({ sprite, frameCount, active, onPick, spr
         {Array.from({ length: frameCount }, (_, i) => (
           <button
             key={i}
-            onClick={() => onPick(i)}
+            onClick={() => { onPick(i); onPeekSelect?.() }}
             className={
               'relative shrink-0 rounded border p-1 ' +
               (active === i ? 'border-accent-deep bg-accent-deep/10' : 'border-edge hover:border-edge-hover')

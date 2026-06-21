@@ -1,11 +1,12 @@
 import { Plus, Copy, Trash2, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react'
+import PinToggle from './PinToggle.jsx'
 
 // Layer stack for the selected sprite. Listed top-of-stack first (the model
 // stores bottom-to-top). Selecting a layer makes it the paint target; the
 // header buttons add/duplicate/move/delete the selected layer. Each row's eye
 // toggles that layer's visibility independent of selection. The opacity
 // slider edits the selected layer, coalescing one drag into one undo step.
-export default function LayersPanel({ layers, selectedId, onSelect, spriteId, dispatch }) {
+export default function LayersPanel({ layers, selectedId, onSelect, spriteId, dispatch, pinned, onTogglePin, onPeekSelect }) {
   const ordered = [...layers].reverse()
   const selected = layers.find((l) => l.id === selectedId)
   const selectedIndex = layers.findIndex((l) => l.id === selectedId)
@@ -18,9 +19,12 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, di
   const toggleVisible = (l) => dispatch({ type: 'SET_LAYER_VISIBLE', spriteId, layerId: l.id, visible: !l.visible })
 
   return (
-    <div className="flex flex-col border-b border-divider">
+    <div className="flex flex-col w-64 bg-panel border-b border-divider">
       <div className="flex items-center justify-between px-3 h-9 border-b border-divider">
-        <span className="text-[11px] uppercase tracking-wide text-faint font-semibold">Layers</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] uppercase tracking-wide text-faint font-semibold">Layers</span>
+          <PinToggle pinned={pinned} onClick={onTogglePin} />
+        </div>
         <div className="flex items-center gap-1 text-muted">
           <button title="New layer" className="hover:text-ink" onClick={addLayer}><Plus size={15} /></button>
           <button title="Duplicate" className="hover:text-ink" onClick={duplicateLayer}><Copy size={14} /></button>
@@ -69,7 +73,7 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, di
               >
                 {l.visible ? <Eye size={15} /> : <EyeOff size={15} />}
               </button>
-              <button onClick={() => onSelect(l.id)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+              <button onClick={() => { onSelect(l.id); onPeekSelect?.() }} className="flex items-center gap-2 flex-1 min-w-0 text-left">
                 <span className="beast-checker w-7 h-7 rounded border border-edge shrink-0" />
                 <span className={'flex-1 text-sm truncate ' + (isSelected ? 'text-accent-soft' : 'text-ink-soft')}>
                   {l.name}

@@ -6,6 +6,9 @@ import CanvasStage from './components/CanvasStage.jsx'
 import LayersPanel from './components/LayersPanel.jsx'
 import ColorPanel from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
+import FoldTab from './components/FoldTab.jsx'
+import useFoldable from './hooks/useFoldable.js'
+import usePeek from './hooks/usePeek.js'
 import { createDocument, copyRegion } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
@@ -35,6 +38,23 @@ export default function App() {
   const [filled, setFilled] = useState({ rect: false, ellipse: false })
   const setToolVariant = (id, v) => setFilled((f) => ({ ...f, [id]: v }))
   const [previewOpen, setPreviewOpen] = useState(() => loadPreviewPrefs()?.open ?? false)
+
+  // Foldable chrome panels — each pinned open by default (today's layout).
+  // Unpinning collapses a panel to an edge tab; clicking the tab peeks it
+  // open as a shadowed overlay that doesn't resize the canvas.
+  const spriteListFold = useFoldable()
+  const framesFold = useFoldable()
+
+  // Layers + Color share one column, so pinning either one already commits
+  // the full sidebar width — they share a single pin, with independent peek.
+  const [sidebarPinned, setSidebarPinned] = useState(true)
+  const layersPeek = usePeek()
+  const colorPeek = usePeek()
+  const toggleSidebarPin = () => {
+    setSidebarPinned((p) => !p)
+    layersPeek.close()
+    colorPeek.close()
+  }
 
   const [state, dispatch] = useReducer(historyReducer, undefined, () => initHistory(createDocument()))
   const doc = state.present
@@ -230,7 +250,33 @@ export default function App() {
           onMirrorV={() => setMirrorV((v) => !v)}
           onMirrorH={() => setMirrorH((v) => !v)}
         />
-        <SpriteList sprites={doc.sprites} selectedId={spriteId} onSelect={selectSprite} dispatch={dispatch} />
+        {spriteListFold.pinned ? (
+          <SpriteList
+            sprites={doc.sprites}
+            selectedId={spriteId}
+            onSelect={selectSprite}
+            dispatch={dispatch}
+            pinned
+            onTogglePin={spriteListFold.togglePin}
+          />
+        ) : (
+          <div ref={spriteListFold.ref} className="relative shrink-0">
+            <FoldTab edge="left" label="Sprites" active={spriteListFold.peeking} onClick={spriteListFold.togglePeek} />
+            {spriteListFold.peeking && (
+              <div className="absolute inset-y-0 left-0 z-20 shadow-2xl">
+                <SpriteList
+                  sprites={doc.sprites}
+                  selectedId={spriteId}
+                  onSelect={selectSprite}
+                  dispatch={dispatch}
+                  pinned={false}
+                  onTogglePin={spriteListFold.togglePin}
+                  onPeekSelect={spriteListFold.closePeek}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <CanvasStage
           tool={tool}
@@ -253,26 +299,89 @@ export default function App() {
           onClosePreview={() => setPreviewOpen(false)}
         />
 
-        <aside className="w-64 bg-panel border-l border-divider flex flex-col overflow-y-auto shrink-0">
-          <LayersPanel
-            layers={activeSprite.layers}
-            selectedId={safeLayerId}
-            onSelect={setLayerId}
-            spriteId={activeSprite.id}
-            dispatch={dispatch}
-          />
-          <ColorPanel color={color} onColor={setColor} />
+        <aside className="bg-panel border-l border-divider flex flex-col shrink-0">
+          {sidebarPinned ? (
+            <LayersPanel
+              layers={activeSprite.layers}
+              selectedId={safeLayerId}
+              onSelect={setLayerId}
+              spriteId={activeSprite.id}
+              dispatch={dispatch}
+              pinned
+              onTogglePin={toggleSidebarPin}
+            />
+          ) : (
+            <div ref={layersPeek.ref} className="relative shrink-0">
+              <FoldTab edge="right" label="Layers" fill={false} active={layersPeek.peeking} onClick={layersPeek.toggle} />
+              {layersPeek.peeking && (
+                <div className="absolute top-0 right-0 z-20 shadow-2xl">
+                  <LayersPanel
+                    layers={activeSprite.layers}
+                    selectedId={safeLayerId}
+                    onSelect={setLayerId}
+                    spriteId={activeSprite.id}
+                    dispatch={dispatch}
+                    pinned={false}
+                    onTogglePin={toggleSidebarPin}
+                    onPeekSelect={layersPeek.close}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {sidebarPinned ? (
+            <ColorPanel color={color} onColor={setColor} pinned onTogglePin={toggleSidebarPin} />
+          ) : (
+            <div ref={colorPeek.ref} className="relative shrink-0">
+              <FoldTab edge="right" label="Color" fill={false} active={colorPeek.peeking} onClick={colorPeek.toggle} />
+              {colorPeek.peeking && (
+                <div className="absolute top-0 right-0 z-20 shadow-2xl">
+                  <ColorPanel
+                    color={color}
+                    onColor={setColor}
+                    pinned={false}
+                    onTogglePin={toggleSidebarPin}
+                    onPeekSelect={colorPeek.close}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </aside>
       </div>
 
-      <FramesTimeline
-        sprite={activeSprite}
-        frameCount={activeSprite.frameCount}
-        active={safeFrame}
-        onPick={setFrameIndex}
-        spriteId={activeSprite.id}
-        dispatch={dispatch}
-      />
+      {framesFold.pinned ? (
+        <FramesTimeline
+          sprite={activeSprite}
+          frameCount={activeSprite.frameCount}
+          active={safeFrame}
+          onPick={setFrameIndex}
+          spriteId={activeSprite.id}
+          dispatch={dispatch}
+          pinned
+          onTogglePin={framesFold.togglePin}
+        />
+      ) : (
+        <div ref={framesFold.ref} className="relative shrink-0">
+          <FoldTab edge="bottom" label="Frames" active={framesFold.peeking} onClick={framesFold.togglePeek} />
+          {framesFold.peeking && (
+            <div className="absolute bottom-0 left-0 right-0 z-20 shadow-2xl">
+              <FramesTimeline
+                sprite={activeSprite}
+                frameCount={activeSprite.frameCount}
+                active={safeFrame}
+                onPick={setFrameIndex}
+                spriteId={activeSprite.id}
+                dispatch={dispatch}
+                pinned={false}
+                onTogglePin={framesFold.togglePin}
+                onPeekSelect={framesFold.closePeek}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

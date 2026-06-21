@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react'
+import PinToggle from './PinToggle.jsx'
 
 // Color: a managed swatch palette (loadable/savable) + a free RGBA picker.
 // Mockup — swatches are static, picker is a visual placeholder.
@@ -9,11 +10,14 @@ const PALETTE = [
   '#7f1d1d', '#ef4444', '#f87171', '#fca5a5', '#a21caf', '#e879f9',
 ]
 
-export default function ColorPanel({ color, onColor }) {
+export default function ColorPanel({ color, onColor, pinned, onTogglePin, onPeekSelect }) {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col w-64 bg-panel">
       <div className="flex items-center justify-between px-3 h-9 border-b border-divider">
-        <span className="text-[11px] uppercase tracking-wide text-faint font-semibold">Color</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] uppercase tracking-wide text-faint font-semibold">Color</span>
+          <PinToggle pinned={pinned} onClick={onTogglePin} />
+        </div>
         <button title="New palette" className="text-muted hover:text-ink"><Plus size={15} /></button>
       </div>
 
@@ -44,7 +48,7 @@ export default function ColorPanel({ color, onColor }) {
           {PALETTE.map((c) => (
             <button
               key={c}
-              onClick={() => onColor(c)}
+              onClick={() => { onColor(c); onPeekSelect?.() }}
               title={c}
               className={
                 'aspect-square rounded border ' +
