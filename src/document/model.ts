@@ -521,10 +521,13 @@ export function compositeFrame(sprite: Sprite, frameIndex: number, imageData: Im
 export function hexToRgba(hex: string): RGBA {
   let h = hex.replace('#', '')
   if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16), 255]
+  const a = h.length === 8 ? parseInt(h.slice(6, 8), 16) : 255
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16), a]
 }
 
-export function rgbaToHex([r, g, b]: RGBA): string {
+// 8-digit (#RRGGBBAA) when there's real transparency, 6-digit otherwise — so
+// fully-opaque colors keep the plain hex callers already expect.
+export function rgbaToHex([r, g, b, a]: RGBA): string {
   const c = (n: number) => n.toString(16).padStart(2, '0')
-  return '#' + c(r) + c(g) + c(b)
+  return '#' + c(r) + c(g) + c(b) + (a < 255 ? c(a) : '')
 }

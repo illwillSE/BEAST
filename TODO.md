@@ -3,7 +3,11 @@
 Deferred / planned work — open items only. See [README.md](./README.md) for what's already
 implemented; this file tracks what isn't, organized by area.
 
-## Core data model
+SHIFT+I doesnt show magnifier until movement. let it work all over the app?
+fix layer and frame delete as sprite delete
+gradient - fix line and go from fg->bg (implement after fg+bg)
+
+## Core data models
 - [ ] Content-addressed storage for binary pixel data (BLAST sample-cache pattern).
 - [ ] (optional) Per-sprite undo — scope history per sprite so undo/redo only
       affects the active sprite, not the whole project. Currently global.
@@ -39,8 +43,25 @@ implemented; this file tracks what isn't, organized by area.
       existing select-then-move-floating-region workflow).
 
 ## Color
-- [ ] Managed swatch palette (loadable/savable).
-- [ ] Free RGBA picker; add mixed color to palette.
+- [ ] Docked sidebar (`LayersPanel` + `ColorPanel` both pinned) can still clip
+      at the bottom on short viewports — the `<aside>` in `App.tsx` has no
+      `overflow-y-auto`/scroll fallback. Folding the Color panel's gradient
+      section (added) reduces this but doesn't eliminate it, since
+      `LayersPanel`'s height is unbounded and independent of it. Consider
+      `overflow-y-auto` on the `<aside>` or a per-panel max-height/scroll if
+      it recurs. Also, in some conditions the color palette grid itself
+      expands below the app's layout/viewport rather than staying contained.
+      Minor cosmetic bug, not urgent — needs a proper tweak later rather than
+      another band-aid.
+- [ ] Foreground/background color pair (classic two-slot picker) — a second
+      "active color" slot plus a swap control, distinct from the current
+      single `color` state (`App.tsx`). Decide how it interacts with tools:
+      e.g. eraser/right-click paint with bg instead of fg, and a keyboard
+      shortcut to swap (X is the common convention). 
+- [ ] Managed swatch palette (loadable/savable) — palette is currently a single
+      in-memory list (`App.tsx` `palette` state, seeded from
+      `ColorPanel.DEFAULT_PALETTE`); no save/load or multiple named palettes
+      yet. The header's "New palette" button is still a placeholder for this.
 - [ ] Eyedropper magnifier can go stale: the Shift+I temporary-tool revert
       clears it on pick, but switching away from the eyedropper via its
       keyboard shortcut or the toolbar — while hovering, without moving the

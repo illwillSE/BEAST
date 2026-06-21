@@ -4,7 +4,7 @@ import ToolRail from './components/ToolRail.jsx'
 import SpriteList from './components/SpriteList.jsx'
 import CanvasStage from './components/CanvasStage.jsx'
 import LayersPanel from './components/LayersPanel.jsx'
-import ColorPanel from './components/ColorPanel.jsx'
+import ColorPanel, { DEFAULT_PALETTE } from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
 import FoldTab from './components/FoldTab.jsx'
 import useFoldable from './hooks/useFoldable.js'
@@ -32,6 +32,8 @@ export default function App() {
   const [tool, setTool] = useState('pencil')
   const [temporaryToolReturn, setTemporaryToolReturn] = useState<string | null>(null)
   const [color, setColor] = useState('#fbbf24')
+  const [palette, setPalette] = useState<string[]>(DEFAULT_PALETTE)
+  const addSwatch = (hex: string) => setPalette((p) => (p.includes(hex) ? p : [...p, hex]))
 
   // Select/move/clipboard state. `selection` is a rect on the active layer's
   // current frame; `floating` is pixels lifted out of the layer by a move or
@@ -358,7 +360,15 @@ export default function App() {
           )}
 
           {sidebarPinned ? (
-            <ColorPanel color={color} onColor={setColor} pinned onTogglePin={toggleSidebarPin} onPeekSelect={undefined} />
+            <ColorPanel
+              color={color}
+              onColor={setColor}
+              palette={palette}
+              onAddSwatch={addSwatch}
+              pinned
+              onTogglePin={toggleSidebarPin}
+              onPeekSelect={undefined}
+            />
           ) : (
             <div ref={colorPeek.ref} className="relative shrink-0">
               <FoldTab edge="right" label="Color" fill={false} active={colorPeek.peeking} onClick={colorPeek.toggle} />
@@ -367,6 +377,8 @@ export default function App() {
                   <ColorPanel
                     color={color}
                     onColor={setColor}
+                    palette={palette}
+                    onAddSwatch={addSwatch}
                     pinned={false}
                     onTogglePin={toggleSidebarPin}
                     onPeekSelect={colorPeek.close}
