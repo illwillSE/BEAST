@@ -38,7 +38,12 @@ still cosmetic; painting targets the first of each.
       SpriteList's new resize icon next to "+". Dispatches the same
       `CROP_SPRITE` action as the Crop tool, so it's undoable and reuses
       `cropSprite`'s generic grow/shrink logic.
+- [ ] Crop tool: resize handles on all edges/corners (currently only
+      drag-from-inside to reposition), with an appropriate resize cursor on hover.
 - [ ] Sane max canvas size cap for performance.
+- [ ] A clear canvas button.
+- [ ] Canvas zoom: a "fit to frame" option (zooms in or out as needed to fit
+      the sprite in the viewport) and a 1:1 button.
 
 ## Real Preview
 - [x] Free-floating "real size" preview window — shows the active sprite/frame
@@ -78,6 +83,9 @@ still cosmetic; painting targets the first of each.
 ## Color
 - [ ] Managed swatch palette (loadable/savable).
 - [ ] Free RGBA picker; add mixed color to palette.
+- [ ] Shift+I for temporary color picker (after picking, return to previous tool).
+- [ ] Update color picker with a magnifying glass to make it easier to pick a
+      color; also show RGB value in the magnification.
 
 ## Layers
 - [x] Layer stack CRUD — add/duplicate/remove/move (up/down buttons), visibility
@@ -86,6 +94,7 @@ still cosmetic; painting targets the first of each.
       instead of (or in addition to) the move up/down buttons.
 - [ ] Shift+click a layer's eye to solo it — hide all other layers (shift+click
       again, or click a hidden one's eye, to restore prior visibility).
+- [ ] Layer mix option.
 
 ## Sprites
 - [x] Add/rename/delete/reorder sprites (`document/model.js`, `SpriteList.jsx`).

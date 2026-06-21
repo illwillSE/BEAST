@@ -38,7 +38,7 @@ export const shortcuts = [
   { key: 'c', mod: true, run: (ctx) => ctx.copySelection() },
   { key: 'x', mod: true, run: (ctx) => ctx.cutSelection() },
   { key: 'v', mod: true, run: (ctx) => ctx.pasteClipboard() },
-  { key: 'enter', run: (ctx) => ctx.commitCrop() },
+  { key: 'enter', run: (ctx) => { ctx.commitFloating(); ctx.commitCrop() } },
   { key: 'escape', run: (ctx) => { ctx.commitFloating(); ctx.setSelection(null); ctx.cancelCrop() } },
   ...toolShortcuts,
 ]
