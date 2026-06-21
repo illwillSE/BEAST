@@ -30,10 +30,29 @@ implemented; this file tracks what isn't, organized by area.
       implemented for now.
 - [ ] Type tool — render text onto the canvas (font select, maybe a predefined
       set) and an emoji picker/insert.
+- [ ] Eraser: decide whether it stays a separate tool (current) or is also
+      reachable via right-click while another paint tool is active.
+- [ ] Adjustable pixel width (brush/stroke size), not just fixed 1px.
+- [ ] Transform tools: flip horizontal / flip vertical (whole layer or
+      selection content, not the live mirror-painting guides), and a
+      move/nudge tool to shift layer content in place (distinct from the
+      existing select-then-move-floating-region workflow).
 
 ## Color
 - [ ] Managed swatch palette (loadable/savable).
 - [ ] Free RGBA picker; add mixed color to palette.
+- [ ] Eyedropper magnifier can go stale: the Shift+I temporary-tool revert
+      clears it on pick, but switching away from the eyedropper via its
+      keyboard shortcut or the toolbar — while hovering, without moving the
+      mouse afterward — leaves the magnifier popup frozen on screen. It's
+      only cleared reactively in `handleMove`/`onPointerLeave`
+      (`PixelCanvas.tsx`), not when the `tool` prop itself changes. Fix:
+      clear `magnifier` in a `useEffect` keyed on `tool` instead of
+      point-patching just the temporary-tool completion path.
+- [ ] Shift+I currently reverts to the previous tool after *any* click while
+      the temporary eyedropper is active, even if the sampled pixel is
+      transparent (no color actually picked). Decide if that's the desired
+      behavior, or if it should only revert after a successful pick.
 
 ## Layers
 - [ ] Drag-and-drop reordering — swap layer stack order by dragging a row,
