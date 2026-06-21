@@ -74,7 +74,7 @@ export type Action =
   | (CellTarget & { type: 'FILL'; x: number; y: number; rgba: RGBA })
   | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape })
   | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape })
-  | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; rgba0: RGBA; rgba1: RGBA })
+  | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; rgba0: RGBA; rgba1: RGBA; radial: boolean })
   | (CellTarget & { type: 'CLEAR_REGION'; x: number; y: number; w: number; h: number })
   | (CellTarget & { type: 'PASTE_REGION'; x: number; y: number; w: number; h: number; data: Cell })
   | { type: 'ADD_SPRITE'; opts?: CreateSpriteOpts }
@@ -191,8 +191,8 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
     }
 
     case 'GRADIENT_FILL': {
-      const { x0, y0, x1, y1, rgba0, rgba1 } = action
-      return editCell(state, action, (cell, sp) => gradientFill(cell, sp.w, sp.h, x0, y0, x1, y1, rgba0, rgba1))
+      const { x0, y0, x1, y1, rgba0, rgba1, radial } = action
+      return editCell(state, action, (cell, sp) => gradientFill(cell, sp.w, sp.h, x0, y0, x1, y1, rgba0, rgba1, radial))
     }
 
     // Move/cut lift pixels out of the layer; paste/move-drop writes them back.

@@ -46,10 +46,8 @@ implemented; this file tracks what isn't, organized by area.
 - [x] Gradient drag preview (`tools/registry.ts` gradient entry, rendered in
       `PixelCanvas.tsx`) only draws the Bresenham line between drag endpoints,
       not anything representing the gradient spread itself (now fg→bg).
-- [ ] Gradient fill shape option: linear (current — `gradientFill` in
-      `document/model.ts` projects onto the drag vector) vs. circular/radial
-      (fade by distance from the drag start point instead). Needs a toggle
-      alongside the existing fg/bg color pickers.
+- [x] Gradient fill shape option: linear vs. circular/radial, toggled via the
+      same Outline/Filled-style variant flyout rect/ellipse already use.
 - [ ] Gradient angle/direction lock: Shift-constrain the drag to 0/45/90°
       increments, same idea as the rect/ellipse square-circle Shift constraint.
 - [ ] Gradient dithering option — smooth fg→bg steps can band visibly at small

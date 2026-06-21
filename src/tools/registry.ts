@@ -230,8 +230,11 @@ export const tools: Record<string, Tool<any>> = {
 
   // Gradient: drag from fg color (start) to bg color (end), filling the
   // flood-connected region from the start pixel — same region rule as Fill.
+  // Linear fades along the drag vector; radial fades by distance from the
+  // start point, with drag length setting the radius.
   gradient: {
     key: 'n',
+    variants: [['Linear', false], ['Radial', true]],
     cursor: 'crosshair',
     onStart(ctx) {
       return { x0: ctx.x, y0: ctx.y }
@@ -239,7 +242,7 @@ export const tools: Record<string, Tool<any>> = {
     onDrag(ctx, _prev, start) {
       const region = gradientFillPreview(
         ctx.getRawCell(), ctx.w, ctx.h, start.x0, start.y0, ctx.x, ctx.y,
-        hexToRgba(ctx.fgColor), hexToRgba(ctx.bgColor),
+        hexToRgba(ctx.fgColor), hexToRgba(ctx.bgColor), ctx.filled,
       )
       ctx.setPreview({
         kind: 'gradient',
@@ -252,7 +255,7 @@ export const tools: Record<string, Tool<any>> = {
       commitBracketed(ctx, {
         type: 'GRADIENT_FILL', ...ctx.target,
         x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y,
-        rgba0: hexToRgba(ctx.fgColor), rgba1: hexToRgba(ctx.bgColor),
+        rgba0: hexToRgba(ctx.fgColor), rgba1: hexToRgba(ctx.bgColor), radial: ctx.filled,
       })
       ctx.setPreview(null)
     },
