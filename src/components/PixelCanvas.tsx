@@ -165,6 +165,13 @@ export default function PixelCanvas({
       ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`
       for (const [x, y] of preview.points) ctx.fillRect(x, y, 1, 1)
     }
+    if (preview?.kind === 'gradient') {
+      preview.points.forEach(([x, y], i) => {
+        const [r, g, b, a] = preview.colors[i]
+        ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`
+        ctx.fillRect(x, y, 1, 1)
+      })
+    }
   }, [floating, preview, w, h])
 
   // Re-draw the selection marquee, mirror axis guides, and brush cursor
@@ -209,7 +216,7 @@ export default function PixelCanvas({
       ctx.stroke()
     }
 
-    if (preview?.kind === 'line') {
+    if (preview?.kind === 'line' || preview?.kind === 'gradient') {
       ctx.strokeStyle = getColor('accent-bright')
       ctx.lineWidth = 1
       ctx.setLineDash([4, 3])

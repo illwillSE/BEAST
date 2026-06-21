@@ -43,7 +43,7 @@ implemented; this file tracks what isn't, organized by area.
       selection content, not the live mirror-painting guides), and a
       move/nudge tool to shift layer content in place (distinct from the
       existing select-then-move-floating-region workflow).
-- [ ] Gradient drag preview (`tools/registry.ts` gradient entry, rendered in
+- [x] Gradient drag preview (`tools/registry.ts` gradient entry, rendered in
       `PixelCanvas.tsx`) only draws the Bresenham line between drag endpoints,
       not anything representing the gradient spread itself (now fg→bg).
 - [ ] Gradient fill shape option: linear (current — `gradientFill` in

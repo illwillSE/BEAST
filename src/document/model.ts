@@ -554,27 +554,46 @@ export function floodFill(cell: Cell, w: number, h: number, x: number, y: number
   }
 }
 
-// Flood-fill the region from (x0,y0), fading from `rgba0` at (x0,y0) to
-// `rgba1` at (x1,y1) — a two-stop gradient (fg → bg).
-export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA) {
+// Per-pixel result of a gradient fill over the flood-connected region from
+// (x0,y0), fading from `rgba0` to `rgba1` along the (x0,y0)→(x1,y1) vector.
+// Shared by gradientFill (mutates the cell) and gradientFillPreview (read-only,
+// for the gradient tool's live drag preview).
+function gradientPoints(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA): { x: number; y: number; rgba: RGBA }[] {
   const region = floodMask(cell, w, h, x0, y0)
-  if (!region) return
+  if (!region) return []
   const [r0, g0, b0, a0] = rgba0
   const [r1, g1, b1, a1] = rgba1
   const dx = x1 - x0, dy = y1 - y0
   const lenSq = dx * dx + dy * dy || 1
+  const out: { x: number; y: number; rgba: RGBA }[] = []
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x
       if (!region.mask[i]) continue
       const t = Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / lenSq))
-      const o = i * 4
-      cell[o] = Math.round(r0 + (r1 - r0) * t)
-      cell[o + 1] = Math.round(g0 + (g1 - g0) * t)
-      cell[o + 2] = Math.round(b0 + (b1 - b0) * t)
-      cell[o + 3] = Math.round(a0 + (a1 - a0) * t)
+      out.push({
+        x, y,
+        rgba: [
+          Math.round(r0 + (r1 - r0) * t),
+          Math.round(g0 + (g1 - g0) * t),
+          Math.round(b0 + (b1 - b0) * t),
+          Math.round(a0 + (a1 - a0) * t),
+        ],
+      })
     }
   }
+  return out
+}
+
+export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA) {
+  for (const { x, y, rgba } of gradientPoints(cell, w, h, x0, y0, x1, y1, rgba0, rgba1)) {
+    const o = (y * w + x) * 4
+    cell[o] = rgba[0]; cell[o + 1] = rgba[1]; cell[o + 2] = rgba[2]; cell[o + 3] = rgba[3]
+  }
+}
+
+export function gradientFillPreview(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA) {
+  return gradientPoints(cell, w, h, x0, y0, x1, y1, rgba0, rgba1)
 }
 
 // ── region ops (move / cut / copy / paste) ──────────────────────────────────

@@ -38,7 +38,7 @@
 
 import type { Dispatch, SetStateAction } from 'react'
 import {
-  hexToRgba, linePoints, rectPoints, ellipsePoints, copyRegion, stampPoints,
+  hexToRgba, linePoints, rectPoints, ellipsePoints, copyRegion, stampPoints, gradientFillPreview,
 } from '../document/model.js'
 import type { BrushShape, Cell, CellTarget, Point, RGBA } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
@@ -68,6 +68,7 @@ export type Preview =
   | { kind: 'pixels'; points: Point[]; color: string }
   | { kind: 'marquee'; rect: Rect }
   | { kind: 'line'; x0: number; y0: number; x1: number; y1: number }
+  | { kind: 'gradient'; points: Point[]; colors: RGBA[]; x0: number; y0: number; x1: number; y1: number }
 
 // An [x, y] cell coordinate as the gesture loop threads it (the previous cell).
 interface Coord {
@@ -236,7 +237,16 @@ export const tools: Record<string, Tool<any>> = {
       return { x0: ctx.x, y0: ctx.y }
     },
     onDrag(ctx, _prev, start) {
-      ctx.setPreview({ kind: 'line', x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y })
+      const region = gradientFillPreview(
+        ctx.getRawCell(), ctx.w, ctx.h, start.x0, start.y0, ctx.x, ctx.y,
+        hexToRgba(ctx.fgColor), hexToRgba(ctx.bgColor),
+      )
+      ctx.setPreview({
+        kind: 'gradient',
+        points: region.map(({ x, y }): Point => [x, y]),
+        colors: region.map((p) => p.rgba),
+        x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y,
+      })
     },
     onEnd(ctx, start) {
       commitBracketed(ctx, {
