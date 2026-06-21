@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { ZoomIn, ZoomOut } from 'lucide-react'
 import PixelCanvas from './PixelCanvas.jsx'
 import PreviewWindow from './PreviewWindow.jsx'
+import ResizeCanvasDialog from './ResizeCanvasDialog.jsx'
 
 // Center stage hosting the working pixel canvas. Document size comes from the
 // active sprite; zoom is local. The pencil draws (see PixelCanvas) and the
@@ -14,7 +15,13 @@ export default function CanvasStage({
 }) {
   const [scale, setScale] = useState(16)
   const [pos, setPos] = useState(null)
+  const [resizeOpen, setResizeOpen] = useState(false)
   const viewportRef = useRef(null)
+
+  const resizeSprite = (x, y, w, h) => {
+    dispatch({ type: 'CROP_SPRITE', spriteId: sprite.id, x, y, w, h })
+    setResizeOpen(false)
+  }
 
   // Scrolls the canvas viewport so the given sprite pixel is centered —
   // used by the Real Preview window's click-to-navigate.
@@ -61,7 +68,13 @@ export default function CanvasStage({
 
       {/* status bar */}
       <div className="flex items-center gap-4 px-3 h-8 bg-panel border-t border-divider text-[11px] text-faint shrink-0">
-        <span>{sprite.w} × {sprite.h}</span>
+        <span
+          title="Double-click to resize canvas"
+          className="hover:text-muted cursor-default"
+          onDoubleClick={() => setResizeOpen(true)}
+        >
+          {sprite.w} × {sprite.h}
+        </span>
         <span className="text-muted capitalize">{tool}</span>
         <span className="tabular-nums">{pos ? `${pos.x}, ${pos.y}` : '–'}</span>
         <div className="flex-1" />
@@ -80,6 +93,13 @@ export default function CanvasStage({
         onNavigate={scrollToCenter}
         open={previewOpen}
         onClose={onClosePreview}
+      />
+
+      <ResizeCanvasDialog
+        open={resizeOpen}
+        sprite={sprite}
+        onResize={resizeSprite}
+        onClose={() => setResizeOpen(false)}
       />
     </div>
   )

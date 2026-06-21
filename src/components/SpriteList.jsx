@@ -1,16 +1,18 @@
 import { useState } from 'react'
-import { Plus, Trash2, ChevronUp, ChevronDown, Maximize2 } from 'lucide-react'
+import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import NewSpriteDialog from './NewSpriteDialog.jsx'
 import ResizeCanvasDialog from './ResizeCanvasDialog.jsx'
 import SpritePreview from './SpritePreview.jsx'
 import PinToggle from './PinToggle.jsx'
 
 // A BEAST project holds many sprites (like BLAST holds many sounds). Selecting
-// one makes it the paint target; the header buttons add/move/delete the
-// selected sprite. Double-click a name to rename it. Each thumbnail shows the
+// one makes it the paint target; the header buttons add/move the selected
+// sprite, while delete lives on each row (hover to reveal). Double-click a
+// name to rename it. Each thumbnail shows the
 // sprite's frame 0 composited across its layers. A sprite's canvas can also be
 // resized via the Crop tool (drag a rect on the canvas, tools/registry.js) or
-// the Resize dialog here (explicit W×H + anchor).
+// by double-clicking a block's W×H label, which opens the Resize dialog
+// (explicit W×H + anchor).
 export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pinned, onTogglePin, onPeekSelect }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
@@ -28,7 +30,7 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pi
     dispatch({ type: 'CROP_SPRITE', spriteId: selectedSprite.id, x, y, w, h })
     setResizeOpen(false)
   }
-  const removeSprite = () => selectedId && sprites.length > 1 && dispatch({ type: 'REMOVE_SPRITE', spriteId: selectedId })
+  const removeSprite = (spriteId) => sprites.length > 1 && dispatch({ type: 'REMOVE_SPRITE', spriteId })
   const moveSprite = (delta) => selectedId && dispatch({ type: 'MOVE_SPRITE', spriteId: selectedId, delta })
 
   const startRename = (s) => { setEditingId(s.id); setEditValue(s.name) }
@@ -50,14 +52,6 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pi
             <Plus size={15} />
           </button>
           <button
-            title="Resize canvas"
-            className="hover:text-ink disabled:opacity-30 disabled:hover:text-muted"
-            disabled={!selectedSprite}
-            onClick={() => setResizeOpen(true)}
-          >
-            <Maximize2 size={14} />
-          </button>
-          <button
             title="Move up"
             className="hover:text-ink disabled:opacity-30 disabled:hover:text-muted"
             disabled={selectedIndex <= 0}
@@ -72,14 +66,6 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pi
             onClick={() => moveSprite(1)}
           >
             <ChevronDown size={14} />
-          </button>
-          <button
-            title="Delete"
-            className="hover:text-danger disabled:opacity-30 disabled:hover:text-muted"
-            disabled={sprites.length <= 1}
-            onClick={removeSprite}
-          >
-            <Trash2 size={14} />
           </button>
         </div>
       </div>
@@ -106,25 +92,45 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pi
           }
           const selected = selectedId === s.id
           return (
-            <button
+            <div
               key={s.id}
-              onClick={() => { onSelect(s.id); onPeekSelect?.() }}
-              onDoubleClick={() => startRename(s)}
               className={
-                'flex items-center gap-2 p-1.5 rounded border text-left ' +
+                'group flex items-center gap-2 p-1.5 rounded border ' +
                 (selected ? 'bg-accent-deep/15 border-accent-deep/50' : 'border-transparent hover:bg-surface-hover')
               }
             >
-              <SpritePreview sprite={s} frameIndex={0} size={36} className="rounded border border-edge" />
-              <span className="min-w-0">
-                <span className={'block text-sm truncate ' + (selected ? 'text-accent-soft' : 'text-ink-soft')}>
-                  {s.name}
+              <button
+                onClick={() => { onSelect(s.id); onPeekSelect?.() }}
+                onDoubleClick={() => startRename(s)}
+                className="flex items-center gap-2 flex-1 min-w-0 text-left"
+              >
+                <SpritePreview sprite={s} frameIndex={0} size={36} className="rounded border border-edge" />
+                <span className="min-w-0">
+                  <span className={'block text-sm truncate ' + (selected ? 'text-accent-soft' : 'text-ink-soft')}>
+                    {s.name}
+                  </span>
+                  <span
+                    title="Double-click to resize canvas"
+                    className="block text-[11px] text-faint hover:text-muted"
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      onSelect(s.id)
+                      setResizeOpen(true)
+                    }}
+                  >
+                    {s.w}×{s.h} · {s.frameCount}f
+                  </span>
                 </span>
-                <span className="block text-[11px] text-faint">
-                  {s.w}×{s.h} · {s.frameCount}f
-                </span>
-              </span>
-            </button>
+              </button>
+              <button
+                title="Delete"
+                className="shrink-0 opacity-0 group-hover:opacity-100 text-muted hover:text-danger disabled:opacity-0"
+                disabled={sprites.length <= 1}
+                onClick={() => removeSprite(s.id)}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
           )
         })}
       </div>
