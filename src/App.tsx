@@ -116,15 +116,25 @@ export default function App() {
   const safeLayerId = activeSprite.layers.some((l) => l.id === layerId) ? layerId : topLayer(activeSprite).id
   const safeFrame = frameIndex < activeSprite.frameCount ? frameIndex : 0
 
+  // Remembers each sprite's last-selected layer/frame so switching back to it
+  // restores where you left off, instead of always resetting to the top
+  // layer / frame 1. Keyed by sprite id; a ref since it's read/written
+  // alongside selection changes but never needs to trigger a render itself.
+  const spriteSelectionRef = useRef<Record<string, { layerId: string; frameIndex: number }>>({})
+
   const selectSprite = (id: string) => {
+    if (id === spriteId) return
+    spriteSelectionRef.current[spriteId] = { layerId: safeLayerId, frameIndex: safeFrame }
     const sp = doc.sprites.find((s) => s.id === id)!
+    const remembered = spriteSelectionRef.current[id]
     setSpriteId(id)
-    setLayerId(topLayer(sp).id)
-    setFrameIndex(0)
+    setLayerId(remembered?.layerId ?? topLayer(sp).id)
+    setFrameIndex(remembered?.frameIndex ?? 0)
   }
 
   // Point selection at a freshly loaded document's first sprite.
   const resetSelection = (nextDoc: Doc) => {
+    spriteSelectionRef.current = {}
     setSpriteId(nextDoc.sprites[0].id)
     setLayerId(topLayer(nextDoc.sprites[0]).id)
     setFrameIndex(0)

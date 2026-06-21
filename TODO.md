@@ -98,8 +98,11 @@ implemented; this file tracks what isn't, organized by area.
 - [ ] Layer mix option.
 
 ## Sprites
-- [ ] Remember selected layer (and frame) per sprite when switching. Currently
-      switching sprites resets to the top layer / frame 1 (`App.tsx` selectSprite).
+- [x] Remember selected layer (and frame) per sprite when switching — kept in
+      a `spriteId -> {layerId, frameIndex}` ref (`App.tsx` `spriteSelectionRef`),
+      saved on each `selectSprite` call and restored on return; falls back to
+      top layer / frame 1 for a sprite visited for the first time. Cleared on
+      `resetSelection` (project load) since sprite ids change.
 
 ## Animation
 - [x] Drag-and-drop reordering — dragging a thumbnail dispatches the new
