@@ -8,6 +8,10 @@ import type { RGBA } from '../document/model.js'
 export const MAG_RADIUS = 3
 const GRID = MAG_RADIUS * 2 + 1
 const CELL = 12
+// Reserve enough width for the longest possible readout line ("255, 255, 255",
+// wider than any hex line) so the panel doesn't resize as digit counts change
+// between samples — only ever grows to fit the grid, never the text.
+const TEXT_WIDTH = 96
 
 interface EyedropperMagnifierProps {
   clientX: number
@@ -22,9 +26,10 @@ interface EyedropperMagnifierProps {
 export default function EyedropperMagnifier({ clientX, clientY, pixels }: EyedropperMagnifierProps) {
   const grid = GRID * CELL
   const center = pixels[Math.floor(pixels.length / 2)]
+  const hasColor = center !== null && center[3] > 0
   const pad = 8
-  const width = grid + pad * 2
-  const height = grid + pad * 2 + 20
+  const width = Math.max(grid, TEXT_WIDTH) + pad * 2
+  const height = grid + pad * 2 + 34
 
   let left = clientX + 18
   let top = clientY + 18
@@ -34,9 +39,9 @@ export default function EyedropperMagnifier({ clientX, clientY, pixels }: Eyedro
   return createPortal(
     <div
       className="fixed z-50 pointer-events-none rounded border shadow-2xl beast-checker"
-      style={{ left, top, padding: pad, background: getColor('panel'), borderColor: getColor('edge') }}
+      style={{ left, top, width, padding: pad, background: getColor('panel'), borderColor: getColor('edge') }}
     >
-      <div className="relative beast-checker" style={{ width: grid, height: grid }}>
+      <div className="relative beast-checker mx-auto" style={{ width: grid, height: grid }}>
         {pixels.map((rgba, i) => {
           const gx = i % GRID
           const gy = Math.floor(i / GRID)
@@ -58,8 +63,12 @@ export default function EyedropperMagnifier({ clientX, clientY, pixels }: Eyedro
           )
         })}
       </div>
-      <div className="mt-1.5 text-[11px] text-center tabular-nums" style={{ color: getColor('ink-soft') }}>
-        {center ? `${rgbaToHex(center)} · ${center[0]}, ${center[1]}, ${center[2]}` : 'transparent'}
+      <div
+        className="mt-1.5 text-[11px] text-center tabular-nums leading-tight"
+        style={{ color: getColor('ink-soft'), whiteSpace: 'nowrap', overflow: 'hidden' }}
+      >
+        <div>{hasColor ? rgbaToHex(center!) : '—'}</div>
+        <div>{hasColor ? `${center![0]}, ${center![1]}, ${center![2]}` : 'transparent'}</div>
       </div>
     </div>,
     document.body,
