@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Play, Pause, Plus, Copy, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import SpritePreview from './SpritePreview.jsx'
 import PinToggle from './PinToggle.jsx'
@@ -42,6 +42,30 @@ export default function FramesTimeline({
   pinned, onTogglePin, onPeekSelect,
 }: FramesTimelineProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const stripRef = useRef<HTMLDivElement>(null)
+  const stuckToEndRef = useRef(false)
+
+  // The strip's width changes when the layers/color sidebar folds or
+  // unfolds. If the strip was scrolled to its right edge before that
+  // resize, keep it pinned there afterward instead of leaving a gap.
+  useEffect(() => {
+    const el = stripRef.current
+    if (!el) return
+    const updateStuck = () => {
+      stuckToEndRef.current = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1
+    }
+    updateStuck()
+    el.addEventListener('scroll', updateStuck)
+    const observer = new ResizeObserver(() => {
+      if (stuckToEndRef.current) el.scrollLeft = el.scrollWidth - el.clientWidth
+    })
+    observer.observe(el)
+    return () => {
+      el.removeEventListener('scroll', updateStuck)
+      observer.disconnect()
+    }
+  }, [])
+
   const addFrame = () => {
     const at = active + 1
     dispatch({ type: 'ADD_FRAME', spriteId, atIndex: at })
@@ -101,7 +125,7 @@ export default function FramesTimeline({
       </div>
 
       {/* frame strip */}
-      <div className="flex-1 flex items-center gap-2 overflow-x-auto py-2">
+      <div ref={stripRef} className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto py-2">
         {Array.from({ length: frameCount }, (_, i) => (
           <div
             key={i}

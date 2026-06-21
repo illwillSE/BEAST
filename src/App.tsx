@@ -373,72 +373,117 @@ export default function App() {
       />
 
       <div className="flex-1 flex min-h-0">
-        <ToolRail
-          active={tool}
-          onPick={selectTool}
-          filled={filled}
-          onFilled={setToolVariant}
-          brushSize={brushSize}
-          onBrushSize={setToolSize}
-          mirrorV={mirrorV}
-          mirrorH={mirrorH}
-          onMirrorV={() => setMirrorV((v) => !v)}
-          onMirrorH={() => setMirrorH((v) => !v)}
-        />
-        {spriteListFold.pinned ? (
-          <SpriteList
-            sprites={doc.sprites}
-            selectedId={spriteId}
-            onSelect={selectSprite}
-            dispatch={dispatch}
-            pinned
-            onTogglePin={spriteListFold.togglePin}
-            onPeekSelect={undefined}
-          />
-        ) : (
-          <div ref={spriteListFold.ref} className="relative shrink-0">
-            <FoldTab edge="left" label="Sprites" active={spriteListFold.peeking} onClick={spriteListFold.togglePeek} />
-            {spriteListFold.peeking && (
-              <div className="absolute inset-y-0 left-0 z-20 shadow-2xl">
-                <SpriteList
-                  sprites={doc.sprites}
-                  selectedId={spriteId}
-                  onSelect={selectSprite}
-                  dispatch={dispatch}
-                  pinned={false}
-                  onTogglePin={spriteListFold.togglePin}
-                  onPeekSelect={spriteListFold.closePeek}
-                />
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+          <div className="flex-1 flex min-h-0">
+            <ToolRail
+              active={tool}
+              onPick={selectTool}
+              filled={filled}
+              onFilled={setToolVariant}
+              brushSize={brushSize}
+              onBrushSize={setToolSize}
+              mirrorV={mirrorV}
+              mirrorH={mirrorH}
+              onMirrorV={() => setMirrorV((v) => !v)}
+              onMirrorH={() => setMirrorH((v) => !v)}
+            />
+            {spriteListFold.pinned ? (
+              <SpriteList
+                sprites={doc.sprites}
+                selectedId={spriteId}
+                onSelect={selectSprite}
+                dispatch={dispatch}
+                pinned
+                onTogglePin={spriteListFold.togglePin}
+                onPeekSelect={undefined}
+              />
+            ) : (
+              <div ref={spriteListFold.ref} className="relative shrink-0">
+                <FoldTab edge="left" label="Sprites" active={spriteListFold.peeking} onClick={spriteListFold.togglePeek} />
+                {spriteListFold.peeking && (
+                  <div className="absolute inset-y-0 left-0 z-20 shadow-2xl">
+                    <SpriteList
+                      sprites={doc.sprites}
+                      selectedId={spriteId}
+                      onSelect={selectSprite}
+                      dispatch={dispatch}
+                      pinned={false}
+                      onTogglePin={spriteListFold.togglePin}
+                      onPeekSelect={spriteListFold.closePeek}
+                    />
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        <CanvasStage
-          tool={tool}
-          fgColor={fgColor}
-          bgColor={bgColor}
-          onFgColor={setFgColor}
-          sprite={activeSprite}
-          target={target}
-          dispatch={dispatch}
-          selection={selection}
-          setSelection={setSelection}
-          floating={floating}
-          setFloating={setFloating}
-          commitFloating={commitFloating}
-          cropPending={cropPending}
-          setCropPending={setCropPending}
-          filled={filled[tool] ?? false}
-          brushSize={brushSize[tool] ?? 1}
-          mirrorV={mirrorV}
-          mirrorH={mirrorH}
-          onTemporaryToolComplete={temporaryToolReturn ? completeTemporaryTool : undefined}
-          previewOpen={previewOpen}
-          onClosePreview={() => setPreviewOpen(false)}
-          playing={playing}
-          onionSkin={onionSkin}
-        />
+            <CanvasStage
+              tool={tool}
+              fgColor={fgColor}
+              bgColor={bgColor}
+              onFgColor={setFgColor}
+              sprite={activeSprite}
+              target={target}
+              dispatch={dispatch}
+              selection={selection}
+              setSelection={setSelection}
+              floating={floating}
+              setFloating={setFloating}
+              commitFloating={commitFloating}
+              cropPending={cropPending}
+              setCropPending={setCropPending}
+              filled={filled[tool] ?? false}
+              brushSize={brushSize[tool] ?? 1}
+              mirrorV={mirrorV}
+              mirrorH={mirrorH}
+              onTemporaryToolComplete={temporaryToolReturn ? completeTemporaryTool : undefined}
+              previewOpen={previewOpen}
+              onClosePreview={() => setPreviewOpen(false)}
+              playing={playing}
+              onionSkin={onionSkin}
+            />
+          </div>
+
+          {framesFold.pinned ? (
+            <FramesTimeline
+              sprite={activeSprite}
+              frameCount={activeSprite.frameCount}
+              active={safeFrame}
+              onPick={setFrameIndex}
+              spriteId={activeSprite.id}
+              dispatch={dispatch}
+              playing={playing}
+              onTogglePlay={() => setPlaying((p) => !p)}
+              fps={fps}
+              onFps={setFps}
+              pinned
+              onTogglePin={framesFold.togglePin}
+              onPeekSelect={undefined}
+            />
+          ) : (
+            <div ref={framesFold.ref} className="relative shrink-0">
+              <FoldTab edge="bottom" label="Frames" active={framesFold.peeking} onClick={framesFold.togglePeek} />
+              {framesFold.peeking && (
+                <div className="absolute bottom-0 left-0 right-0 z-20 shadow-2xl">
+                  <FramesTimeline
+                    sprite={activeSprite}
+                    frameCount={activeSprite.frameCount}
+                    active={safeFrame}
+                    onPick={setFrameIndex}
+                    spriteId={activeSprite.id}
+                    dispatch={dispatch}
+                    playing={playing}
+                    onTogglePlay={() => setPlaying((p) => !p)}
+                    fps={fps}
+                    onFps={setFps}
+                    pinned={false}
+                    onTogglePin={framesFold.togglePin}
+                    onPeekSelect={framesFold.closePeek}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <aside className="bg-panel border-l border-divider flex flex-col shrink-0">
           {sidebarPinned ? (
@@ -524,47 +569,6 @@ export default function App() {
           )}
         </aside>
       </div>
-
-      {framesFold.pinned ? (
-        <FramesTimeline
-          sprite={activeSprite}
-          frameCount={activeSprite.frameCount}
-          active={safeFrame}
-          onPick={setFrameIndex}
-          spriteId={activeSprite.id}
-          dispatch={dispatch}
-          playing={playing}
-          onTogglePlay={() => setPlaying((p) => !p)}
-          fps={fps}
-          onFps={setFps}
-          pinned
-          onTogglePin={framesFold.togglePin}
-          onPeekSelect={undefined}
-        />
-      ) : (
-        <div ref={framesFold.ref} className="relative shrink-0">
-          <FoldTab edge="bottom" label="Frames" active={framesFold.peeking} onClick={framesFold.togglePeek} />
-          {framesFold.peeking && (
-            <div className="absolute bottom-0 left-0 right-0 z-20 shadow-2xl">
-              <FramesTimeline
-                sprite={activeSprite}
-                frameCount={activeSprite.frameCount}
-                active={safeFrame}
-                onPick={setFrameIndex}
-                spriteId={activeSprite.id}
-                dispatch={dispatch}
-                playing={playing}
-                onTogglePlay={() => setPlaying((p) => !p)}
-                fps={fps}
-                onFps={setFps}
-                pinned={false}
-                onTogglePin={framesFold.togglePin}
-                onPeekSelect={framesFold.closePeek}
-              />
-            </div>
-          )}
-        </div>
-      )}
 
       {globalMagnifier && <EyedropperMagnifier {...globalMagnifier} />}
 
