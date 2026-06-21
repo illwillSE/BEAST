@@ -37,13 +37,9 @@ implemented; this file tracks what isn't, organized by area.
       selection content, not the live mirror-painting guides), and a
       move/nudge tool to shift layer content in place (distinct from the
       existing select-then-move-floating-region workflow).
-- [ ] Gradient fill currently always fades the drag color to transparent
-      (`gradientFill` in `document/model.ts`, fixed two-stop color→transparent
-      by design, per its own comment). Once the foreground/background color
-      pair below lands, change it to fade fg→bg instead. Also revisit the
-      drag preview (`tools/registry.ts` gradient entry, rendered in
-      `PixelCanvas.tsx`) — it currently only draws the Bresenham line between
-      drag endpoints, not anything representing the gradient spread itself.
+- [ ] Gradient drag preview (`tools/registry.ts` gradient entry, rendered in
+      `PixelCanvas.tsx`) only draws the Bresenham line between drag endpoints,
+      not anything representing the gradient spread itself (now fg→bg).
 
 ## Color
 - [ ] Docked sidebar (`LayersPanel` + `ColorPanel` both pinned) can still clip
@@ -56,11 +52,11 @@ implemented; this file tracks what isn't, organized by area.
       expands below the app's layout/viewport rather than staying contained.
       Minor cosmetic bug, not urgent — needs a proper tweak later rather than
       another band-aid.
-- [ ] Foreground/background color pair (classic two-slot picker) — a second
-      "active color" slot plus a swap control, distinct from the current
-      single `color` state (`App.tsx`). Decide how it interacts with tools:
-      e.g. eraser/right-click paint with bg instead of fg, and a keyboard
-      shortcut to swap (X is the common convention).
+- [ ] Right-click paints with bg color instead of fg — deliberately deferred
+      when fg/bg landed. Needs `event.button` handling in `PixelCanvas.tsx`
+      (`handleDown`/`ctxFor` currently treat all clicks the same) and
+      suppressing the canvas's `contextmenu` event; decide which tools it
+      applies to (eraser already paints transparent, so it wouldn't apply there).
 - [ ] Managed swatch palette (loadable/savable) — palette is currently a single
       in-memory list (`App.tsx` `palette` state, seeded from
       `ColorPanel.DEFAULT_PALETTE`); no save/load or multiple named palettes

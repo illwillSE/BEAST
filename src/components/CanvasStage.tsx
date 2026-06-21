@@ -9,8 +9,9 @@ import type { Rect, Floating, CropPending } from '../tools/registry.js'
 
 interface CanvasStageProps {
   tool: string
-  color: string
-  onColor: (hex: string) => void
+  fgColor: string
+  bgColor: string
+  onFgColor: (hex: string) => void
   sprite: Sprite
   target: CellTarget
   dispatch: (action: Action) => void
@@ -33,7 +34,7 @@ interface CanvasStageProps {
 // active sprite; zoom is local. The pencil draws (see PixelCanvas) and the
 // checkerboard shows through transparent pixels.
 export default function CanvasStage({
-  tool, color, onColor, sprite, target, dispatch,
+  tool, fgColor, bgColor, onFgColor, sprite, target, dispatch,
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, filled,
   mirrorV, mirrorH, onTemporaryToolComplete, previewOpen, onClosePreview,
@@ -73,8 +74,9 @@ export default function CanvasStage({
             target={target}
             dispatch={dispatch}
             scale={scale}
-            color={color}
-            onColor={onColor}
+            fgColor={fgColor}
+            bgColor={bgColor}
+            onFgColor={onFgColor}
             tool={tool}
             onHover={setPos}
             selection={selection}

@@ -21,8 +21,8 @@
 //                            Filled).
 //
 // ctx = {
-//   x, y, target, color, dispatch, setColor, sampleColor, w, h, filled,
-//   setPreview, selection, setSelection, floating, setFloating,
+//   x, y, target, fgColor, bgColor, dispatch, setFgColor, sampleColor, w, h,
+//   filled, setPreview, selection, setSelection, floating, setFloating,
 //   commitFloating, getRawCell, cropPending, setCropPending,
 // } where x,y are in-bounds integer cell coordinates and target =
 // { spriteId, layerId, frameIndex }. `dispatch` mirrors actions across the
@@ -71,9 +71,10 @@ export interface ToolContext {
   x: number
   y: number
   target: CellTarget
-  color: string
+  fgColor: string
+  bgColor: string
   dispatch: (action: Action) => void
-  setColor: (hex: string) => void
+  setFgColor: (hex: string) => void
   sampleColor: (x: number, y: number) => string | null
   w: number
   h: number
@@ -139,18 +140,18 @@ function normalizeRect(x0: number, y0: number, x1: number, y1: number): Rect {
 }
 
 export const tools: Record<string, Tool<any>> = {
-  pencil: { key: 'b', ...strokeTool((ctx) => hexToRgba(ctx.color)) },
+  pencil: { key: 'b', ...strokeTool((ctx) => hexToRgba(ctx.fgColor)) },
   eraser: { key: 'e', ...strokeTool(() => [0, 0, 0, 0]) },
 
   fill: {
     key: 'g',
     cursor: 'crosshair',
     onStart(ctx) {
-      commitBracketed(ctx, { type: 'FILL', ...ctx.target, x: ctx.x, y: ctx.y, rgba: hexToRgba(ctx.color) })
+      commitBracketed(ctx, { type: 'FILL', ...ctx.target, x: ctx.x, y: ctx.y, rgba: hexToRgba(ctx.fgColor) })
     },
   },
 
-  // Gradient: drag from full color (start) to transparent (end), filling the
+  // Gradient: drag from fg color (start) to bg color (end), filling the
   // flood-connected region from the start pixel — same region rule as Fill.
   gradient: {
     key: 'n',
@@ -159,13 +160,13 @@ export const tools: Record<string, Tool<any>> = {
       return { x0: ctx.x, y0: ctx.y }
     },
     onDrag(ctx, _prev, start) {
-      ctx.setPreview({ kind: 'pixels', points: linePoints(start.x0, start.y0, ctx.x, ctx.y), color: ctx.color })
+      ctx.setPreview({ kind: 'pixels', points: linePoints(start.x0, start.y0, ctx.x, ctx.y), color: ctx.fgColor })
     },
     onEnd(ctx, start) {
       commitBracketed(ctx, {
         type: 'GRADIENT_FILL', ...ctx.target,
         x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y,
-        rgba: hexToRgba(ctx.color),
+        rgba0: hexToRgba(ctx.fgColor), rgba1: hexToRgba(ctx.bgColor),
       })
       ctx.setPreview(null)
     },
@@ -176,7 +177,7 @@ export const tools: Record<string, Tool<any>> = {
     cursor: 'copy',
     onStart(ctx) {
       const hex = ctx.sampleColor(ctx.x, ctx.y)
-      if (hex) ctx.setColor(hex)
+      if (hex) ctx.setFgColor(hex)
     },
   },
 
@@ -187,13 +188,13 @@ export const tools: Record<string, Tool<any>> = {
       return { x0: ctx.x, y0: ctx.y }
     },
     onDrag(ctx, _prev, start) {
-      ctx.setPreview({ kind: 'pixels', points: linePoints(start.x0, start.y0, ctx.x, ctx.y), color: ctx.color })
+      ctx.setPreview({ kind: 'pixels', points: linePoints(start.x0, start.y0, ctx.x, ctx.y), color: ctx.fgColor })
     },
     onEnd(ctx, start) {
       commitBracketed(ctx, {
         type: 'PAINT_LINE', ...ctx.target,
         x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y,
-        rgba: hexToRgba(ctx.color),
+        rgba: hexToRgba(ctx.fgColor),
       })
       ctx.setPreview(null)
     },
@@ -207,13 +208,13 @@ export const tools: Record<string, Tool<any>> = {
       return { x0: ctx.x, y0: ctx.y }
     },
     onDrag(ctx, _prev, start) {
-      ctx.setPreview({ kind: 'pixels', points: rectPoints(start.x0, start.y0, ctx.x, ctx.y, ctx.filled), color: ctx.color })
+      ctx.setPreview({ kind: 'pixels', points: rectPoints(start.x0, start.y0, ctx.x, ctx.y, ctx.filled), color: ctx.fgColor })
     },
     onEnd(ctx, start) {
       commitBracketed(ctx, {
         type: 'PAINT_RECT', ...ctx.target,
         x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y, filled: ctx.filled,
-        rgba: hexToRgba(ctx.color),
+        rgba: hexToRgba(ctx.fgColor),
       })
       ctx.setPreview(null)
     },
@@ -227,13 +228,13 @@ export const tools: Record<string, Tool<any>> = {
       return { x0: ctx.x, y0: ctx.y }
     },
     onDrag(ctx, _prev, start) {
-      ctx.setPreview({ kind: 'pixels', points: ellipsePoints(start.x0, start.y0, ctx.x, ctx.y, ctx.filled), color: ctx.color })
+      ctx.setPreview({ kind: 'pixels', points: ellipsePoints(start.x0, start.y0, ctx.x, ctx.y, ctx.filled), color: ctx.fgColor })
     },
     onEnd(ctx, start) {
       commitBracketed(ctx, {
         type: 'PAINT_ELLIPSE', ...ctx.target,
         x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y, filled: ctx.filled,
-        rgba: hexToRgba(ctx.color),
+        rgba: hexToRgba(ctx.fgColor),
       })
       ctx.setPreview(null)
     },

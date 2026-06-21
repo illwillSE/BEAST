@@ -34,9 +34,10 @@ interface PixelCanvasProps {
   target: CellTarget
   dispatch: (action: Action) => void
   scale: number
-  color: string
+  fgColor: string
+  bgColor: string
   tool: string
-  onColor: (hex: string) => void
+  onFgColor: (hex: string) => void
   onHover?: (pos: { x: number; y: number } | null) => void
   selection: Rect | null
   setSelection: (rect: Rect | null) => void
@@ -61,7 +62,7 @@ interface PixelCanvasProps {
 // drawn separately, at CSS-pixel (not pixel-art) resolution, so its dashed
 // outline stays a crisp thin line instead of scaling up into blocky pixels.
 export default function PixelCanvas({
-  sprite, frameIndex, target, dispatch, scale, color, tool, onColor, onHover,
+  sprite, frameIndex, target, dispatch, scale, fgColor, bgColor, tool, onFgColor, onHover,
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, filled,
   mirrorV, mirrorH, onTemporaryToolComplete,
@@ -191,7 +192,7 @@ export default function PixelCanvas({
   const getRawCell = () => sprite.layers.find((l) => l.id === target.layerId)!.cells[target.frameIndex]
 
   const ctxFor = (x: number, y: number): ToolContext => ({
-    x, y, target, color, dispatch: mirroredDispatch, setColor: onColor, sampleColor,
+    x, y, target, fgColor, bgColor, dispatch: mirroredDispatch, setFgColor: onFgColor, sampleColor,
     w, h, filled, setPreview,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
     cropPending, setCropPending,

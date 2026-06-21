@@ -14,7 +14,7 @@
 //   run    ctx => void; ctx = {
 //     dispatch, setTool, setTemporaryTool, tool, filled, setVariant, copySelection,
 //     cutSelection, pasteClipboard, commitFloating, setSelection,
-//     commitCrop, cancelCrop,
+//     commitCrop, cancelCrop, swapColors,
 //   }
 
 import { tools } from '../tools/registry.js'
@@ -35,6 +35,7 @@ export interface ShortcutContext {
   setSelection: (rect: Rect | null) => void
   commitCrop: () => void
   cancelCrop: () => void
+  swapColors: () => void
 }
 
 interface Shortcut {
@@ -66,6 +67,7 @@ export const shortcuts: Shortcut[] = [
   { key: 'enter', run: (ctx) => { ctx.commitFloating(); ctx.commitCrop() } },
   { key: 'escape', run: (ctx) => { ctx.commitFloating(); ctx.setSelection(null); ctx.cancelCrop() } },
   { key: 'i', shift: true, run: (ctx) => ctx.setTemporaryTool('eyedropper') },
+  { key: 'x', run: (ctx) => ctx.swapColors() },
   ...toolShortcuts,
 ]
 

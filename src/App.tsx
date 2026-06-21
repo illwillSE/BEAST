@@ -31,7 +31,12 @@ interface Clipboard {
 export default function App() {
   const [tool, setTool] = useState('pencil')
   const [temporaryToolReturn, setTemporaryToolReturn] = useState<string | null>(null)
-  const [color, setColor] = useState('#fbbf24')
+  const [fgColor, setFgColor] = useState('#fbbf24')
+  const [bgColor, setBgColor] = useState('#ffffff')
+  const swapColors = () => {
+    setFgColor(bgColor)
+    setBgColor(fgColor)
+  }
   const [palette, setPalette] = useState<string[]>(DEFAULT_PALETTE)
   const addSwatch = (hex: string) => setPalette((p) => (p.includes(hex) ? p : [...p, hex]))
 
@@ -206,7 +211,7 @@ export default function App() {
       dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
       tool, filled, setVariant: setToolVariant,
       copySelection, cutSelection, pasteClipboard, commitFloating, setSelection,
-      commitCrop, cancelCrop,
+      commitCrop, cancelCrop, swapColors,
     }
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return
@@ -217,7 +222,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [floating, selection, clipboard, activeSprite, safeLayerId, safeFrame, tool, filled, cropPending])
+  }, [floating, selection, clipboard, activeSprite, safeLayerId, safeFrame, tool, filled, cropPending, fgColor, bgColor])
 
   // Restore the autosaved project on mount, then enable autosaving.
   const [ready, setReady] = useState(false)
@@ -307,8 +312,9 @@ export default function App() {
 
         <CanvasStage
           tool={tool}
-          color={color}
-          onColor={setColor}
+          fgColor={fgColor}
+          bgColor={bgColor}
+          onFgColor={setFgColor}
           sprite={activeSprite}
           target={target}
           dispatch={dispatch}
@@ -361,8 +367,11 @@ export default function App() {
 
           {sidebarPinned ? (
             <ColorPanel
-              color={color}
-              onColor={setColor}
+              fgColor={fgColor}
+              bgColor={bgColor}
+              onFgColor={setFgColor}
+              onBgColor={setBgColor}
+              onSwap={swapColors}
               palette={palette}
               onAddSwatch={addSwatch}
               pinned
@@ -375,8 +384,11 @@ export default function App() {
               {colorPeek.peeking && (
                 <div className="absolute top-0 right-0 z-20 shadow-2xl">
                   <ColorPanel
-                    color={color}
-                    onColor={setColor}
+                    fgColor={fgColor}
+                    bgColor={bgColor}
+                    onFgColor={setFgColor}
+                    onBgColor={setBgColor}
+                    onSwap={swapColors}
                     palette={palette}
                     onAddSwatch={addSwatch}
                     pinned={false}

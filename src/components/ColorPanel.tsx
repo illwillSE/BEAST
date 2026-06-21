@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, ChevronDown, ChevronRight, ArrowLeftRight } from 'lucide-react'
 import PinToggle from './PinToggle.jsx'
 import { hexToRgba, rgbaToHex } from '../document/model.js'
 
@@ -70,8 +70,11 @@ function fractionAt(el: HTMLElement, clientX: number, clientY: number) {
 }
 
 interface ColorPanelProps {
-  color: string
-  onColor: (color: string) => void
+  fgColor: string
+  bgColor: string
+  onFgColor: (color: string) => void
+  onBgColor: (color: string) => void
+  onSwap: () => void
   palette: string[]
   onAddSwatch: (hex: string) => void
   pinned: boolean
@@ -79,7 +82,14 @@ interface ColorPanelProps {
   onPeekSelect?: () => void
 }
 
-export default function ColorPanel({ color, onColor, palette, onAddSwatch, pinned, onTogglePin, onPeekSelect }: ColorPanelProps) {
+// The picker/palette below always edits one "active" slot — fg or bg,
+// switched by clicking either swatch — so the rest of this component's
+// logic (HSV derivation, hex field, palette highlight) stays keyed off a
+// single `color`/`onColor` pair, same as before the fg/bg split.
+export default function ColorPanel({ fgColor, bgColor, onFgColor, onBgColor, onSwap, palette, onAddSwatch, pinned, onTogglePin, onPeekSelect }: ColorPanelProps) {
+  const [activeSlot, setActiveSlot] = useState<'fg' | 'bg'>('fg')
+  const color = activeSlot === 'fg' ? fgColor : bgColor
+  const onColor = activeSlot === 'fg' ? onFgColor : onBgColor
   const [hsva, setHsva] = useState(() => hexToHsva(color))
   const lastEmitted = useRef(color)
 
@@ -162,6 +172,35 @@ export default function ColorPanel({ color, onColor, palette, onAddSwatch, pinne
       </div>
 
       <div className="p-3 flex flex-col gap-3">
+        {/* fg/bg slots: click a swatch to edit it below, swap to exchange them */}
+        <div className="flex items-center gap-2">
+          <div className="relative w-9 h-9 shrink-0">
+            <button
+              onClick={() => setActiveSlot('bg')}
+              title="Background color"
+              className={
+                'absolute right-0 bottom-0 w-6 h-6 rounded border beast-checker shadow ' +
+                (activeSlot === 'bg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
+              }
+            >
+              <div className="w-full h-full rounded" style={{ background: bgColor }} />
+            </button>
+            <button
+              onClick={() => setActiveSlot('fg')}
+              title="Foreground color"
+              className={
+                'absolute left-0 top-0 z-10 w-6 h-6 rounded border beast-checker shadow ' +
+                (activeSlot === 'fg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
+              }
+            >
+              <div className="w-full h-full rounded" style={{ background: fgColor }} />
+            </button>
+          </div>
+          <button onClick={onSwap} title="Swap foreground/background (X)" className="text-muted hover:text-ink">
+            <ArrowLeftRight size={15} />
+          </button>
+        </div>
+
         <button
           onClick={() => setGradientOpen((v) => !v)}
           className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-faint hover:text-ink-soft"

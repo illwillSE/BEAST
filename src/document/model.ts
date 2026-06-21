@@ -427,13 +427,13 @@ export function floodFill(cell: Cell, w: number, h: number, x: number, y: number
   }
 }
 
-// Flood-fill the region from (x0,y0), fading `rgba` from full alpha at (x0,y0)
-// to transparent at (x1,y1) — a fixed two-stop gradient (color → transparent),
-// so it needs no second color picker.
-export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba: RGBA) {
+// Flood-fill the region from (x0,y0), fading from `rgba0` at (x0,y0) to
+// `rgba1` at (x1,y1) — a two-stop gradient (fg → bg).
+export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA) {
   const region = floodMask(cell, w, h, x0, y0)
   if (!region) return
-  const [r, g, b] = rgba
+  const [r0, g0, b0, a0] = rgba0
+  const [r1, g1, b1, a1] = rgba1
   const dx = x1 - x0, dy = y1 - y0
   const lenSq = dx * dx + dy * dy || 1
   for (let y = 0; y < h; y++) {
@@ -442,7 +442,10 @@ export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: n
       if (!region.mask[i]) continue
       const t = Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / lenSq))
       const o = i * 4
-      cell[o] = r; cell[o + 1] = g; cell[o + 2] = b; cell[o + 3] = Math.round(255 * (1 - t))
+      cell[o] = Math.round(r0 + (r1 - r0) * t)
+      cell[o + 1] = Math.round(g0 + (g1 - g0) * t)
+      cell[o + 2] = Math.round(b0 + (b1 - b0) * t)
+      cell[o + 3] = Math.round(a0 + (a1 - a0) * t)
     }
   }
 }
