@@ -4,30 +4,73 @@
 // fully transparent. Cells are the only large binary data and the unit of
 // undo/history (see reducer.js).
 
+// A flat RGBA cell: Uint8ClampedArray of length w*h*4.
+export type Cell = Uint8ClampedArray
+// One RGBA color, 0–255 per channel.
+export type RGBA = readonly [number, number, number, number]
+// An [x, y] integer cell coordinate.
+export type Point = [number, number]
+
+export interface Layer {
+  id: string
+  name: string
+  visible: boolean
+  opacity: number
+  cells: Cell[]
+}
+
+export interface Sprite {
+  id: string
+  name: string
+  w: number
+  h: number
+  frameCount: number
+  layers: Layer[]
+}
+
+export interface Doc {
+  sprites: Sprite[]
+}
+
+// Identifies one cell — the (layer, frame) pair within a sprite that tools edit.
+export interface CellTarget {
+  spriteId: string
+  layerId: string
+  frameIndex: number
+}
+
+export interface CreateSpriteOpts {
+  w?: number
+  h?: number
+  name?: string
+  frameCount?: number
+  layerNames?: string[]
+}
+
 let _seq = 0
-const uid = (p) => `${p}${++_seq}`
+const uid = (p: string) => `${p}${++_seq}`
 
 // Bump the id counter past any id already in a loaded document, so freshly
 // created sprites/layers (now that CRUD exists) can't collide with ids a
 // prior session assigned before this session's counter started at 0.
-export function reseedUid(doc) {
+export function reseedUid(doc: Doc) {
   for (const sp of doc.sprites) {
     _seq = Math.max(_seq, numericSuffix(sp.id))
     for (const ly of sp.layers) _seq = Math.max(_seq, numericSuffix(ly.id))
   }
 }
 
-function numericSuffix(id) {
+function numericSuffix(id: string) {
   const m = /\d+$/.exec(id)
   return m ? parseInt(m[0], 10) : 0
 }
 
-export function createCell(w, h) {
+export function createCell(w: number, h: number): Cell {
   return new Uint8ClampedArray(w * h * 4)
 }
 
-export function createLayer(w, h, frameCount, name) {
-  const cells = []
+export function createLayer(w: number, h: number, frameCount: number, name: string): Layer {
+  const cells: Cell[] = []
   for (let f = 0; f < frameCount; f++) cells.push(createCell(w, h))
   return { id: uid('ly'), name, visible: true, opacity: 1, cells }
 }
@@ -38,7 +81,7 @@ export function createSprite({
   name = 'Sprite 1',
   frameCount = 1,
   layerNames = ['Layer 1'],
-} = {}) {
+}: CreateSpriteOpts = {}): Sprite {
   return {
     id: uid('sp'),
     name,
@@ -50,7 +93,7 @@ export function createSprite({
   }
 }
 
-export function createDocument() {
+export function createDocument(): Doc {
   return {
     sprites: [
       createSprite({ name: 'sprite_1', w: 32, h: 32, frameCount: 4, layerNames: ['Background', 'Character', 'Highlights'] }),
@@ -60,21 +103,21 @@ export function createDocument() {
 }
 
 // ── sprite CRUD ──────────────────────────────────────────────────────────
-export function addSprite(doc, opts) {
+export function addSprite(doc: Doc, opts?: CreateSpriteOpts): Doc {
   return { ...doc, sprites: [...doc.sprites, createSprite(opts)] }
 }
 
-export function renameSprite(doc, spriteId, name) {
+export function renameSprite(doc: Doc, spriteId: string, name: string): Doc {
   return { ...doc, sprites: doc.sprites.map((sp) => (sp.id === spriteId ? { ...sp, name } : sp)) }
 }
 
 // No-op if it's the last sprite — a project always keeps at least one.
-export function removeSprite(doc, spriteId) {
+export function removeSprite(doc: Doc, spriteId: string): Doc {
   return doc.sprites.length <= 1 ? doc : { ...doc, sprites: doc.sprites.filter((sp) => sp.id !== spriteId) }
 }
 
 // delta: +1 moves the sprite later in the list, -1 moves it earlier.
-export function moveSprite(doc, spriteId, delta) {
+export function moveSprite(doc: Doc, spriteId: string, delta: number): Doc {
   const i = doc.sprites.findIndex((sp) => sp.id === spriteId)
   const j = i + delta
   if (i === -1 || j < 0 || j >= doc.sprites.length) return doc
@@ -86,7 +129,7 @@ export function moveSprite(doc, spriteId, delta) {
 // Resize a cell's canvas to newW×newH, sliding the old pixels by
 // (offsetX, offsetY) and clipping/filling-transparent as needed. Used for
 // both growing (extends with transparency) and shrinking (crops) a sprite.
-function resizeCell(cell, w, h, newW, newH, offsetX, offsetY) {
+function resizeCell(cell: Cell, w: number, h: number, newW: number, newH: number, offsetX: number, offsetY: number): Cell {
   const out = createCell(newW, newH)
   for (let y = 0; y < h; y++) {
     const dy = y + offsetY
@@ -105,7 +148,7 @@ function resizeCell(cell, w, h, newW, newH, offsetX, offsetY) {
 // Crop (or extend) a sprite's canvas to the rectangle (x,y,w,h), expressed in
 // the existing canvas's coordinate space — pixels outside the rectangle are
 // dropped, and area added beyond the old bounds comes in transparent.
-export function cropSprite(doc, spriteId, x, y, newW, newH) {
+export function cropSprite(doc: Doc, spriteId: string, x: number, y: number, newW: number, newH: number): Doc {
   return mapSprite(doc, spriteId, (sp) => ({
     ...sp,
     w: newW,
@@ -118,17 +161,17 @@ export function cropSprite(doc, spriteId, x, y, newW, newH) {
 }
 
 // ── lookups ──────────────────────────────────────────────────────────────
-export function findSprite(doc, spriteId) {
+export function findSprite(doc: Doc, spriteId: string): Sprite | undefined {
   return doc.sprites.find((s) => s.id === spriteId)
 }
 
-export function getCell(doc, spriteId, layerId, frameIndex) {
-  const sp = findSprite(doc, spriteId)
-  return sp.layers.find((l) => l.id === layerId).cells[frameIndex]
+export function getCell(doc: Doc, spriteId: string, layerId: string, frameIndex: number): Cell {
+  const sp = findSprite(doc, spriteId)!
+  return sp.layers.find((l) => l.id === layerId)!.cells[frameIndex]
 }
 
 // Immutably swap one cell, sharing every other sprite/layer/cell by reference.
-export function replaceCell(doc, spriteId, layerId, frameIndex, cell) {
+export function replaceCell(doc: Doc, spriteId: string, layerId: string, frameIndex: number, cell: Cell): Doc {
   return {
     ...doc,
     sprites: doc.sprites.map((sp) =>
@@ -147,11 +190,11 @@ export function replaceCell(doc, spriteId, layerId, frameIndex, cell) {
 }
 
 // ── layer CRUD ───────────────────────────────────────────────────────────
-function mapSprite(doc, spriteId, fn) {
+function mapSprite(doc: Doc, spriteId: string, fn: (sp: Sprite) => Sprite): Doc {
   return { ...doc, sprites: doc.sprites.map((sp) => (sp.id === spriteId ? fn(sp) : sp)) }
 }
 
-export function addLayer(doc, spriteId, name = 'Layer') {
+export function addLayer(doc: Doc, spriteId: string, name = 'Layer'): Doc {
   return mapSprite(doc, spriteId, (sp) => ({
     ...sp,
     layers: [...sp.layers, createLayer(sp.w, sp.h, sp.frameCount, name)],
@@ -159,12 +202,12 @@ export function addLayer(doc, spriteId, name = 'Layer') {
 }
 
 // Inserts the copy directly above the source layer (not necessarily top of stack).
-export function duplicateLayer(doc, spriteId, layerId) {
+export function duplicateLayer(doc: Doc, spriteId: string, layerId: string): Doc {
   return mapSprite(doc, spriteId, (sp) => {
     const i = sp.layers.findIndex((l) => l.id === layerId)
     if (i === -1) return sp
     const src = sp.layers[i]
-    const copy = {
+    const copy: Layer = {
       id: uid('ly'),
       name: src.name + ' copy',
       visible: src.visible,
@@ -178,14 +221,14 @@ export function duplicateLayer(doc, spriteId, layerId) {
 }
 
 // No-op if it's the last layer — a sprite always keeps at least one.
-export function removeLayer(doc, spriteId, layerId) {
+export function removeLayer(doc: Doc, spriteId: string, layerId: string): Doc {
   return mapSprite(doc, spriteId, (sp) =>
     sp.layers.length <= 1 ? sp : { ...sp, layers: sp.layers.filter((l) => l.id !== layerId) }
   )
 }
 
 // delta: +1 moves the layer up the stack (toward the top), -1 moves it down.
-export function moveLayer(doc, spriteId, layerId, delta) {
+export function moveLayer(doc: Doc, spriteId: string, layerId: string, delta: number): Doc {
   return mapSprite(doc, spriteId, (sp) => {
     const i = sp.layers.findIndex((l) => l.id === layerId)
     const j = i + delta
@@ -196,14 +239,14 @@ export function moveLayer(doc, spriteId, layerId, delta) {
   })
 }
 
-export function setLayerVisible(doc, spriteId, layerId, visible) {
+export function setLayerVisible(doc: Doc, spriteId: string, layerId: string, visible: boolean): Doc {
   return mapSprite(doc, spriteId, (sp) => ({
     ...sp,
     layers: sp.layers.map((l) => (l.id === layerId ? { ...l, visible } : l)),
   }))
 }
 
-export function setLayerOpacity(doc, spriteId, layerId, opacity) {
+export function setLayerOpacity(doc: Doc, spriteId: string, layerId: string, opacity: number): Doc {
   return mapSprite(doc, spriteId, (sp) => ({
     ...sp,
     layers: sp.layers.map((l) => (l.id === layerId ? { ...l, opacity } : l)),
@@ -213,7 +256,7 @@ export function setLayerOpacity(doc, spriteId, layerId, opacity) {
 // ── frame CRUD ───────────────────────────────────────────────────────────
 // Every layer keeps one cell per frame, so frame CRUD touches every layer's
 // cells array in lockstep and updates the sprite's frameCount.
-export function addFrame(doc, spriteId, atIndex) {
+export function addFrame(doc: Doc, spriteId: string, atIndex: number): Doc {
   return mapSprite(doc, spriteId, (sp) => ({
     ...sp,
     frameCount: sp.frameCount + 1,
@@ -225,7 +268,7 @@ export function addFrame(doc, spriteId, atIndex) {
   }))
 }
 
-export function duplicateFrame(doc, spriteId, frameIndex) {
+export function duplicateFrame(doc: Doc, spriteId: string, frameIndex: number): Doc {
   return mapSprite(doc, spriteId, (sp) => ({
     ...sp,
     frameCount: sp.frameCount + 1,
@@ -238,7 +281,7 @@ export function duplicateFrame(doc, spriteId, frameIndex) {
 }
 
 // No-op if it's the last frame — a sprite always keeps at least one.
-export function removeFrame(doc, spriteId, frameIndex) {
+export function removeFrame(doc: Doc, spriteId: string, frameIndex: number): Doc {
   return mapSprite(doc, spriteId, (sp) =>
     sp.frameCount <= 1
       ? sp
@@ -251,7 +294,7 @@ export function removeFrame(doc, spriteId, frameIndex) {
 }
 
 // delta: +1 moves the frame later in the timeline, -1 moves it earlier.
-export function moveFrame(doc, spriteId, frameIndex, delta) {
+export function moveFrame(doc: Doc, spriteId: string, frameIndex: number, delta: number): Doc {
   return mapSprite(doc, spriteId, (sp) => {
     const j = frameIndex + delta
     if (j < 0 || j >= sp.frameCount) return sp
@@ -267,7 +310,7 @@ export function moveFrame(doc, spriteId, frameIndex, delta) {
 }
 
 // ── pixel writes (mutate a cell in place) ────────────────────────────────
-export function paintPixel(cell, w, h, x, y, rgba) {
+export function paintPixel(cell: Cell, w: number, h: number, x: number, y: number, rgba: RGBA) {
   if (x < 0 || y < 0 || x >= w || y >= h) return
   const i = (y * w + x) * 4
   cell[i] = rgba[0]
@@ -277,8 +320,8 @@ export function paintPixel(cell, w, h, x, y, rgba) {
 }
 
 // Bresenham — every cell on the segment, so fast drags/shape tools leave no gaps.
-export function linePoints(x0, y0, x1, y1) {
-  const pts = []
+export function linePoints(x0: number, y0: number, x1: number, y1: number): Point[] {
+  const pts: Point[] = []
   const dx = Math.abs(x1 - x0)
   const dy = Math.abs(y1 - y0)
   const sx = x0 < x1 ? 1 : -1
@@ -295,10 +338,10 @@ export function linePoints(x0, y0, x1, y1) {
 }
 
 // Rectangle from corner (x0,y0) to corner (x1,y1), either filled or 1px outline.
-export function rectPoints(x0, y0, x1, y1, filled) {
+export function rectPoints(x0: number, y0: number, x1: number, y1: number, filled: boolean): Point[] {
   const left = Math.min(x0, x1), right = Math.max(x0, x1)
   const top = Math.min(y0, y1), bottom = Math.max(y0, y1)
-  const pts = []
+  const pts: Point[] = []
   if (filled) {
     for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) pts.push([x, y])
     return pts
@@ -318,17 +361,17 @@ export function rectPoints(x0, y0, x1, y1, filled) {
 // bounding box (sprites are small, so this is cheap) testing each pixel center
 // against the ellipse equation; outline keeps only boundary pixels (inside with
 // an outside 4-neighbor).
-export function ellipsePoints(x0, y0, x1, y1, filled) {
+export function ellipsePoints(x0: number, y0: number, x1: number, y1: number, filled: boolean): Point[] {
   const left = Math.min(x0, x1), right = Math.max(x0, x1)
   const top = Math.min(y0, y1), bottom = Math.max(y0, y1)
   const cx = (left + right + 1) / 2, cy = (top + bottom + 1) / 2
   const rx = (right - left + 1) / 2, ry = (bottom - top + 1) / 2
-  const inside = (px, py) => {
+  const inside = (px: number, py: number) => {
     const nx = (px + 0.5 - cx) / rx
     const ny = (py + 0.5 - cy) / ry
     return nx * nx + ny * ny <= 1
   }
-  const pts = []
+  const pts: Point[] = []
   for (let y = top; y <= bottom; y++) {
     for (let x = left; x <= right; x++) {
       if (!inside(x, y)) continue
@@ -340,25 +383,25 @@ export function ellipsePoints(x0, y0, x1, y1, filled) {
   return pts
 }
 
-export function paintPoints(cell, w, h, points, rgba) {
+export function paintPoints(cell: Cell, w: number, h: number, points: Point[], rgba: RGBA) {
   for (const [x, y] of points) paintPixel(cell, w, h, x, y, rgba)
 }
 
-export function paintLine(cell, w, h, x0, y0, x1, y1, rgba) {
+export function paintLine(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba: RGBA) {
   paintPoints(cell, w, h, linePoints(x0, y0, x1, y1), rgba)
 }
 
 // Compute the 4-connected region matching the RGBA at (x,y), without mutating.
 // Shared by floodFill (apply one color) and gradientFill (apply per-pixel color).
-function floodMask(cell, w, h, x, y) {
+function floodMask(cell: Cell, w: number, h: number, x: number, y: number) {
   if (x < 0 || y < 0 || x >= w || y >= h) return null
-  const at = (px, py) => (py * w + px) * 4
+  const at = (px: number, py: number) => (py * w + px) * 4
   const t = at(x, y)
   const tr = cell[t], tg = cell[t + 1], tb = cell[t + 2], ta = cell[t + 3]
   const mask = new Uint8Array(w * h)
-  const stack = [[x, y]]
+  const stack: Point[] = [[x, y]]
   while (stack.length) {
-    const [cx, cy] = stack.pop()
+    const [cx, cy] = stack.pop()!
     if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue
     const mi = cy * w + cx
     if (mask[mi]) continue
@@ -372,7 +415,7 @@ function floodMask(cell, w, h, x, y) {
 
 // 4-connected flood fill from (x,y): replace the contiguous region matching the
 // clicked pixel's RGBA with `rgba`. Mutates the cell in place.
-export function floodFill(cell, w, h, x, y, rgba) {
+export function floodFill(cell: Cell, w: number, h: number, x: number, y: number, rgba: RGBA) {
   const region = floodMask(cell, w, h, x, y)
   if (!region) return
   const [fr, fg, fb, fa] = rgba
@@ -387,7 +430,7 @@ export function floodFill(cell, w, h, x, y, rgba) {
 // Flood-fill the region from (x0,y0), fading `rgba` from full alpha at (x0,y0)
 // to transparent at (x1,y1) — a fixed two-stop gradient (color → transparent),
 // so it needs no second color picker.
-export function gradientFill(cell, w, h, x0, y0, x1, y1, rgba) {
+export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba: RGBA) {
   const region = floodMask(cell, w, h, x0, y0)
   if (!region) return
   const [r, g, b] = rgba
@@ -406,7 +449,7 @@ export function gradientFill(cell, w, h, x0, y0, x1, y1, rgba) {
 
 // ── region ops (move / cut / copy / paste) ──────────────────────────────────
 // Zero out a rectangular region in place, clipped to bounds.
-export function clearRegion(cell, w, h, rx, ry, rw, rh) {
+export function clearRegion(cell: Cell, w: number, h: number, rx: number, ry: number, rw: number, rh: number) {
   for (let y = Math.max(0, ry); y < Math.min(h, ry + rh); y++) {
     for (let x = Math.max(0, rx); x < Math.min(w, rx + rw); x++) {
       const i = (y * w + x) * 4
@@ -417,7 +460,7 @@ export function clearRegion(cell, w, h, rx, ry, rw, rh) {
 
 // Sample a rectangular region into a new buffer (out-of-bounds samples stay
 // transparent). Does not mutate `cell`.
-export function copyRegion(cell, w, h, rx, ry, rw, rh) {
+export function copyRegion(cell: Cell, w: number, h: number, rx: number, ry: number, rw: number, rh: number): Cell {
   const out = new Uint8ClampedArray(rw * rh * 4)
   for (let y = 0; y < rh; y++) {
     for (let x = 0; x < rw; x++) {
@@ -431,7 +474,7 @@ export function copyRegion(cell, w, h, rx, ry, rw, rh) {
 }
 
 // Src-over composite `data` (rw×rh RGBA) onto `cell` at (rx,ry), clipped to bounds.
-export function pasteRegion(cell, w, h, rx, ry, rw, rh, data) {
+export function pasteRegion(cell: Cell, w: number, h: number, rx: number, ry: number, rw: number, rh: number, data: Cell) {
   for (let y = 0; y < rh; y++) {
     for (let x = 0; x < rw; x++) {
       const dx = rx + x, dy = ry + y
@@ -453,7 +496,7 @@ export function pasteRegion(cell, w, h, rx, ry, rw, rh, data) {
 // ── rendering ────────────────────────────────────────────────────────────
 // Composite a sprite's frame across its visible layers into `imageData`
 // (which must be w*h). src-over, honoring per-layer opacity.
-export function compositeFrame(sprite, frameIndex, imageData) {
+export function compositeFrame(sprite: Sprite, frameIndex: number, imageData: ImageData) {
   const out = imageData.data
   out.fill(0)
   for (const layer of sprite.layers) {
@@ -475,13 +518,13 @@ export function compositeFrame(sprite, frameIndex, imageData) {
 }
 
 // ── color ────────────────────────────────────────────────────────────────
-export function hexToRgba(hex) {
+export function hexToRgba(hex: string): RGBA {
   let h = hex.replace('#', '')
   if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16), 255]
 }
 
-export function rgbaToHex([r, g, b]) {
-  const c = (n) => n.toString(16).padStart(2, '0')
+export function rgbaToHex([r, g, b]: RGBA): string {
+  const c = (n: number) => n.toString(16).padStart(2, '0')
   return '#' + c(r) + c(g) + c(b)
 }

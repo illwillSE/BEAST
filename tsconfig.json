@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Incremental migration: .js/.jsx and .ts/.tsx coexist. checkJs is off, so
+       JS files are parsed for their exports but not type-checked — only files
+       renamed to .ts/.tsx are checked. */
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["src"]
+}

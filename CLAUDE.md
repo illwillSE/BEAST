@@ -91,8 +91,17 @@ blocks, BEAST is a **layered + framed pixel document** edited with painting tool
 ## Commands
 
 - `npm run dev` — dev server on http://localhost:5173
-- `npx vite build` (or `npm run build`) — also the compile check; no tests or linter
+- `npm run typecheck` — `tsc --noEmit`, the real type check (Vite/esbuild transpiles but does **not** type-check)
+- `npm run build` (= `tsc --noEmit && vite build`) — type-check then bundle; no tests or linter
 - `npm run preview` — serve the production build locally
 - `npm run deploy` — build + publish `dist/` to GitHub Pages (`gh-pages`); the release path
+
+### TypeScript migration (in progress, started 2026-06-21)
+
+Migrating JS→TS **incrementally**, **strict from day one**. `tsconfig.json` has `allowJs: true` +
+`checkJs: false`, so `.js`/`.jsx` and `.ts`/`.tsx` coexist — only renamed files are type-checked.
+Vite resolves `.js` import specifiers to their `.ts` files, so renaming a module needs **no edits to
+its importers**. Migration order is bottom-up (data model → reducer → tools → persist/hooks →
+components last). `src/document/model.ts` is done; the rest is still `.js`/`.jsx`.
 
 ## Architecture
