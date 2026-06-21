@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { compositeFrame, hexToRgba, rgbaToHex } from '../document/model.js'
 import { getTool } from '../tools/registry.js'
 import { getColor } from '../theme/colors.js'
-import type { Sprite, CellTarget } from '../document/model.js'
+import EyedropperMagnifier, { MAG_RADIUS } from './EyedropperMagnifier.jsx'
+import type { Sprite, CellTarget, RGBA } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
 import type { Rect, Floating, CropPending, Preview, ToolContext } from '../tools/registry.js'
 
@@ -72,6 +73,7 @@ export default function PixelCanvas({
   const lastRef = useRef<{ x: number; y: number } | null>(null)
   const dragStateRef = useRef<any>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
+  const [magnifier, setMagnifier] = useState<{ clientX: number; clientY: number; pixels: (RGBA | null)[] } | null>(null)
 
   const { w, h } = sprite
   const activeTool = getTool(tool)
@@ -157,6 +159,23 @@ export default function PixelCanvas({
     return rgbaToHex([img.data[i], img.data[i + 1], img.data[i + 2], img.data[i + 3]])
   }
 
+  // Read the square of pixels around (cx, cy) for the eyedropper magnifier,
+  // row-major, MAG_RADIUS cells in each direction; out-of-bounds cells are null.
+  const sampleRegion = (cx: number, cy: number): (RGBA | null)[] => {
+    const img = imageRef.current
+    const pixels: (RGBA | null)[] = []
+    for (let dy = -MAG_RADIUS; dy <= MAG_RADIUS; dy++) {
+      for (let dx = -MAG_RADIUS; dx <= MAG_RADIUS; dx++) {
+        const x = cx + dx
+        const y = cy + dy
+        if (!img || !inBounds(x, y)) { pixels.push(null); continue }
+        const i = (y * w + x) * 4
+        pixels.push([img.data[i], img.data[i + 1], img.data[i + 2], img.data[i + 3]])
+      }
+    }
+    return pixels
+  }
+
   // Dispatch wrapper that also dispatches mirrored copies of coordinate-bearing
   // actions across whichever symmetry axes are on, so tools never need to know
   // about mirroring themselves.
@@ -193,6 +212,11 @@ export default function PixelCanvas({
   const handleMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const { x, y } = cellFromEvent(e)
     onHover?.(inBounds(x, y) ? { x, y } : null)
+    if (tool === 'eyedropper' && inBounds(x, y)) {
+      setMagnifier({ clientX: e.clientX, clientY: e.clientY, pixels: sampleRegion(x, y) })
+    } else if (magnifier) {
+      setMagnifier(null)
+    }
     if (!draggingRef.current) return
     activeTool!.onDrag?.(ctxFor(x, y), lastRef.current!, dragStateRef.current)
     lastRef.current = { x, y }
@@ -217,7 +241,7 @@ export default function PixelCanvas({
         onPointerDown={handleDown}
         onPointerMove={handleMove}
         onPointerUp={handleUp}
-        onPointerLeave={() => { handleUp(); onHover?.(null) }}
+        onPointerLeave={() => { handleUp(); onHover?.(null); setMagnifier(null) }}
         style={{
           position: 'absolute',
           inset: 0,
@@ -254,6 +278,7 @@ export default function PixelCanvas({
           pointerEvents: 'none',
         }}
       />
+      {magnifier && <EyedropperMagnifier {...magnifier} />}
     </div>
   )
 }
