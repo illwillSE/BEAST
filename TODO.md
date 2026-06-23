@@ -17,7 +17,13 @@ implemented; this file tracks what isn't, organized by area.
       `cropPending` from — needs repro + fix in `tools/registry.ts` /
       `PixelCanvas.tsx`).
 - [ ] Sane max canvas size cap for performance.
-- [ ] A clear canvas button.
+- [ ] A clear canvas button: clears all pixels and removes all layers (full
+      reset, not just the active layer). Decide where it should live in the UI
+      — candidates discussed were the LayersPanel header row (if scoped to the
+      active layer) or near FramesTimeline's per-frame actions (if scoped to
+      the whole frame); since this clears everything project-wide it may
+      instead deserve its own spot (e.g. near the New Project button in
+      Header) — needs a decision before implementing.
 
 ## Real Preview
 - [ ] No keyboard shortcut to toggle it — only the header button. The shortcut

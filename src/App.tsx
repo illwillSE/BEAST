@@ -455,16 +455,6 @@ export default function App() {
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
           <div className="flex-1 flex min-h-0">
-            <ToolRail
-              active={tool}
-              onPick={selectTool}
-              filled={filled}
-              onFilled={setToolVariant}
-              mirrorV={mirrorV}
-              mirrorH={mirrorH}
-              onMirrorV={() => setMirrorV((v) => !v)}
-              onMirrorH={() => setMirrorH((v) => !v)}
-            />
             {spriteListFold.pinned ? (
               <SpriteList
                 sprites={doc.sprites}
@@ -493,6 +483,17 @@ export default function App() {
                 )}
               </div>
             )}
+
+            <ToolRail
+              active={tool}
+              onPick={selectTool}
+              filled={filled}
+              onFilled={setToolVariant}
+              mirrorV={mirrorV}
+              mirrorH={mirrorH}
+              onMirrorV={() => setMirrorV((v) => !v)}
+              onMirrorH={() => setMirrorH((v) => !v)}
+            />
 
             <CanvasStage
               ref={canvasStageRef}
