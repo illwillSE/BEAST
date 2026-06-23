@@ -205,17 +205,27 @@ export default function PixelCanvas({
     }
 
     // Brush cursor outline — the stamp footprint at the hovered cell, so you
-    // can see where you're about to paint before clicking.
+    // can see where you're about to paint before clicking. When mirroring is
+    // active, also outline the mirrored anchor(s) it'll paint at — same flip
+    // as mirroredDispatch (anchor only, brush offsets stay put), so the
+    // preview matches what actually lands.
     if (hoverCell && !playing && tools[tool]?.hasBrushSize) {
-      ctx.strokeStyle = getColor('accent-bright')
+      const anchors = [hoverCell]
+      if (mirrorV) anchors.push({ x: w - 1 - hoverCell.x, y: hoverCell.y })
+      if (mirrorH) anchors.push({ x: hoverCell.x, y: h - 1 - hoverCell.y })
+      if (mirrorV && mirrorH) anchors.push({ x: w - 1 - hoverCell.x, y: h - 1 - hoverCell.y })
+      const outline = brushOutline(brushSize, brushShape)
       ctx.lineWidth = 1
       ctx.setLineDash([])
-      ctx.beginPath()
-      for (const [x0, y0, x1, y1] of brushOutline(brushSize, brushShape)) {
-        ctx.moveTo((hoverCell.x + x0) * scale, (hoverCell.y + y0) * scale)
-        ctx.lineTo((hoverCell.x + x1) * scale, (hoverCell.y + y1) * scale)
-      }
-      ctx.stroke()
+      anchors.forEach((anchor, i) => {
+        ctx.strokeStyle = getColor('accent-bright', i === 0 ? '' : '99')
+        ctx.beginPath()
+        for (const [x0, y0, x1, y1] of outline) {
+          ctx.moveTo((anchor.x + x0) * scale, (anchor.y + y0) * scale)
+          ctx.lineTo((anchor.x + x1) * scale, (anchor.y + y1) * scale)
+        }
+        ctx.stroke()
+      })
     }
 
     if (preview?.kind === 'line' || preview?.kind === 'gradient') {
