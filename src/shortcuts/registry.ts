@@ -5,15 +5,17 @@
 // `key` (see src/tools/registry.js) instead of being duplicated here.
 // Pressing a tool's key while that tool is already active cycles its
 // `variants` (if any) instead of re-selecting it — e.g. R/O toggle rect and
-// ellipse between Outline and Filled. `[`/`]` step the global brush size
-// down/up while a brush-size tool is active (pencil/eraser/line/rect/ellipse).
+// ellipse between Outline and Filled, briefly popping out ToolRail's variant
+// flyout (peekVariants) so the new selection is visible. `[`/`]` step the
+// global brush size down/up while a brush-size tool is active
+// (pencil/eraser/line/rect/ellipse).
 //
 // entry = { key, mod, shift, run(ctx) }
 //   key    e.key.toLowerCase(), e.g. 'z', 'escape'
 //   mod    require Cmd/Ctrl (default false)
 //   shift  require Shift (default false)
 //   run    ctx => void; ctx = {
-//     dispatch, setTool, setTemporaryTool, tool, filled, setVariant,
+//     dispatch, setTool, setTemporaryTool, tool, filled, setVariant, peekVariants,
 //     brushSize, setBrushSize, copySelection,
 //     cutSelection, pasteClipboard, commitFloating, setSelection,
 //     commitCrop, cancelCrop, cancelContinuousLine, swapColors, stepFrame,
@@ -34,6 +36,7 @@ export interface ShortcutContext {
   tool: string
   filled: Record<string, boolean>
   setVariant: (id: string, value: boolean) => void
+  peekVariants: (id: string) => void
   brushSize: number
   setBrushSize: (value: number) => void
   copySelection: () => void
@@ -64,6 +67,7 @@ const toolShortcuts: Shortcut[] = Object.entries(tools)
       const values = tool.variants.map(([, v]) => v)
       const next = values[(values.indexOf(ctx.filled[id] ?? values[0]) + 1) % values.length]
       ctx.setVariant(id, next)
+      ctx.peekVariants(id)
     },
   }))
 

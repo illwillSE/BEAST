@@ -222,16 +222,31 @@ interface ToolRailProps {
   onPick: (id: string) => void
   filled: Record<string, boolean>
   onFilled: (id: string, value: boolean) => void
+  peek: { id: string; token: number } | null
   mirrorV: boolean
   mirrorH: boolean
   onMirrorV: () => void
   onMirrorH: () => void
 }
 
-export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mirrorH, onMirrorV, onMirrorH }: ToolRailProps): ReactNode {
+const PEEK_DURATION_MS = 1500
+
+export default function ToolRail({ active, onPick, filled, onFilled, peek, mirrorV, mirrorH, onMirrorV, onMirrorH }: ToolRailProps): ReactNode {
   // Which tool's flyout (if any) is popped out. Picking an item from a flyout
   // collapses it; clicking the rail icon again pops it back out.
   const [openGroup, setOpenGroup] = useState<string | null>(null)
+
+  // Cycling a tool's variants via its keyboard shortcut (no click involved)
+  // pops its flyout open too, so the newly-selected option is visible — then
+  // auto-closes after a pause. Keyed off `peek.token` rather than just
+  // `peek.id` so repeat presses of the same tool's key keep restarting the
+  // timer instead of being a no-op render.
+  useEffect(() => {
+    if (!peek) return
+    setOpenGroup(peek.id)
+    const t = window.setTimeout(() => setOpenGroup((g) => (g === peek.id ? null : g)), PEEK_DURATION_MS)
+    return () => window.clearTimeout(t)
+  }, [peek])
   const toggleGroup = (id: string) => setOpenGroup((g) => (g === id ? null : id))
 
   // A shortcut key can switch the active tool out from under an open

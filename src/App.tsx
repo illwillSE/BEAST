@@ -58,6 +58,11 @@ export default function App() {
   const [mirrorH, setMirrorH] = useState(false)
   const [filled, setFilled] = useState<Record<string, boolean>>({ rect: false, ellipse: false })
   const setToolVariant = (id: string, v: boolean) => setFilled((f) => ({ ...f, [id]: v }))
+  // Bumped on every keyboard-driven variant cycle so ToolRail can pop its
+  // flyout open to show the new selection, even when cycling the same tool
+  // repeatedly (id alone wouldn't change render-to-render).
+  const [variantPeek, setVariantPeek] = useState<{ id: string; token: number } | null>(null)
+  const peekVariants = (id: string) => setVariantPeek({ id, token: Date.now() })
   const [brushSize, setBrushSize] = useState(1)
   const [brushShape, setBrushShape] = useState<BrushShape>('square')
   const selectTool = (id: string) => {
@@ -359,7 +364,7 @@ export default function App() {
   useEffect(() => {
     const ctx = {
       dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
-      tool, filled, setVariant: setToolVariant, brushSize, setBrushSize,
+      tool, filled, setVariant: setToolVariant, peekVariants, brushSize, setBrushSize,
       copySelection, cutSelection, pasteClipboard, commitFloating, setSelection,
       commitCrop, cancelCrop, cancelContinuousLine: () => setContinuousLine(null), swapColors, stepFrame,
     }
@@ -489,6 +494,7 @@ export default function App() {
               onPick={selectTool}
               filled={filled}
               onFilled={setToolVariant}
+              peek={variantPeek}
               mirrorV={mirrorV}
               mirrorH={mirrorH}
               onMirrorV={() => setMirrorV((v) => !v)}
