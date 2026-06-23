@@ -189,14 +189,14 @@ export default function PixelCanvas({
       ctx.lineWidth = 1
       ctx.setLineDash([4, 3])
       if (mirrorV) {
-        const x = Math.round((w / 2) * scale) + 0.5
+        const x = Math.floor((w / 2) * scale) + 0.5
         ctx.beginPath()
         ctx.moveTo(x, 0)
         ctx.lineTo(x, h * scale)
         ctx.stroke()
       }
       if (mirrorH) {
-        const y = Math.round((h / 2) * scale) + 0.5
+        const y = Math.floor((h / 2) * scale) + 0.5
         ctx.beginPath()
         ctx.moveTo(0, y)
         ctx.lineTo(w * scale, y)
