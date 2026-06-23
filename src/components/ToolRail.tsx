@@ -2,12 +2,72 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Pencil, Eraser, PaintBucket, Pipette, Minus, Square, Circle,
-  BoxSelect, Move, FlipHorizontal, FlipVertical, Blend, Crop,
+  BoxSelect, Move, FlipHorizontal, FlipVertical, Crop,
   createLucideIcon,
 } from 'lucide-react'
+import type { LucideProps } from 'lucide-react'
+import { forwardRef } from 'react'
 import { tools } from '../tools/registry.js'
 
 type Icon = typeof Pencil
+
+// Gradient variant icons: a swatch fading via opacity (not color, so it still
+// reads correctly in any theme) — linear fades corner-to-corner, radial fades
+// from a center point outward. Two overlapping circles (lucide's Blend) read
+// as "blend modes", not "gradient", hence the custom icons.
+const GradientLinear: Icon = forwardRef<SVGSVGElement, LucideProps>(
+  ({ size = 24, color = 'currentColor', strokeWidth = 2, ...rest }, ref) => (
+    <svg
+      ref={ref}
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...rest}
+    >
+      <defs>
+        <linearGradient id="beast-gradient-linear" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor={color} stopOpacity="0" />
+          <stop offset="1" stopColor={color} stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <rect x="3" y="3" width="18" height="18" rx="2" fill="url(#beast-gradient-linear)" />
+    </svg>
+  ),
+)
+
+const GradientRadial: Icon = forwardRef<SVGSVGElement, LucideProps>(
+  ({ size = 24, color = 'currentColor', strokeWidth = 2, ...rest }, ref) => (
+    <svg
+      ref={ref}
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...rest}
+    >
+      <defs>
+        <radialGradient id="beast-gradient-radial" cx="0.35" cy="0.35" r="0.75">
+          <stop offset="0" stopColor={color} stopOpacity="1" />
+          <stop offset="1" stopColor={color} stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <rect x="3" y="3" width="18" height="18" rx="2" fill="url(#beast-gradient-radial)" />
+    </svg>
+  ),
+)
+
+const GRADIENT_VARIANT_ICONS: Record<string, Icon> = { false: GradientLinear, true: GradientRadial }
 
 // Continuous-line variant icon: a 3-segment polyline standing in for "click
 // to chain segments" — left leg tilts slightly (top right of its bottom end),
@@ -17,6 +77,12 @@ const ContinuousLine: Icon = createLucideIcon('ContinuousLine', [
 ])
 
 const LINE_VARIANT_ICONS: Record<string, Icon> = { false: Minus, true: ContinuousLine }
+
+// Tools whose variants get their own icon (vs. plain text in the flyout).
+const VARIANT_ICONS: Record<string, Record<string, Icon>> = {
+  line: LINE_VARIANT_ICONS,
+  gradient: GRADIENT_VARIANT_ICONS,
+}
 
 // Both mirror axes on: FlipHorizontal's and FlipVertical's paths superimposed
 // (brackets on all four sides, dashed cross through the center) rather than
@@ -51,7 +117,7 @@ const TOOLS: (ToolEntry | null)[] = [
   { id: 'pencil', label: 'Pencil', Icon: Pencil },
   { id: 'eraser', label: 'Eraser', Icon: Eraser },
   { id: 'fill', label: 'Fill', Icon: PaintBucket },
-  { id: 'gradient', label: 'Gradient', Icon: Blend },
+  { id: 'gradient', label: 'Gradient', Icon: GradientLinear },
   { id: 'eyedropper', label: 'Eyedropper', Icon: Pipette },
   null, // divider
   { id: 'line', label: 'Line', Icon: Minus },
@@ -211,10 +277,11 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
         const variants = tools[t.id].variants
         if (variants) {
           const key = tools[t.id].key
+          const variantIcons = VARIANT_ICONS[t.id]
           const items: FlyoutItem[] = variants.map(([label, val]) => ({
             id: `v:${val}`,
             label,
-            Icon: t.id === 'line' ? LINE_VARIANT_ICONS[String(val)] : undefined,
+            Icon: variantIcons?.[String(val)],
             active: (filled[t.id] ?? false) === val,
             onClick: () => { onFilled(t.id, val); setOpenGroup(null) },
           }))
@@ -222,9 +289,9 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
             <div key={t.id} className="relative">
               <RailButton
                 title={key ? `${t.label} (${key.toUpperCase()})` : t.label}
-                Icon={t.id === 'line' ? LINE_VARIANT_ICONS[String(filled[t.id] ?? false)] : t.Icon}
+                Icon={variantIcons?.[String(filled[t.id] ?? false)] ?? t.Icon}
                 active={active === t.id}
-                filled={t.id === 'line' ? false : filled[t.id] ?? false}
+                filled={variantIcons ? false : filled[t.id] ?? false}
                 onClick={() => { onPick(t.id); toggleGroup(t.id) }}
               />
               {openGroup === t.id && <Flyout items={items} />}
