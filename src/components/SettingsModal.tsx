@@ -7,7 +7,6 @@ interface SettingsModalProps {
   onClose: () => void
   onionSkin: boolean
   onToggleOnionSkin: () => void
-  onNewProject: () => void
 }
 
 type TabId = 'onion-skin' | 'system'
@@ -24,9 +23,9 @@ const CONFIRM_WORD = 'yes'
 // Settings modal opened from the Header cogwheel. Tabbed shell so future
 // settings can be added as sibling panes; onion skin (moved out of
 // FramesTimeline) is the first tab.
-export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionSkin, onNewProject }: SettingsModalProps) {
+export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionSkin }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('onion-skin')
-  const [pendingAction, setPendingAction] = useState<'clear-data' | 'new-project' | null>(null)
+  const [confirmingClearData, setConfirmingClearData] = useState(false)
   const [confirmText, setConfirmText] = useState('')
 
   if (!open) return null
@@ -87,22 +86,11 @@ export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionS
           {activeTab === 'system' && (
             <div>
               <p className="text-[11px] text-faint mb-3">
-                Discards the current project from the editor and starts a blank one.
-                Anything not saved or exported will be lost.
-              </p>
-              <button
-                onClick={() => { setConfirmText(''); setPendingAction('new-project') }}
-                className="px-2.5 py-1.5 rounded text-sm bg-surface hover:bg-surface-hover text-ink-soft border border-edge mb-4"
-              >
-                New project
-              </button>
-
-              <p className="text-[11px] text-faint mb-3">
                 Erases every BEAST project and setting saved in this browser
                 (autosave, palettes, preview panel). This can't be undone.
               </p>
               <button
-                onClick={() => { setConfirmText(''); setPendingAction('clear-data') }}
+                onClick={() => { setConfirmText(''); setConfirmingClearData(true) }}
                 className="px-2.5 py-1.5 rounded text-sm bg-danger-deep/15 hover:bg-danger-deep/25 text-danger-bright border border-danger-deep/40"
               >
                 Clear all local data
@@ -112,29 +100,24 @@ export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionS
         </div>
       </div>
 
-      {pendingAction && (
+      {confirmingClearData && (
         <div
           className="fixed inset-0 bg-black/50 grid place-items-center z-50"
-          onMouseDown={() => setPendingAction(null)}
+          onMouseDown={() => setConfirmingClearData(false)}
         >
           <form
             onMouseDown={(e) => e.stopPropagation()}
             onSubmit={(e) => {
               e.preventDefault()
               if (confirmText.trim().toLowerCase() !== CONFIRM_WORD) return
-              if (pendingAction === 'clear-data') clearData()
-              else { onNewProject(); setPendingAction(null) }
+              clearData()
             }}
             className="bg-panel border border-divider rounded-lg p-4 w-72 shadow-xl"
           >
-            <h2 className="text-sm font-semibold text-ink mb-3">
-              {pendingAction === 'clear-data' ? 'Clear all local data?' : 'Start a new project?'}
-            </h2>
+            <h2 className="text-sm font-semibold text-ink mb-3">Clear all local data?</h2>
             <p className="text-[11px] text-faint mb-3">
-              Type <span className="text-ink-soft font-medium">yes</span> to{' '}
-              {pendingAction === 'clear-data'
-                ? 'permanently delete all BEAST data saved in this browser.'
-                : 'discard the current project and start a blank one.'}
+              Type <span className="text-ink-soft font-medium">yes</span> to permanently delete all
+              BEAST data saved in this browser.
             </p>
             <input
               autoFocus
@@ -146,7 +129,7 @@ export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionS
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setPendingAction(null)}
+                onClick={() => setConfirmingClearData(false)}
                 className="px-2.5 py-1.5 rounded text-sm bg-surface hover:bg-surface-hover text-ink-soft"
               >
                 Cancel
@@ -156,7 +139,7 @@ export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionS
                 disabled={confirmText.trim().toLowerCase() !== CONFIRM_WORD}
                 className="px-2.5 py-1.5 rounded text-sm bg-danger-deep/15 hover:bg-danger-deep/25 text-danger-bright border border-danger-deep/40 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {pendingAction === 'clear-data' ? 'Delete everything' : 'Start new project'}
+                Delete everything
               </button>
             </div>
           </form>

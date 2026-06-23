@@ -1,10 +1,11 @@
 import { useRef } from 'react'
 import type { ReactNode } from 'react'
-import { Undo2, Redo2, FolderOpen, Save, ImageUp, Download, Settings, ScanEye } from 'lucide-react'
+import { Undo2, Redo2, FolderOpen, Save, ImageUp, Download, Settings, ScanEye, FilePlus } from 'lucide-react'
 
 interface HeaderProps {
   projectName: string
   onRenameProject: (name: string) => void
+  onNewProject: () => void
   onSave: () => void
   onOpen: (file: File) => void
   onImportPng: (file: File) => void
@@ -17,7 +18,7 @@ interface HeaderProps {
 // Top chrome: brand, project name, undo/redo, open/save/import/export. Save,
 // Open, Import PNG, Export PNG, and Settings are wired; undo/redo are still
 // placeholders.
-export default function Header({ projectName, onRenameProject, onSave, onOpen, onImportPng, onExportPng, previewOpen, onTogglePreview, onOpenSettings }: HeaderProps) {
+export default function Header({ projectName, onRenameProject, onNewProject, onSave, onOpen, onImportPng, onExportPng, previewOpen, onTogglePreview, onOpenSettings }: HeaderProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const pngFileRef = useRef<HTMLInputElement>(null)
 
@@ -54,6 +55,7 @@ export default function Header({ projectName, onRenameProject, onSave, onOpen, o
         spellCheck={false}
         className="min-w-0 max-w-40 rounded border border-transparent bg-transparent px-2 py-1 text-sm text-ink-soft outline-none transition-colors hover:border-edge focus:border-accent-deep/50 focus:bg-well"
       />
+      <IconBtn title="New project" onClick={onNewProject}><FilePlus size={16} /></IconBtn>
 
       <div className="flex items-center gap-1 ml-2">
         <IconBtn title="Undo"><Undo2 size={16} /></IconBtn>

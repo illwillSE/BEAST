@@ -102,6 +102,9 @@ export default function App() {
 
   const [state, dispatch] = useReducer(historyReducer, undefined, () => initHistory(createDocument()))
   const doc = state.present
+  // Tracks the doc reference as of the last save/export/load, so New Project
+  // can skip its confirm prompt when there's nothing unsaved to lose.
+  const savedDocRef = useRef(doc)
   const palette = doc.palette
   const addSwatch = (hex: string) => dispatch({ type: 'ADD_SWATCH', hex })
   const removeSwatch = (index: number) => dispatch({ type: 'REMOVE_SWATCH', index })
@@ -395,6 +398,7 @@ export default function App() {
   const handleSave = async () => {
     const filename = (doc.name.trim() || 'beast-project').replace(/[\\/:*?"<>|]+/g, '_')
     downloadBlob(await projectToZipBlob(doc), `${filename}.zip`)
+    savedDocRef.current = doc
   }
 
   const handleExportPng = async () => {
@@ -409,6 +413,7 @@ export default function App() {
     if (!blob) return
     const filename = (activeSprite.name.trim() || 'sprite').replace(/[\\/:*?"<>|]+/g, '_')
     downloadBlob(blob, `${filename}.png`)
+    savedDocRef.current = doc
   }
 
   const handleOpen = async (file: File) => {
@@ -416,6 +421,7 @@ export default function App() {
       const loaded = await projectFromZipFile(file)
       dispatch({ type: 'REPLACE', doc: loaded })
       resetSelection(loaded)
+      savedDocRef.current = loaded
     } catch (err) {
       console.warn('BEAST project load failed', err)
       window.alert('Could not open that file — it is not a valid BEAST project.')
@@ -427,6 +433,16 @@ export default function App() {
       <Header
         projectName={doc.name}
         onRenameProject={(name) => dispatch({ type: 'RENAME_PROJECT', name })}
+        onNewProject={() => {
+          const dirty = doc !== savedDocRef.current
+          if (dirty && !window.confirm('Discard the current project and start a blank one? Unsaved changes will be lost.')) return
+          const blank = createBlankDocument()
+          dispatch({ type: 'REPLACE', doc: blank })
+          resetSelection(blank)
+          setGradientOpen(false)
+          pendingFitRef.current = true
+          savedDocRef.current = blank
+        }}
         onSave={handleSave}
         onOpen={handleOpen}
         onImportPng={importSpritePng}
@@ -649,14 +665,6 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         onionSkin={onionSkin}
         onToggleOnionSkin={() => setOnionSkin((o) => !o)}
-        onNewProject={() => {
-          const blank = createBlankDocument()
-          dispatch({ type: 'REPLACE', doc: blank })
-          resetSelection(blank)
-          setGradientOpen(false)
-          pendingFitRef.current = true
-          setSettingsOpen(false)
-        }}
       />
     </div>
   )
