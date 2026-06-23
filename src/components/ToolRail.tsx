@@ -3,10 +3,20 @@ import type { ReactNode } from 'react'
 import {
   Pencil, Eraser, PaintBucket, Pipette, Minus, Square, Circle,
   BoxSelect, Move, FlipHorizontal, FlipVertical, Blend, Crop,
+  createLucideIcon,
 } from 'lucide-react'
 import { tools } from '../tools/registry.js'
 
 type Icon = typeof Pencil
+
+// Continuous-line variant icon: a 3-segment polyline standing in for "click
+// to chain segments" — left leg tilts slightly (top right of its bottom end),
+// the base tilts slightly downward left-to-right, the right leg stays vertical.
+const ContinuousLine: Icon = createLucideIcon('ContinuousLine', [
+  ['path', { d: 'M7 4 L5 17 L17 20 L17 6', key: 'continuous-line' }],
+])
+
+const LINE_VARIANT_ICONS: Record<string, Icon> = { false: Minus, true: ContinuousLine }
 
 interface ToolEntry {
   id: string
@@ -186,6 +196,7 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
           const items: FlyoutItem[] = variants.map(([label, val]) => ({
             id: `v:${val}`,
             label,
+            Icon: t.id === 'line' ? LINE_VARIANT_ICONS[String(val)] : undefined,
             active: (filled[t.id] ?? false) === val,
             onClick: () => { onFilled(t.id, val); setOpenGroup(null) },
           }))
@@ -193,9 +204,9 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
             <div key={t.id} className="relative">
               <RailButton
                 title={key ? `${t.label} (${key.toUpperCase()})` : t.label}
-                Icon={t.Icon}
+                Icon={t.id === 'line' ? LINE_VARIANT_ICONS[String(filled[t.id] ?? false)] : t.Icon}
                 active={active === t.id}
-                filled={filled[t.id] ?? false}
+                filled={t.id === 'line' ? false : filled[t.id] ?? false}
                 onClick={() => { onPick(t.id); toggleGroup(t.id) }}
               />
               {openGroup === t.id && <Flyout items={items} />}

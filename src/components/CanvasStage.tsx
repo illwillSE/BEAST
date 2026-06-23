@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 import PixelCanvas from './PixelCanvas.jsx'
 import PreviewWindow from './PreviewWindow.jsx'
@@ -7,7 +7,7 @@ import { tools } from '../tools/registry.js'
 import BrushSizeButton from './BrushSizeButton.jsx'
 import type { Sprite, CellTarget, BrushShape } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
-import type { Rect, Floating, CropPending } from '../tools/registry.js'
+import type { Rect, Floating, CropPending, Coord } from '../tools/registry.js'
 
 interface CanvasStageProps {
   tool: string
@@ -24,6 +24,8 @@ interface CanvasStageProps {
   commitFloating: () => void
   cropPending: CropPending | null
   setCropPending: React.Dispatch<React.SetStateAction<CropPending | null>>
+  continuousLine: Coord | null
+  setContinuousLine: React.Dispatch<React.SetStateAction<Coord | null>>
   filled: boolean
   brushSize: number
   brushShape: BrushShape
@@ -38,16 +40,20 @@ interface CanvasStageProps {
   onionSkin: boolean
 }
 
+export interface CanvasStageHandle {
+  fitToFrame: () => void
+}
+
 // Center stage hosting the working pixel canvas. Document size comes from the
 // active sprite; zoom is local. The pencil draws (see PixelCanvas) and the
 // checkerboard shows through transparent pixels.
-export default function CanvasStage({
+const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function CanvasStage({
   tool, fgColor, bgColor, onFgColor, sprite, target, dispatch,
   selection, setSelection, floating, setFloating, commitFloating,
-  cropPending, setCropPending, filled, brushSize, brushShape, onBrushSize, onBrushShape,
+  cropPending, setCropPending, continuousLine, setContinuousLine, filled, brushSize, brushShape, onBrushSize, onBrushShape,
   mirrorV, mirrorH, onTemporaryToolComplete, previewOpen, onClosePreview,
   playing, onionSkin,
-}: CanvasStageProps) {
+}, ref) {
   const [scale, setScale] = useState(16)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const [resizeOpen, setResizeOpen] = useState(false)
@@ -68,6 +74,8 @@ export default function CanvasStage({
     const next = Math.floor(Math.min(availW / sprite.w, availH / sprite.h))
     setScale(Math.max(1, Math.min(40, next)))
   }
+
+  useImperativeHandle(ref, () => ({ fitToFrame }), [fitToFrame])
 
   // Scrolls the canvas viewport so the given sprite pixel is centered —
   // used by the Real Preview window's click-to-navigate.
@@ -106,6 +114,8 @@ export default function CanvasStage({
             commitFloating={commitFloating}
             cropPending={cropPending}
             setCropPending={setCropPending}
+            continuousLine={continuousLine}
+            setContinuousLine={setContinuousLine}
             filled={filled}
             brushSize={brushSize}
             brushShape={brushShape}
@@ -164,4 +174,6 @@ export default function CanvasStage({
       />
     </div>
   )
-}
+})
+
+export default CanvasStage

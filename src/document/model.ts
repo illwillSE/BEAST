@@ -120,6 +120,17 @@ export function createDocument(): Doc {
   }
 }
 
+// Truly blank starting point for "New Project" — one empty 64x64 sprite.
+// Still seeded with one layer since a sprite with zero layers has nothing
+// for tools/selection to target.
+export function createBlankDocument(): Doc {
+  return {
+    name: 'Untitled Project',
+    sprites: [createSprite({ name: 'sprite_1', w: 64, h: 64, frameCount: 1, layerNames: ['Layer 1'] })],
+    palette: [...DEFAULT_PALETTE],
+  }
+}
+
 export function renameProject(doc: Doc, name: string): Doc {
   return { ...doc, name }
 }

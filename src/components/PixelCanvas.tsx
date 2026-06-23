@@ -6,7 +6,7 @@ import { getLastPointer } from '../hooks/lastPointer.js'
 import EyedropperMagnifier, { MAG_RADIUS } from './EyedropperMagnifier.jsx'
 import type { Sprite, CellTarget, RGBA, BrushShape } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
-import type { Rect, Floating, CropPending, Preview, ToolContext } from '../tools/registry.js'
+import type { Rect, Floating, CropPending, Coord, Preview, ToolContext } from '../tools/registry.js'
 
 // Action types whose coordinate fields get mirrored across the active
 // symmetry axes — see mirroredDispatch below.
@@ -65,6 +65,8 @@ interface PixelCanvasProps {
   commitFloating: () => void
   cropPending: CropPending | null
   setCropPending: React.Dispatch<React.SetStateAction<CropPending | null>>
+  continuousLine: Coord | null
+  setContinuousLine: React.Dispatch<React.SetStateAction<Coord | null>>
   filled: boolean
   brushSize: number
   brushShape: BrushShape
@@ -93,7 +95,7 @@ const ONION_NEXT_ALPHA = 0.25
 export default function PixelCanvas({
   sprite, frameIndex, target, dispatch, scale, fgColor, bgColor, tool, onFgColor, onHover,
   selection, setSelection, floating, setFloating, commitFloating,
-  cropPending, setCropPending, filled, brushSize, brushShape,
+  cropPending, setCropPending, continuousLine, setContinuousLine, filled, brushSize, brushShape,
   mirrorV, mirrorH, onTemporaryToolComplete, playing, onionSkin,
 }: PixelCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -351,8 +353,15 @@ export default function PixelCanvas({
     x, y, target, fgColor, bgColor, dispatch: mirroredDispatch, setFgColor: onFgColor, sampleColor,
     w, h, scale, filled, brushSize, brushShape, setPreview, shiftKey: shiftRef.current,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
-    cropPending, setCropPending,
+    cropPending, setCropPending, continuousLine, setContinuousLine,
   })
+
+  // The continuous-line anchor is cancelled (Escape, tool switch) from
+  // outside the gesture loop, so there's no onEnd to clear its preview — do
+  // it here instead.
+  useEffect(() => {
+    if (!continuousLine) setPreview(null)
+  }, [continuousLine])
 
   const handleDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!activeTool || playing) return
@@ -380,7 +389,10 @@ export default function PixelCanvas({
     } else if (magnifier) {
       setMagnifier(null)
     }
-    if (!draggingRef.current) return
+    if (!draggingRef.current) {
+      if (inBounds(x, y)) activeTool?.onMove?.(ctxFor(x, y))
+      return
+    }
     activeTool!.onDrag?.(ctxFor(x, y), lastRef.current!, dragStateRef.current)
     lastRef.current = { x, y }
   }

@@ -10,6 +10,9 @@
 //   onDrag(ctx, prev, drag)  pointer move during a drag; `prev` is the last
 //                            cell, `drag` is onStart's return value.
 //   onEnd(ctx, drag)         pointer up after a drag.
+//   onMove(ctx)              pointer move while *not* dragging; for tools that
+//                            need a hover preview between clicks rather than
+//                            mid-drag (e.g. the line tool's Continuous variant).
 //   cursor                   CSS cursor while the tool is active; a string or
 //                            a function of the hovered cell's ctx for tools
 //                            whose cursor depends on position (e.g. crop's
@@ -32,6 +35,7 @@
 //   x, y, target, fgColor, bgColor, dispatch, setFgColor, sampleColor, w, h,
 //   filled, brushSize, brushShape, setPreview, selection, setSelection, floating, setFloating,
 //   commitFloating, getRawCell, cropPending, setCropPending,
+//   continuousLine, setContinuousLine,
 // } where x,y are in-bounds integer cell coordinates and target =
 // { spriteId, layerId, frameIndex }. `dispatch` mirrors actions across the
 // active symmetry axes (see PixelCanvas), so tools just dispatch normally.
@@ -70,8 +74,9 @@ export type Preview =
   | { kind: 'line'; x0: number; y0: number; x1: number; y1: number }
   | { kind: 'gradient'; points: Point[]; colors: RGBA[]; x0: number; y0: number; x1: number; y1: number }
 
-// An [x, y] cell coordinate as the gesture loop threads it (the previous cell).
-interface Coord {
+// An [x, y] cell coordinate as the gesture loop threads it (the previous
+// cell), also reused as the pending anchor point for continuous line mode.
+export interface Coord {
   x: number
   y: number
 }
@@ -102,6 +107,8 @@ export interface ToolContext {
   getRawCell: () => Cell
   cropPending: CropPending | null
   setCropPending: Dispatch<SetStateAction<CropPending | null>>
+  continuousLine: Coord | null
+  setContinuousLine: Dispatch<SetStateAction<Coord | null>>
 }
 
 // One painting tool. `D` is the per-tool "drag state" onStart returns and the
@@ -116,6 +123,9 @@ export interface Tool<D = unknown> {
   onStart?(ctx: ToolContext): D | boolean | void
   onDrag?(ctx: ToolContext, prev: Coord, drag: D): void
   onEnd?(ctx: ToolContext, drag: D): void
+  // Pointer move while *not* dragging — for tools that need a hover preview
+  // between clicks rather than during a drag (continuous line mode).
+  onMove?(ctx: ToolContext): void
 }
 
 // Pencil/eraser share a continuous-line stroke; one undo step per drag.
@@ -270,12 +280,32 @@ export const tools: Record<string, Tool<any>> = {
     },
   },
 
+  // Continuous variant: each click commits a segment and starts the next one
+  // from where it ended, instead of dragging a single line. Ended by Escape
+  // or switching away from the tool/variant (see App's continuousLine effects).
   line: {
     key: 'l',
     hasBrushSize: true,
+    variants: [['Single', false], ['Continuous', true]],
     cursor: 'crosshair',
     onStart(ctx) {
-      return { x0: ctx.x, y0: ctx.y }
+      if (!ctx.filled) return { x0: ctx.x, y0: ctx.y }
+      const anchor = ctx.continuousLine
+      if (anchor) {
+        commitBracketed(ctx, {
+          type: 'PAINT_LINE', ...ctx.target,
+          x0: anchor.x, y0: anchor.y, x1: ctx.x, y1: ctx.y,
+          rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize, shape: ctx.brushShape,
+        })
+      }
+      ctx.setContinuousLine({ x: ctx.x, y: ctx.y })
+      ctx.setPreview(null)
+      return false
+    },
+    onMove(ctx) {
+      if (!ctx.filled || !ctx.continuousLine) return
+      const pts = stampPoints(linePoints(ctx.continuousLine.x, ctx.continuousLine.y, ctx.x, ctx.y), ctx.brushSize, ctx.brushShape)
+      ctx.setPreview({ kind: 'pixels', points: pts, color: ctx.fgColor })
     },
     onDrag(ctx, _prev, start) {
       const pts = stampPoints(linePoints(start.x0, start.y0, ctx.x, ctx.y), ctx.brushSize, ctx.brushShape)

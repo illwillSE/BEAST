@@ -16,7 +16,7 @@
 //     dispatch, setTool, setTemporaryTool, tool, filled, setVariant,
 //     brushSize, setBrushSize, copySelection,
 //     cutSelection, pasteClipboard, commitFloating, setSelection,
-//     commitCrop, cancelCrop, swapColors, stepFrame,
+//     commitCrop, cancelCrop, cancelContinuousLine, swapColors, stepFrame,
 //   }
 //
 // brushSize/setBrushSize are global now (one value for every brush-size tool,
@@ -43,6 +43,7 @@ export interface ShortcutContext {
   setSelection: (rect: Rect | null) => void
   commitCrop: () => void
   cancelCrop: () => void
+  cancelContinuousLine: () => void
   swapColors: () => void
   stepFrame: (delta: number) => void
 }
@@ -81,7 +82,7 @@ export const shortcuts: Shortcut[] = [
   { key: 'x', mod: true, run: (ctx) => ctx.cutSelection() },
   { key: 'v', mod: true, run: (ctx) => ctx.pasteClipboard() },
   { key: 'enter', run: (ctx) => { ctx.commitFloating(); ctx.commitCrop() } },
-  { key: 'escape', run: (ctx) => { ctx.commitFloating(); ctx.setSelection(null); ctx.cancelCrop() } },
+  { key: 'escape', run: (ctx) => { ctx.commitFloating(); ctx.setSelection(null); ctx.cancelCrop(); ctx.cancelContinuousLine() } },
   { key: 'i', shift: true, run: (ctx) => ctx.setTemporaryTool('eyedropper') },
   { key: 'x', run: (ctx) => ctx.swapColors() },
   { key: '[', run: (ctx) => stepBrushSize(ctx, -1) },

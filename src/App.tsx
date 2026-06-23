@@ -3,6 +3,7 @@ import Header from './components/Header.jsx'
 import ToolRail from './components/ToolRail.jsx'
 import SpriteList from './components/SpriteList.jsx'
 import CanvasStage from './components/CanvasStage.jsx'
+import type { CanvasStageHandle } from './components/CanvasStage.jsx'
 import LayersPanel from './components/LayersPanel.jsx'
 import ColorPanel from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
@@ -12,14 +13,14 @@ import EyedropperMagnifier from './components/EyedropperMagnifier.jsx'
 import useFoldable from './hooks/useFoldable.js'
 import usePeek from './hooks/usePeek.js'
 import { useGlobalEyedropper } from './hooks/useGlobalEyedropper.js'
-import { createDocument, copyRegion, rgbaToHex, compositeFrame } from './document/model.js'
+import { createBlankDocument, createDocument, copyRegion, rgbaToHex, compositeFrame } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
 import { projectToZipBlob, projectFromZipFile, projectPaletteFromZipFile, downloadBlob } from './persist/zip.js'
 import { matchShortcut, isTypingTarget } from './shortcuts/registry.js'
 import type { BrushShape, Cell, Doc, Sprite } from './document/model.js'
-import type { Rect, Floating, CropPending } from './tools/registry.js'
+import type { Rect, Floating, CropPending, Coord } from './tools/registry.js'
 
 interface Clipboard {
   w: number
@@ -49,6 +50,10 @@ export default function App() {
   // Pending crop window from the Crop tool — { x, y, w, h, target } — stays
   // editable (movable) until committed/cancelled (see commitCrop/cancelCrop).
   const [cropPending, setCropPending] = useState<CropPending | null>(null)
+  // Pending anchor for the Line tool's Continuous variant — each click
+  // commits a segment and starts the next from there, until Escape or
+  // switching away from the tool/variant (see the effects below).
+  const [continuousLine, setContinuousLine] = useState<Coord | null>(null)
   const [mirrorV, setMirrorV] = useState(false)
   const [mirrorH, setMirrorH] = useState(false)
   const [filled, setFilled] = useState<Record<string, boolean>>({ rect: false, ellipse: false })
@@ -181,6 +186,19 @@ export default function App() {
   const [fps, setFps] = useState(12)
   const [onionSkin, setOnionSkin] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [gradientOpen, setGradientOpen] = useState(true)
+  const canvasStageRef = useRef<CanvasStageHandle>(null)
+  const pendingFitRef = useRef(false)
+
+  // Fit-to-frame needs the freshly replaced sprite's size, which CanvasStage
+  // only has after it re-renders with the new `doc` — so defer the call to
+  // an effect keyed off the document instead of running it inline.
+  useEffect(() => {
+    if (pendingFitRef.current) {
+      canvasStageRef.current?.fitToFrame()
+      pendingFitRef.current = false
+    }
+  }, [doc])
 
   const activeSprite = doc.sprites.find((s) => s.id === spriteId) ?? doc.sprites[0]
   const safeLayerId = activeSprite.layers.some((l) => l.id === layerId) ? layerId : topLayer(activeSprite).id
@@ -264,7 +282,8 @@ export default function App() {
   useEffect(() => {
     if (tool !== 'move') commitFloating()
     if (tool !== 'crop') commitCrop()
-  }, [tool])
+    if (tool !== 'line' || !filled.line) setContinuousLine(null)
+  }, [tool, filled.line])
 
   // Switching the paint target mid-crop would apply the crop to the wrong
   // sprite, so discard rather than commit.
@@ -272,6 +291,7 @@ export default function App() {
     commitFloating()
     setSelection(null)
     cancelCrop()
+    setContinuousLine(null)
   }, [activeSprite.id, safeLayerId, safeFrame, activeSprite.w, activeSprite.h])
 
   // Follow a layer add/duplicate with selection. Guarded by spriteId so
@@ -330,14 +350,15 @@ export default function App() {
   // Routes keydown through the shortcut registry: Cmd/Ctrl+Z undo,
   // Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo, Cmd/Ctrl+C/X/V for the selection
   // clipboard, Escape to commit a floating move/paste (and cancel a pending
-  // crop) and deselect, Enter to commit a pending crop, Left/Right to step
-  // frames, and a letter per tool (see each tool's `key` in tools/registry.js).
+  // crop or continuous line) and deselect, Enter to commit a pending crop,
+  // Left/Right to step frames, and a letter per tool (see each tool's `key`
+  // in tools/registry.js).
   useEffect(() => {
     const ctx = {
       dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
       tool, filled, setVariant: setToolVariant, brushSize, setBrushSize,
       copySelection, cutSelection, pasteClipboard, commitFloating, setSelection,
-      commitCrop, cancelCrop, swapColors, stepFrame,
+      commitCrop, cancelCrop, cancelContinuousLine: () => setContinuousLine(null), swapColors, stepFrame,
     }
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return
@@ -458,6 +479,7 @@ export default function App() {
             )}
 
             <CanvasStage
+              ref={canvasStageRef}
               tool={tool}
               fgColor={fgColor}
               bgColor={bgColor}
@@ -472,6 +494,8 @@ export default function App() {
               commitFloating={commitFloating}
               cropPending={cropPending}
               setCropPending={setCropPending}
+              continuousLine={continuousLine}
+              setContinuousLine={setContinuousLine}
               filled={filled[tool] ?? false}
               brushSize={brushSize}
               brushShape={brushShape}
@@ -584,6 +608,8 @@ export default function App() {
               pinned
               onTogglePin={toggleSidebarPin}
               onPeekSelect={undefined}
+              gradientOpen={gradientOpen}
+              onToggleGradient={() => setGradientOpen((v) => !v)}
             />
           ) : (
             <div ref={colorPeek.ref} className="relative shrink-0">
@@ -606,6 +632,8 @@ export default function App() {
                     pinned={false}
                     onTogglePin={toggleSidebarPin}
                     onPeekSelect={colorPeek.close}
+                    gradientOpen={gradientOpen}
+                    onToggleGradient={() => setGradientOpen((v) => !v)}
                   />
                 </div>
               )}
@@ -621,6 +649,14 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         onionSkin={onionSkin}
         onToggleOnionSkin={() => setOnionSkin((o) => !o)}
+        onNewProject={() => {
+          const blank = createBlankDocument()
+          dispatch({ type: 'REPLACE', doc: blank })
+          resetSelection(blank)
+          setGradientOpen(false)
+          pendingFitRef.current = true
+          setSettingsOpen(false)
+        }}
       />
     </div>
   )

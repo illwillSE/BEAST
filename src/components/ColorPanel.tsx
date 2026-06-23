@@ -80,6 +80,8 @@ interface ColorPanelProps {
   pinned: boolean
   onTogglePin: () => void
   onPeekSelect?: () => void
+  gradientOpen: boolean
+  onToggleGradient: () => void
 }
 
 // The picker/palette below always edits one "active" slot — fg or bg,
@@ -89,6 +91,7 @@ interface ColorPanelProps {
 export default function ColorPanel({
   fgColor, bgColor, onFgColor, onBgColor, onSwap, palette, onAddSwatch, onRemoveSwatch, onEditSwatch,
   onReorderSwatch, onImportImage, onImportProjectPalette, pinned, onTogglePin, onPeekSelect,
+  gradientOpen, onToggleGradient,
 }: ColorPanelProps) {
   const [activeSlot, setActiveSlot] = useState<'fg' | 'bg'>('fg')
   const color = activeSlot === 'fg' ? fgColor : bgColor
@@ -170,8 +173,6 @@ export default function ColorPanel({
     emit({ h, s, v, a: hsva.a })
   }
 
-  const [gradientOpen, setGradientOpen] = useState(true)
-
   // Hex field: free typing, committed on blur/Enter; invalid text reverts.
   const currentHex = hsvaToHex(hsva)
   const [hexInput, setHexInput] = useState(currentHex)
@@ -218,7 +219,7 @@ export default function ColorPanel({
 
       <div className="p-3 flex flex-col gap-3">
         <button
-          onClick={() => setGradientOpen((v) => !v)}
+          onClick={onToggleGradient}
           className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-faint hover:text-ink-soft"
         >
           {gradientOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
