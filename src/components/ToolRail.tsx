@@ -18,6 +18,24 @@ const ContinuousLine: Icon = createLucideIcon('ContinuousLine', [
 
 const LINE_VARIANT_ICONS: Record<string, Icon> = { false: Minus, true: ContinuousLine }
 
+// Both mirror axes on: FlipHorizontal's and FlipVertical's paths superimposed
+// (brackets on all four sides, dashed cross through the center) rather than
+// an unrelated glyph like a plain plus sign.
+const FlipBoth: Icon = createLucideIcon('FlipBoth', [
+  ['path', { d: 'M8 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h3', key: 'fb1' }],
+  ['path', { d: 'M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3', key: 'fb2' }],
+  ['path', { d: 'M12 20v2', key: 'fb3' }],
+  ['path', { d: 'M12 14v2', key: 'fb4' }],
+  ['path', { d: 'M12 8v2', key: 'fb5' }],
+  ['path', { d: 'M12 2v2', key: 'fb6' }],
+  ['path', { d: 'M21 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v3', key: 'fb7' }],
+  ['path', { d: 'M21 16v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3', key: 'fb8' }],
+  ['path', { d: 'M4 12H2', key: 'fb9' }],
+  ['path', { d: 'M10 12H8', key: 'fb10' }],
+  ['path', { d: 'M16 12h-2', key: 'fb11' }],
+  ['path', { d: 'M22 12h-2', key: 'fb12' }],
+])
+
 interface ToolEntry {
   id: string
   label: string
@@ -231,7 +249,7 @@ export default function ToolRail({ active, onPick, filled, onFilled, mirrorV, mi
       <div className="relative">
         <RailButton
           title="Mirror"
-          Icon={FlipHorizontal}
+          Icon={mirrorV && mirrorH ? FlipBoth : mirrorH ? FlipVertical : FlipHorizontal}
           active={mirrorV || mirrorH}
           activeClass="bg-on/20 border-on text-on-bright"
           onClick={() => toggleGroup('mirror')}
