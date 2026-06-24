@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Undo2, Redo2, FolderOpen, Save, ImageUp, Download, Settings, ScanEye, FilePlus } from 'lucide-react'
 
@@ -10,17 +10,30 @@ interface HeaderProps {
   onOpen: (file: File) => void
   onImportPng: (file: File) => void
   onExportPng: () => void
+  onExportFramesZip: () => void
+  onExportSpriteSheet: () => void
   previewOpen: boolean
   onTogglePreview: () => void
   onOpenSettings: () => void
 }
 
 // Top chrome: brand, project name, undo/redo, open/save/import/export. Save,
-// Open, Import PNG, Export PNG, and Settings are wired; undo/redo are still
-// placeholders.
-export default function Header({ projectName, onRenameProject, onNewProject, onSave, onOpen, onImportPng, onExportPng, previewOpen, onTogglePreview, onOpenSettings }: HeaderProps) {
+// Open, Import PNG, Export (PNG / frames ZIP / sprite sheet), and Settings are
+// wired; undo/redo are still placeholders.
+export default function Header({ projectName, onRenameProject, onNewProject, onSave, onOpen, onImportPng, onExportPng, onExportFramesZip, onExportSpriteSheet, previewOpen, onTogglePreview, onOpenSettings }: HeaderProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const pngFileRef = useRef<HTMLInputElement>(null)
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!exportOpen) return
+    const onMouseDown = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [exportOpen])
 
   const pickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -88,13 +101,37 @@ export default function Header({ projectName, onRenameProject, onNewProject, onS
       >
         <ImageUp size={15} /> Import
       </button>
-      <button
-        onClick={onExportPng}
-        title="Export the current frame as PNG"
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm bg-accent-deep/15 hover:bg-accent-deep/25 text-accent-bright border border-accent-deep/40"
-      >
-        <Download size={15} /> Export
-      </button>
+      <div ref={exportRef} className="relative">
+        <button
+          onClick={() => setExportOpen((o) => !o)}
+          title="Export"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm bg-accent-deep/15 hover:bg-accent-deep/25 text-accent-bright border border-accent-deep/40"
+        >
+          <Download size={15} /> Export
+        </button>
+        {exportOpen && (
+          <div className="absolute top-full right-0 mt-1 z-20 w-56 p-1 bg-panel border border-divider rounded shadow-lg flex flex-col">
+            <button
+              onClick={() => { setExportOpen(false); onExportPng() }}
+              className="text-left px-2.5 py-1.5 rounded text-sm text-ink-soft hover:bg-surface-hover"
+            >
+              PNG (current frame)
+            </button>
+            <button
+              onClick={() => { setExportOpen(false); onExportFramesZip() }}
+              className="text-left px-2.5 py-1.5 rounded text-sm text-ink-soft hover:bg-surface-hover"
+            >
+              Frames as ZIP
+            </button>
+            <button
+              onClick={() => { setExportOpen(false); onExportSpriteSheet() }}
+              className="text-left px-2.5 py-1.5 rounded text-sm text-ink-soft hover:bg-surface-hover"
+            >
+              Sprite Sheet (all frames)
+            </button>
+          </div>
+        )}
+      </div>
       <IconBtn title="Settings" onClick={onOpenSettings}><Settings size={16} /></IconBtn>
     </header>
   )

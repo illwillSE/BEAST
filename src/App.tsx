@@ -21,6 +21,8 @@ import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
 import { projectToZipBlob, projectFromZipFile, projectPaletteFromZipFile, downloadBlob } from './persist/zip.js'
+import { exportSpriteFramesAsZip } from './export/framesZip.js'
+import { exportSpriteAsSheet } from './export/spritesheet.js'
 import { matchShortcut, isTypingTarget, isInsideDialog } from './shortcuts/registry.js'
 import type { ShortcutContext } from './shortcuts/registry.js'
 import type { CommandContext } from './commands/registry.js'
@@ -513,6 +515,18 @@ export default function App() {
     savedDocRef.current = doc
   }
 
+  const handleExportFramesZip = async () => {
+    const filename = (activeSprite.name.trim() || 'sprite').replace(/[\\/:*?"<>|]+/g, '_')
+    downloadBlob(await exportSpriteFramesAsZip(activeSprite), `${filename}-frames.zip`)
+    savedDocRef.current = doc
+  }
+
+  const handleExportSpriteSheet = async () => {
+    const filename = (activeSprite.name.trim() || 'sprite').replace(/[\\/:*?"<>|]+/g, '_')
+    downloadBlob(await exportSpriteAsSheet(activeSprite), `${filename}-sheet.png`)
+    savedDocRef.current = doc
+  }
+
   const handleOpen = async (file: File) => {
     try {
       const loaded = await projectFromZipFile(file)
@@ -562,6 +576,8 @@ export default function App() {
     newProject: handleNewProject,
     saveProject: handleSave,
     exportPng: handleExportPng,
+  exportFramesZip: handleExportFramesZip,
+  exportSpriteSheet: handleExportSpriteSheet,
     openProject: () => { pickFile('.zip').then((f) => f && handleOpen(f)) },
     importPng: () => { pickFile('image/*').then((f) => f && importSpritePng(f)) },
     importColors: () => { pickFile('image/*').then((f) => f && importImagePalette(f)) },
@@ -589,6 +605,8 @@ export default function App() {
         onOpen={handleOpen}
         onImportPng={importSpritePng}
         onExportPng={handleExportPng}
+        onExportFramesZip={handleExportFramesZip}
+        onExportSpriteSheet={handleExportSpriteSheet}
         previewOpen={previewOpen}
         onTogglePreview={() => setPreviewOpen((o) => !o)}
         onOpenSettings={() => setSettingsOpen(true)}

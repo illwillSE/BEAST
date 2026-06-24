@@ -40,6 +40,8 @@ export interface CommandContext extends ShortcutContext {
   newProject(): void
   saveProject(): void
   exportPng(): void
+  exportFramesZip(): void
+  exportSpriteSheet(): void
   openProject(): void
   importPng(): void
   importColors(): void
@@ -226,6 +228,8 @@ export const commands: Command[] = [
   { id: 'new', title: 'New Project', category: 'File', run: (c) => c.newProject() },
   { id: 'save', title: 'Save Project (.zip)', category: 'File', keywords: 'download export', run: (c) => c.saveProject() },
   { id: 'export-png', title: 'Export Frame as PNG', category: 'File', keywords: 'download', run: (c) => c.exportPng() },
+  { id: 'export-frames-zip', title: 'Export Frames as ZIP', category: 'File', keywords: 'download animation', run: (c) => c.exportFramesZip() },
+  { id: 'export-sprite-sheet', title: 'Export Frames as Sprite Sheet', category: 'File', keywords: 'download animation grid', run: (c) => c.exportSpriteSheet() },
   { id: 'open', title: 'Open Project…', category: 'File', keywords: 'load import zip', run: (c) => c.openProject() },
   { id: 'import-png', title: 'Import PNG as Sprite…', category: 'File', keywords: 'load image', run: (c) => c.importPng() },
   { id: 'import-colors', title: 'Import Colors from Image…', category: 'File', keywords: 'palette swatch', run: (c) => c.importColors() },
