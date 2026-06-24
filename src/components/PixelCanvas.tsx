@@ -75,6 +75,8 @@ interface PixelCanvasProps {
   onTemporaryToolComplete?: () => void
   playing: boolean
   onionSkin: boolean
+  showGrid: boolean
+  gridSpacing: number
 }
 
 // Onion-skin ghosts are recolored to a flat tint (so direction reads at a
@@ -96,7 +98,7 @@ export default function PixelCanvas({
   sprite, frameIndex, target, dispatch, scale, fgColor, bgColor, tool, onFgColor, onHover,
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, continuousLine, setContinuousLine, filled, brushSize, brushShape,
-  mirrorV, mirrorH, onTemporaryToolComplete, playing, onionSkin,
+  mirrorV, mirrorH, onTemporaryToolComplete, playing, onionSkin, showGrid, gridSpacing,
 }: PixelCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const onionRef = useRef<HTMLCanvasElement>(null)
@@ -176,13 +178,23 @@ export default function PixelCanvas({
     }
   }, [floating, preview, w, h])
 
-  // Re-draw the selection marquee, mirror axis guides, and brush cursor
-  // outline — all thin lines at CSS-pixel resolution (not the pixel-art
-  // grid), so they stay 1px at any zoom level. The marquee also doubles as
-  // the pending crop window's outline (live while it's moved).
+  // Re-draw the optional pixel-alignment grid, mirror axis guides, and brush
+  // cursor outline — all thin lines at CSS-pixel resolution (not the
+  // pixel-art grid), so they stay 1px at any zoom level. The marquee also
+  // doubles as the pending crop window's outline (live while it's moved).
   useEffect(() => {
     const ctx = marqueeRef.current!.getContext('2d')!
     ctx.clearRect(0, 0, w * scale, h * scale)
+
+    if (showGrid) {
+      ctx.strokeStyle = getColor('grid')
+      ctx.lineWidth = 1
+      ctx.setLineDash([])
+      ctx.beginPath()
+      for (let x = 0; x <= w; x += gridSpacing) { const px = x * scale + 0.5; ctx.moveTo(px, 0); ctx.lineTo(px, h * scale) }
+      for (let y = 0; y <= h; y += gridSpacing) { const py = y * scale + 0.5; ctx.moveTo(0, py); ctx.lineTo(w * scale, py) }
+      ctx.stroke()
+    }
 
     if (mirrorV || mirrorH) {
       ctx.strokeStyle = getColor('on', '99')
@@ -238,7 +250,7 @@ export default function PixelCanvas({
       ctx.stroke()
       return
     }
-  }, [mirrorV, mirrorH, hoverCell, playing, tool, brushSize, brushShape, preview, w, h, scale])
+  }, [mirrorV, mirrorH, hoverCell, playing, tool, brushSize, brushShape, preview, w, h, scale, showGrid, gridSpacing])
 
   // Selection marquee, on its own canvas with CSS mix-blend-mode: difference
   // so the dashed outline is always the true inverse of whatever's beneath

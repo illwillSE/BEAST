@@ -51,6 +51,8 @@ export interface CommandContext extends ShortcutContext {
   toggleOnionSkin(): void
   togglePreview(): void
   toggleGradient(): void
+  toggleGrid(): void
+  setGridSpacing(n: number): void
   openSettings(): void
 }
 
@@ -198,6 +200,19 @@ export const commands: Command[] = [
   { id: 'onion', title: 'Toggle Onion Skin', category: 'View', keywords: 'ghost frame', run: (c) => c.toggleOnionSkin() },
   { id: 'preview', title: 'Toggle Preview Panel', category: 'View', run: (c) => c.togglePreview() },
   { id: 'gradient-panel', title: 'Toggle Gradient Panel', category: 'View', run: (c) => c.toggleGradient() },
+  { id: 'grid', title: 'Toggle Grid Overlay', category: 'View', keywords: 'pixel lines align', run: (c) => c.toggleGrid() },
+  {
+    id: 'grid-spacing',
+    title: 'Grid Spacing',
+    category: 'View',
+    submenu: [1, 2, 4, 8, 16].map((n) => ({
+      id: `grid-spacing:${n}`,
+      title: `Grid Spacing: ${n}px`,
+      category: 'View',
+      run: (c: CommandContext) => c.setGridSpacing(n),
+    })),
+    run: () => {},
+  },
   { id: 'settings', title: 'Open Settings', category: 'View', run: (c) => c.openSettings() },
 
   // File

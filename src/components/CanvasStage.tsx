@@ -38,6 +38,8 @@ interface CanvasStageProps {
   onClosePreview: () => void
   playing: boolean
   onionSkin: boolean
+  showGrid: boolean
+  gridSpacing: number
 }
 
 export interface CanvasStageHandle {
@@ -52,7 +54,7 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, continuousLine, setContinuousLine, filled, brushSize, brushShape, onBrushSize, onBrushShape,
   mirrorV, mirrorH, onTemporaryToolComplete, previewOpen, onClosePreview,
-  playing, onionSkin,
+  playing, onionSkin, showGrid, gridSpacing,
 }, ref) {
   const [scale, setScale] = useState(16)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
@@ -124,6 +126,8 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
             onTemporaryToolComplete={onTemporaryToolComplete}
             playing={playing}
             onionSkin={onionSkin}
+            showGrid={showGrid}
+            gridSpacing={gridSpacing}
           />
         </div>
       </div>

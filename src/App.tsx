@@ -212,6 +212,8 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [gradientOpen, setGradientOpen] = useState(true)
+  const [showGrid, setShowGrid] = useState(false)
+  const [gridSpacing, setGridSpacingState] = useState(1)
   const canvasStageRef = useRef<CanvasStageHandle>(null)
   const pendingFitRef = useRef(false)
 
@@ -528,6 +530,8 @@ export default function App() {
     toggleOnionSkin: () => setOnionSkin((o) => !o),
     togglePreview: () => setPreviewOpen((o) => !o),
     toggleGradient: () => setGradientOpen((v) => !v),
+    toggleGrid: () => setShowGrid((v) => !v),
+    setGridSpacing: (n) => setGridSpacingState(n),
     openSettings: () => setSettingsOpen(true),
   }
 
@@ -620,6 +624,8 @@ export default function App() {
               onClosePreview={() => setPreviewOpen(false)}
               playing={playing}
               onionSkin={onionSkin}
+              showGrid={showGrid}
+              gridSpacing={gridSpacing}
             />
           </div>
 
