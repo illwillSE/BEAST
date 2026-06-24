@@ -15,27 +15,35 @@ interface CommandPaletteProps {
 // switches to a flat, ranked search across every command (groups flattened to
 // their options). ↑/↓ highlight, Enter runs / opens, ←/Esc backs out of a
 // submenu (Esc at the root closes). Commands live in commands/registry.ts.
+// On open, before anything is typed, the list shows the previous session's
+// search results (if any) instead of the root browse list, so re-running a
+// recent command is a single Enter away.
 export default function CommandPalette({ open, onClose, ctx }: CommandPaletteProps) {
   const [query, setQuery] = useState('')
   const [submenu, setSubmenu] = useState<Command | null>(null)
   const [active, setActive] = useState(0)
+  const [showingLast, setShowingLast] = useState(false)
+  const lastQueryRef = useRef('')
   const inputRef = useRef<HTMLInputElement>(null)
   const activeRef = useRef<HTMLButtonElement>(null)
 
   const searching = query.trim() !== ''
-  // Search flattens everything; otherwise show the open submenu's children, or
-  // the top-level browse list.
+  // Search flattens everything; otherwise show the last search's results (if
+  // the palette was just opened and nothing has been typed yet), the open
+  // submenu's children, or the top-level browse list.
   const items = useMemo<Command[]>(
-    () => (searching ? filterCommands(query) : submenu ? submenu.submenu ?? [] : commands),
-    [searching, query, submenu],
+    () => (searching ? filterCommands(query) : showingLast ? filterCommands(lastQueryRef.current) : submenu ? submenu.submenu ?? [] : commands),
+    [searching, query, showingLast, submenu],
   )
 
-  // Reset to a clean root browse each time the palette opens.
+  // Reset to a clean root browse each time the palette opens, showing the
+  // last search's results until the user types or clears them.
   useEffect(() => {
     if (!open) return
     setQuery('')
     setSubmenu(null)
     setActive(0)
+    setShowingLast(lastQueryRef.current.trim() !== '')
     inputRef.current?.focus()
   }, [open])
 
@@ -59,8 +67,8 @@ export default function CommandPalette({ open, onClose, ctx }: CommandPalettePro
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(items.length - 1, a + 1)) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)) }
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (items.length) setActive((a) => (a + 1) % items.length) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); if (items.length) setActive((a) => (a - 1 + items.length) % items.length) }
     else if (e.key === 'ArrowRight') { const cmd = items[active]; if (cmd?.submenu) { e.preventDefault(); openSubmenu(cmd) } }
     else if (e.key === 'ArrowLeft') { if (submenu && !searching) { e.preventDefault(); back() } }
     else if (e.key === 'Enter') { e.preventDefault(); const cmd = items[active]; if (cmd) activate(cmd) }
@@ -82,7 +90,13 @@ export default function CommandPalette({ open, onClose, ctx }: CommandPalettePro
         <input
           ref={inputRef}
           value={query}
-          onChange={(e) => { setQuery(e.target.value); setActive(0) }}
+          onChange={(e) => {
+            const v = e.target.value
+            setQuery(v)
+            setActive(0)
+            setShowingLast(false)
+            if (v.trim() !== '') lastQueryRef.current = v
+          }}
           onKeyDown={onKeyDown}
           placeholder="Type a command…"
           className="w-full bg-well text-sm text-ink-soft px-3 py-2.5 border-b border-divider outline-none placeholder:text-faint"

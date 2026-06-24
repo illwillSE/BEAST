@@ -244,11 +244,25 @@ commands.forEach((c) => { if (!categoryRank.has(c.category)) categoryRank.set(c.
 // category/keywords (so "line" ranks "Line: …" above "Gradient: Linear", whose
 // title only matches because "linear" contains "line"), and an earlier hit in
 // the title beats a later one.
-function matchScore(c: Command, q: string): number {
-  const ti = c.title.toLowerCase().indexOf(q)
+function wordScore(c: Command, word: string): number {
+  const ti = c.title.toLowerCase().indexOf(word)
   if (ti >= 0) return ti
-  if ((c.category + ' ' + (c.keywords ?? '')).toLowerCase().includes(q)) return 1000
+  if ((c.category + ' ' + (c.keywords ?? '')).toLowerCase().includes(word)) return 1000
   return -1
+}
+
+// A multi-word query (e.g. "rect filled") matches a command only if every
+// word matches somewhere (title, category, or keywords) — words don't need to
+// be contiguous or in order. The combined score sums each word's score, so
+// ranking still favors title hits and earlier positions.
+function matchScore(c: Command, words: string[]): number {
+  let total = 0
+  for (const w of words) {
+    const s = wordScore(c, w)
+    if (s < 0) return -1
+    total += s
+  }
+  return total
 }
 
 // Case-insensitive substring match over title + category + keywords, sorted by
@@ -256,10 +270,10 @@ function matchScore(c: Command, q: string): number {
 // here — disabled commands still show (greyed) so the palette stays a stable
 // map of what exists.
 export function filterCommands(query: string): Command[] {
-  const q = query.trim().toLowerCase()
-  if (!q) return searchCommands
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  if (!words.length) return searchCommands
   return searchCommands
-    .map((c, idx) => ({ c, idx, score: matchScore(c, q) }))
+    .map((c, idx) => ({ c, idx, score: matchScore(c, words) }))
     .filter((s) => s.score >= 0)
     .sort((a, b) =>
       (categoryRank.get(a.c.category)! - categoryRank.get(b.c.category)!) ||
