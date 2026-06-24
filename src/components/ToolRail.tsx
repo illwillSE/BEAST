@@ -165,11 +165,11 @@ function RailButton({ title, Icon, active, onClick, activeClass = 'bg-accent-dee
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       className={
-        'grid place-items-center w-10 h-10 rounded border ' +
+        'grid place-items-center w-8 h-8 rounded border ' +
         (active ? activeClass : 'border-transparent text-muted hover:text-ink hover:bg-surface-hover')
       }
     >
-      <Icon size={18} fill={filled ? 'currentColor' : 'none'} />
+      <Icon size={16} fill={filled ? 'currentColor' : 'none'} />
     </button>
   )
 }
@@ -195,7 +195,7 @@ interface FlyoutProps {
 // button, for grouping unrelated option sets (e.g. fill style vs. width).
 function Flyout({ items, activeClass = 'bg-accent-deep/20 text-accent-bright' }: FlyoutProps) {
   return (
-    <div className="absolute left-full top-0 ml-1 z-10 flex flex-col gap-0.5 p-1 bg-panel border border-divider rounded shadow-lg">
+    <div className="absolute left-full top-0 ml-0.5 z-10 flex flex-col gap-px p-0.5 bg-panel border border-divider rounded shadow-lg">
       {items.map((it) =>
         it.divider ? (
           <div key={it.id} className="h-px mx-1 my-0.5 bg-divider" />
@@ -204,7 +204,7 @@ function Flyout({ items, activeClass = 'bg-accent-deep/20 text-accent-bright' }:
             key={it.id}
             onClick={it.onClick}
             className={
-              'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] whitespace-nowrap text-left ' +
+              'flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[11px] whitespace-nowrap text-left ' +
               (it.active ? activeClass : 'text-muted hover:text-ink hover:bg-surface-hover')
             }
           >
@@ -258,9 +258,9 @@ export default function ToolRail({ active, onPick, filled, onFilled, peek, mirro
   }, [active])
 
   return (
-    <div data-eyedropper-owner className="flex flex-col items-center gap-1 p-2 bg-panel border-r border-divider shrink-0">
+    <div data-eyedropper-owner className="flex flex-col items-center gap-0.5 p-1.5 bg-panel border-r border-divider shrink-0">
       {TOOLS.map((t, i) => {
-        if (t === null) return <div key={`d${i}`} className="h-px w-7 bg-divider my-1" />
+        if (t === null) return <div key={`d${i}`} className="h-px w-6 bg-divider my-0.5" />
 
         if (t.sub) {
           const activeSub = t.sub.find((s) => s.id === active)
@@ -327,7 +327,7 @@ export default function ToolRail({ active, onPick, filled, onFilled, peek, mirro
         )
       })}
 
-      <div className="h-px w-7 bg-divider my-1" />
+      <div className="h-px w-6 bg-divider my-0.5" />
       <div className="relative">
         <RailButton
           title="Mirror"
