@@ -189,6 +189,22 @@ export default function ColorPanel({
     setDragIndex(null)
   }
 
+  // "+" on a color already in the palette is a silent no-op (addSwatch
+  // dedupes by exact hex) — flash + scroll to the existing match instead of
+  // doing nothing, so it's clear why no new swatch appeared.
+  const swatchRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const [flashIndex, setFlashIndex] = useState<number | null>(null)
+  const addOrFlash = () => {
+    const dupIndex = palette.indexOf(currentHex)
+    if (dupIndex !== -1) {
+      swatchRefs.current[dupIndex]?.scrollIntoView({ block: 'nearest' })
+      setFlashIndex(dupIndex)
+      setTimeout(() => setFlashIndex(null), 500)
+    } else {
+      onAddSwatch(currentHex)
+    }
+  }
+
   const imageFileRef = useRef<HTMLInputElement>(null)
   const projectFileRef = useRef<HTMLInputElement>(null)
   const pickFile = (onPick: (file: File) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -339,37 +355,39 @@ export default function ColorPanel({
         </div>
 
         {/* swatch palette — drag to reorder, right-click to overwrite with
-            the current color, hover for the delete button */}
+            the foreground color, hover for the delete button */}
         <div className="grid grid-cols-6 gap-1.5 max-h-44 overflow-y-auto">
           {palette.map((c, i) => (
             <div key={i} className="relative group aspect-square">
               <button
+                ref={(el) => { swatchRefs.current[i] = el }}
                 draggable
                 onDragStart={() => setDragIndex(i)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => handleDrop(i)}
                 onDragEnd={() => setDragIndex(null)}
                 onClick={() => { onColor(c); onPeekSelect?.() }}
-                onContextMenu={(e) => { e.preventDefault(); onEditSwatch(i, currentHex) }}
-                title={`${c} — right-click to overwrite with current color, drag to reorder`}
+                onContextMenu={(e) => { e.preventDefault(); onEditSwatch(i, fgColor) }}
+                title={`${c} — right-click to overwrite with foreground color, drag to reorder`}
                 className={
                   'w-full h-full rounded border ' +
                   (color === c ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge hover:border-edge-hover') +
-                  (dragIndex === i ? ' opacity-40' : '')
+                  (dragIndex === i ? ' opacity-40' : '') +
+                  (flashIndex === i ? ' ring-4 ring-accent-bright' : '')
                 }
                 style={{ background: c }}
               />
               <button
                 onClick={(e) => { e.stopPropagation(); onRemoveSwatch(i) }}
                 title="Remove swatch"
-                className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full bg-well border border-edge text-faint hover:text-danger"
+                className="absolute top-0 right-0 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full bg-well border border-edge text-muted hover:text-danger"
               >
                 <Trash2 size={10} />
               </button>
             </div>
           ))}
           <button
-            onClick={() => onAddSwatch(currentHex)}
+            onClick={addOrFlash}
             title="Add current color to palette"
             className="aspect-square rounded border border-dashed border-edge hover:border-edge-hover text-faint hover:text-ink flex items-center justify-center"
           >
