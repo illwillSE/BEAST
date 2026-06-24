@@ -44,9 +44,11 @@ import {
   reorderSwatch,
   mergeSwatches,
   setPalette,
+  sortPalette,
+  reversePalette,
   reseedUid,
 } from './model.js'
-import type { BlendMode, BrushShape, Cell, CellTarget, CreateSpriteOpts, Doc, RGBA, Sprite } from './model.js'
+import type { BlendMode, BrushShape, Cell, CellTarget, CreateSpriteOpts, Doc, PaletteSortKey, RGBA, Sprite } from './model.js'
 
 // An open gesture (STROKE_BEGIN…STROKE_END). `committed` flips true once the
 // first edit of the gesture has snapshotted history, so later edits in the same
@@ -104,6 +106,8 @@ export type Action =
   | { type: 'REORDER_SWATCH'; from: number; to: number }
   | { type: 'MERGE_SWATCHES'; colors: string[] }
   | { type: 'SET_PALETTE'; palette: string[] }
+  | { type: 'SORT_PALETTE'; key: PaletteSortKey }
+  | { type: 'REVERSE_PALETTE' }
   | { type: 'UNDO' }
   | { type: 'REDO' }
 
@@ -289,6 +293,12 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
 
     case 'SET_PALETTE':
       return editDoc(state, (doc) => setPalette(doc, action.palette))
+
+    case 'SORT_PALETTE':
+      return editDoc(state, (doc) => sortPalette(doc, action.key))
+
+    case 'REVERSE_PALETTE':
+      return editDoc(state, (doc) => reversePalette(doc))
 
     case 'UNDO': {
       if (!state.past.length) return state

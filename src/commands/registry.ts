@@ -151,6 +151,26 @@ export const commands: Command[] = [
   { id: 'paste', title: 'Paste', category: 'Selection', shortcut: mod('V'), enabled: (c) => c.hasClipboard, run: (c) => c.pasteClipboard() },
   { id: 'clear-bg', title: 'Clear Selection to Background', category: 'Selection', keywords: 'delete erase', enabled: (c) => c.hasSelection, run: (c) => c.clearSelectionToBg() },
 
+  // Palette
+  {
+    id: 'palette-sort',
+    title: 'Sort Palette',
+    category: 'Palette',
+    submenu: (
+      [
+        ['hue', 'Hue'], ['saturation', 'Saturation'], ['brightness', 'Brightness'],
+        ['red', 'Red'], ['green', 'Green'], ['blue', 'Blue'], ['alpha', 'Alpha'],
+      ] as const
+    ).map(([key, label]) => ({
+      id: `palette-sort:${key}`,
+      title: `Sort Palette: ${label}`,
+      category: 'Palette',
+      run: (c: CommandContext) => c.dispatch({ type: 'SORT_PALETTE', key }),
+    })),
+    run: () => {},
+  },
+  { id: 'palette-reverse', title: 'Reverse Palette', category: 'Palette', keywords: 'sort', run: (c) => c.dispatch({ type: 'REVERSE_PALETTE' }) },
+
   // Layers
   { id: 'layer-add', title: 'Add Layer', category: 'Layers', run: (c) => c.addLayer() },
   { id: 'layer-duplicate', title: 'Duplicate Layer', category: 'Layers', run: (c) => c.duplicateLayer() },

@@ -858,3 +858,30 @@ export function mergeSwatches(doc: Doc, colors: string[]): Doc {
   }
   return fresh.length ? { ...doc, palette: [...doc.palette, ...fresh] } : doc
 }
+
+export type PaletteSortKey = 'hue' | 'saturation' | 'brightness' | 'red' | 'green' | 'blue' | 'alpha'
+
+function paletteSortValue(hex: string, key: PaletteSortKey): number {
+  const [r, g, b, a] = hexToRgba(hex)
+  if (key === 'red') return r
+  if (key === 'green') return g
+  if (key === 'blue') return b
+  if (key === 'alpha') return a
+  const rf = r / 255, gf = g / 255, bf = b / 255
+  const max = Math.max(rf, gf, bf), min = Math.min(rf, gf, bf)
+  const d = max - min
+  if (key === 'brightness') return max
+  if (key === 'saturation') return max === 0 ? 0 : d / max
+  if (d === 0) return 0
+  let h = max === rf ? ((gf - bf) / d) % 6 : max === gf ? (bf - rf) / d + 2 : (rf - gf) / d + 4
+  h *= 60
+  return h < 0 ? h + 360 : h
+}
+
+export function sortPalette(doc: Doc, key: PaletteSortKey): Doc {
+  return { ...doc, palette: [...doc.palette].sort((a, b) => paletteSortValue(a, key) - paletteSortValue(b, key)) }
+}
+
+export function reversePalette(doc: Doc): Doc {
+  return { ...doc, palette: [...doc.palette].reverse() }
+}
