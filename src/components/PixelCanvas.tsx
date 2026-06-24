@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { compositeFrame, hexToRgba, rgbaToHex, pasteRegion, shapeOffsets, selectionOutline } from '../document/model.js'
+import { compositeFrame, hexToRgba, rgbaToHex, pasteRegion, shapeOffsets, selectionOutline, mirroredFill } from '../document/model.js'
 import { getTool, tools } from '../tools/registry.js'
 import { getColor } from '../theme/colors.js'
 import { getLastPointer } from '../hooks/lastPointer.js'
@@ -8,9 +8,26 @@ import type { Sprite, CellTarget, RGBA, BrushShape, Selection } from '../documen
 import type { Action } from '../document/reducer.js'
 import type { Rect, Floating, CropPending, Coord, Preview, ToolContext } from '../tools/registry.js'
 
-// Action types whose coordinate fields get mirrored across the active
-// symmetry axes — see mirroredDispatch below.
-const MIRRORABLE = new Set(['PAINT_LINE', 'FILL', 'PAINT_RECT', 'PAINT_ELLIPSE', 'GRADIENT_FILL'])
+// Action types that paint an explicit point list (not a flood-fill), so
+// dispatching a coordinate-flipped copy paints exactly the right pixels — see
+// mirroredDispatch below. FILL/GRADIENT_FILL mirror differently (via a
+// `mirror` field on the action itself, see reducer.ts's Mirror type) since
+// they flood outward from the click point instead of stamping fixed points.
+const MIRRORABLE = new Set(['PAINT_LINE', 'PAINT_RECT', 'PAINT_ELLIPSE'])
+
+const FLOOD_MIRRORABLE = new Set(['FILL', 'GRADIENT_FILL'])
+
+// The coordinate transforms a point preview needs drawn at — identity plus
+// one per active mirror axis — so the live shape/gradient preview shows the
+// same copies mirroredDispatch will actually paint, instead of just the
+// primary stroke under the cursor.
+function mirrorTransforms(w: number, h: number, mirrorV: boolean, mirrorH: boolean): ((x: number, y: number) => [number, number])[] {
+  const transforms: ((x: number, y: number) => [number, number])[] = [(x, y) => [x, y]]
+  if (mirrorV) transforms.push((x, y) => [w - 1 - x, y])
+  if (mirrorH) transforms.push((x, y) => [x, h - 1 - y])
+  if (mirrorV && mirrorH) transforms.push((x, y) => [w - 1 - x, h - 1 - y])
+  return transforms
+}
 
 function flipAction(action: Action, w: number, h: number, axes: { v?: boolean; h?: boolean }): Action {
   // TODO(ts): generic coordinate-field flip over a discriminated union needs
@@ -166,27 +183,39 @@ export default function PixelCanvas({
       img.data.set(floating.data)
       ctx.putImageData(img, floating.x, floating.y)
     }
+    // Mirror the live preview the same way mirroredDispatch will mirror the
+    // eventual commit, so dragging a line/shape/gradient shows paint landing
+    // in every active mirror, not just under the cursor.
+    const transforms = mirrorTransforms(w, h, mirrorV, mirrorH)
     if (preview?.kind === 'pixels') {
       const [r, g, b, a] = hexToRgba(preview.color)
       ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`
-      for (const [x, y] of preview.points) ctx.fillRect(x, y, 1, 1)
+      for (const [x, y] of preview.points) for (const t of transforms) { const [mx, my] = t(x, y); ctx.fillRect(mx, my, 1, 1) }
     }
     if (preview?.kind === 'erase') {
       const checkerA = getColor('checker-a')
       const checkerB = getColor('checker-b')
       for (const [x, y] of preview.points) {
-        ctx.fillStyle = (x + y) % 2 === 0 ? checkerA : checkerB
+        for (const t of transforms) {
+          const [mx, my] = t(x, y)
+          ctx.fillStyle = (mx + my) % 2 === 0 ? checkerA : checkerB
+          ctx.fillRect(mx, my, 1, 1)
+        }
+      }
+    }
+    // Gradient is a flood fill, so its mirror is resolved per-orbit (see
+      // mirroredFill) rather than stamped per transform like the point-list
+      // previews above — otherwise the preview wouldn't match the commit when
+      // the region straddles an axis.
+    if (preview?.kind === 'gradient') {
+      const region = preview.points.map(([x, y], i) => ({ x, y, rgba: preview.colors[i] }))
+      for (const { x, y, rgba } of mirroredFill(region, preview.x0, preview.y0, w, h, { v: mirrorV, h: mirrorH })) {
+        const [r, g, b, a] = rgba
+        ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`
         ctx.fillRect(x, y, 1, 1)
       }
     }
-    if (preview?.kind === 'gradient') {
-      preview.points.forEach(([x, y], i) => {
-        const [r, g, b, a] = preview.colors[i]
-        ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`
-        ctx.fillRect(x, y, 1, 1)
-      })
-    }
-  }, [floating, preview, w, h])
+  }, [floating, preview, w, h, mirrorV, mirrorH])
 
   // Re-draw the optional pixel-alignment grid, mirror axis guides, and brush
   // cursor outline — all thin lines at CSS-pixel resolution (not the
@@ -379,10 +408,16 @@ export default function PixelCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   })
 
-  // Dispatch wrapper that also dispatches mirrored copies of coordinate-bearing
-  // actions across whichever symmetry axes are on, so tools never need to know
-  // about mirroring themselves.
+  // Dispatch wrapper that also mirrors coordinate-bearing actions across
+  // whichever symmetry axes are on, so tools never need to know about
+  // mirroring themselves. Point-list actions get dispatched again with their
+  // coordinates flipped; flood-fill actions instead carry a `mirror` field so
+  // the reducer mirrors the one region it actually finds (see FLOOD_MIRRORABLE).
   const mirroredDispatch = (action: Action) => {
+    if (FLOOD_MIRRORABLE.has(action.type) && (mirrorV || mirrorH)) {
+      dispatch({ ...action, mirror: { v: mirrorV, h: mirrorH } } as Action)
+      return
+    }
     dispatch(action)
     if (!MIRRORABLE.has(action.type)) return
     if (mirrorV) dispatch(flipAction(action, w, h, { v: true }))

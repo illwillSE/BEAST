@@ -581,16 +581,98 @@ function floodMask(cell: Cell, w: number, h: number, x: number, y: number) {
   return { mask, tr, tg, tb, ta }
 }
 
+export interface Mirror {
+  v: boolean
+  h: boolean
+}
+
+// A painted pixel — used to thread flood/gradient regions through the mirror
+// resolver below.
+interface FillPixel {
+  x: number
+  y: number
+  rgba: RGBA
+}
+
+// The mirror-orbit of (x,y): itself plus its reflection across each active
+// axis (deduped, so a pixel on a center axis doesn't list itself twice).
+function mirrorOrbit(x: number, y: number, w: number, h: number, mirror: Mirror): Point[] {
+  const out: Point[] = []
+  const seen = new Set<number>()
+  const add = (px: number, py: number) => { const k = py * w + px; if (!seen.has(k)) { seen.add(k); out.push([px, py]) } }
+  add(x, y)
+  if (mirror.v) add(w - 1 - x, y)
+  if (mirror.h) add(x, h - 1 - y)
+  if (mirror.v && mirror.h) add(w - 1 - x, h - 1 - y)
+  return out
+}
+
+// How far an orbit member sits from the anchor's side of each active axis: 0
+// when it's on the same side as the anchor (ax,ay), higher once it crosses one.
+// The lowest-rank member of an orbit is its canonical source. The anchor is the
+// flood origin (the gradient's start / the bucket click), so the half the user
+// is actually drawing from is the one that's kept and mirrored onto the others —
+// otherwise a gradient dragged toward the primary side (e.g. NE→SW with a
+// vertical axis, start on the right) would be sourced from the wrong half and
+// come out flipped. A pixel exactly on a center axis counts as the anchor's side.
+function mirrorRank(x: number, y: number, ax: number, ay: number, w: number, h: number, mirror: Mirror): number {
+  const sameV = mirror.v ? (x <= w - 1 - x) === (ax <= w - 1 - ax) : true
+  const sameH = mirror.h ? (y <= h - 1 - y) === (ay <= h - 1 - ay) : true
+  return (sameV ? 0 : 1) + (sameH ? 0 : 2)
+}
+
+// Resolve a flood/gradient region into the actual pixels to paint under
+// symmetry. Each mirror-orbit is painted from a single canonical source — the
+// lowest-rank member (relative to the anchor, see mirrorRank) that's actually
+// in the region — so the result is symmetric and order-independent. This is why
+// mirroring a flood fill can't just re-run the fill from a flipped coordinate or
+// stamp every orbit member independently: when the matched region spans/straddles
+// an axis (e.g. an open background fills the whole canvas), naive copies overlap
+// and whichever is written last wins, wiping the side the user drew. Sourcing
+// each orbit from the anchor's half keeps that half intact and mirrors it onto
+// the rest; (ax,ay) is the flood origin so drawing from either side works.
+export function mirroredFill(region: FillPixel[], ax: number, ay: number, w: number, h: number, mirror?: Mirror): FillPixel[] {
+  if (!mirror || (!mirror.v && !mirror.h)) return region
+  const inRegion = new Set(region.map((p) => p.y * w + p.x))
+  const out: FillPixel[] = []
+  for (const p of region) {
+    const orbit = mirrorOrbit(p.x, p.y, w, h, mirror)
+    let bestRank = Infinity
+    let bestKey = -1
+    for (const [ox, oy] of orbit) {
+      const k = oy * w + ox
+      if (!inRegion.has(k)) continue
+      const r = mirrorRank(ox, oy, ax, ay, w, h, mirror)
+      if (r < bestRank) { bestRank = r; bestKey = k }
+    }
+    if (bestKey !== p.y * w + p.x) continue
+    for (const [ox, oy] of orbit) out.push({ x: ox, y: oy, rgba: p.rgba })
+  }
+  return out
+}
+
 // 4-connected flood fill from (x,y): replace the contiguous region matching the
-// clicked pixel's RGBA with `rgba`. Mutates the cell in place.
-export function floodFill(cell: Cell, w: number, h: number, x: number, y: number, rgba: RGBA) {
+// clicked pixel's RGBA with `rgba`. Mutates the cell in place. `mirror` reflects
+// the fill across the active symmetry axes — see mirroredFill.
+export function floodFill(cell: Cell, w: number, h: number, x: number, y: number, rgba: RGBA, mirror?: Mirror) {
   const region = floodMask(cell, w, h, x, y)
   if (!region) return
   const [fr, fg, fb, fa] = rgba
   if (region.tr === fr && region.tg === fg && region.tb === fb && region.ta === fa) return
+  if (!mirror || (!mirror.v && !mirror.h)) {
+    for (let i = 0; i < region.mask.length; i++) {
+      if (!region.mask[i]) continue
+      const o = i * 4
+      cell[o] = fr; cell[o + 1] = fg; cell[o + 2] = fb; cell[o + 3] = fa
+    }
+    return
+  }
+  const pts: FillPixel[] = []
   for (let i = 0; i < region.mask.length; i++) {
-    if (!region.mask[i]) continue
-    const o = i * 4
+    if (region.mask[i]) pts.push({ x: i % w, y: (i / w) | 0, rgba })
+  }
+  for (const { x: px, y: py } of mirroredFill(pts, x, y, w, h, mirror)) {
+    const o = (py * w + px) * 4
     cell[o] = fr; cell[o + 1] = fg; cell[o + 2] = fb; cell[o + 3] = fa
   }
 }
@@ -630,8 +712,11 @@ function gradientPoints(cell: Cell, w: number, h: number, x0: number, y0: number
   return out
 }
 
-export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA, radial: boolean) {
-  for (const { x, y, rgba } of gradientPoints(cell, w, h, x0, y0, x1, y1, rgba0, rgba1, radial)) {
+// Mutates the cell in place. `mirror` reflects the gradient across the active
+// symmetry axes — see mirroredFill.
+export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA, radial: boolean, mirror?: Mirror) {
+  const points = gradientPoints(cell, w, h, x0, y0, x1, y1, rgba0, rgba1, radial)
+  for (const { x, y, rgba } of mirroredFill(points, x0, y0, w, h, mirror)) {
     const o = (y * w + x) * 4
     cell[o] = rgba[0]; cell[o + 1] = rgba[1]; cell[o + 2] = rgba[2]; cell[o + 3] = rgba[3]
   }
