@@ -311,7 +311,7 @@ export default function ColorPanel({
               onClick={() => setActiveSlot('bg')}
               title="Background color"
               className={
-                'absolute right-0 bottom-0 w-6 h-6 rounded border beast-checker shadow ' +
+                'absolute right-0 bottom-0 w-6 h-6 rounded border beast-checker beast-checker-sm shadow ' +
                 (activeSlot === 'bg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
               }
             >
@@ -321,7 +321,7 @@ export default function ColorPanel({
               onClick={() => setActiveSlot('fg')}
               title="Foreground color"
               className={
-                'absolute left-0 top-0 z-10 w-6 h-6 rounded border beast-checker shadow ' +
+                'absolute left-0 top-0 z-10 w-6 h-6 rounded border beast-checker beast-checker-sm shadow ' +
                 (activeSlot === 'fg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
               }
             >

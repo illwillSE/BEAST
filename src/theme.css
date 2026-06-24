@@ -56,8 +56,8 @@
    classes. `@theme static` forces Tailwind v4 to always emit them as :root
    variables even when no utility references them. */
 @theme static {
-  --color-checker-a: #1a2030;     /* transparency checkerboard — dark square */
-  --color-checker-b: #232b3d;     /* transparency checkerboard — light square */
+  --color-checker-a: #161b26;     /* transparency checkerboard — dark square */
+  --color-checker-b: #3a4558;     /* transparency checkerboard — light square */
   --color-grid: #334155;          /* pixel grid lines */
   --color-onion-prev: #f87171;    /* onion skin — previous frame tint */
   --color-onion-next: #34d399;    /* onion skin — next frame tint */

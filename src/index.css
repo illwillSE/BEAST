@@ -75,6 +75,13 @@ body {
   background-color: var(--color-checker-b);
 }
 
+/* Smaller tile size for the same checkerboard, used where the element is too
+   small (e.g. the 24px fg/bg swatches) for a full 16px tile to read clearly. */
+.beast-checker-sm {
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+}
+
 ::-webkit-scrollbar {
   height: 8px;
   width: 8px;
