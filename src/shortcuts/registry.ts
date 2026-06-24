@@ -53,6 +53,7 @@ export interface ShortcutContext {
   cancelContinuousLine: () => void
   swapColors: () => void
   stepFrame: (delta: number) => void
+  openCommandPalette: () => void
 }
 
 interface Shortcut {
@@ -102,6 +103,7 @@ export const shortcuts: Shortcut[] = [
   { key: ']', run: (ctx) => stepBrushSize(ctx, 1) },
   { key: 'arrowleft', run: (ctx) => ctx.stepFrame(-1) },
   { key: 'arrowright', run: (ctx) => ctx.stepFrame(1) },
+  { key: 'p', mod: true, run: (ctx) => ctx.openCommandPalette() },
   ...toolShortcuts,
 ]
 

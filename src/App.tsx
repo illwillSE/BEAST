@@ -8,6 +8,7 @@ import LayersPanel from './components/LayersPanel.jsx'
 import ColorPanel from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
 import SettingsModal from './components/SettingsModal.jsx'
+import CommandPalette from './components/CommandPalette.jsx'
 import FoldTab from './components/FoldTab.jsx'
 import EyedropperMagnifier from './components/EyedropperMagnifier.jsx'
 import useFoldable from './hooks/useFoldable.js'
@@ -19,6 +20,8 @@ import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
 import { projectToZipBlob, projectFromZipFile, projectPaletteFromZipFile, downloadBlob } from './persist/zip.js'
 import { matchShortcut, isTypingTarget } from './shortcuts/registry.js'
+import type { ShortcutContext } from './shortcuts/registry.js'
+import type { CommandContext } from './commands/registry.js'
 import type { BrushShape, Cell, Doc, Sprite } from './document/model.js'
 import type { Selection, Floating, CropPending, Coord } from './tools/registry.js'
 
@@ -26,6 +29,19 @@ interface Clipboard {
   w: number
   h: number
   data: Cell
+}
+
+// Pop a native file picker and resolve with the chosen file (or null) — lets
+// command-palette file commands reuse App's File-taking handlers without the
+// hidden <input> the Header keeps for its buttons.
+function pickFile(accept: string): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = accept
+    input.onchange = () => resolve(input.files?.[0] ?? null)
+    input.click()
+  })
 }
 
 // BEAST shell. The pixel document lives behind the history reducer; the pencil
@@ -194,6 +210,7 @@ export default function App() {
   const [fps, setFps] = useState(12)
   const [onionSkin, setOnionSkin] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [gradientOpen, setGradientOpen] = useState(true)
   const canvasStageRef = useRef<CanvasStageHandle>(null)
   const pendingFitRef = useRef(false)
@@ -391,23 +408,24 @@ export default function App() {
   // pending crop or continuous line) and deselect, Enter to commit a pending
   // crop, Left/Right to step frames, and a letter per tool (see each tool's `key`
   // in tools/registry.js).
+  const shortcutCtx: ShortcutContext = {
+    dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
+    tool, filled, setVariant: setToolVariant, peekVariants, brushSize, setBrushSize,
+    copySelection, cutSelection, pasteClipboard, commitFloating, setSelection, selectAll, deselect, invertSelection,
+    clearSelectionToBg, commitCrop, cancelCrop, cancelContinuousLine: () => setContinuousLine(null), swapColors, stepFrame,
+    openCommandPalette: () => setCommandPaletteOpen(true),
+  }
   useEffect(() => {
-    const ctx = {
-      dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
-      tool, filled, setVariant: setToolVariant, peekVariants, brushSize, setBrushSize,
-      copySelection, cutSelection, pasteClipboard, commitFloating, setSelection, selectAll, deselect, invertSelection,
-      clearSelectionToBg, commitCrop, cancelCrop, cancelContinuousLine: () => setContinuousLine(null), swapColors, stepFrame,
-    }
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return
       const shortcut = matchShortcut(e)
       if (!shortcut) return
       e.preventDefault()
-      shortcut.run(ctx)
+      shortcut.run(shortcutCtx)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [floating, selection, clipboard, activeSprite, safeLayerId, safeFrame, tool, filled, brushSize, cropPending, fgColor, bgColor])
+  }, [shortcutCtx])
 
   // Restore the autosaved project on mount, then enable autosaving.
   const [ready, setReady] = useState(false)
@@ -463,21 +481,62 @@ export default function App() {
     }
   }
 
+  const handleNewProject = () => {
+    const dirty = doc !== savedDocRef.current
+    if (dirty && !window.confirm('Discard the current project and start a blank one? Unsaved changes will be lost.')) return
+    const blank = createBlankDocument()
+    dispatch({ type: 'REPLACE', doc: blank })
+    resetSelection(blank)
+    setGradientOpen(false)
+    pendingFitRef.current = true
+    savedDocRef.current = blank
+  }
+
+  // Everything the command palette can invoke — the shortcut context plus the
+  // document-CRUD / file / toggle operations. Frame ops follow the selection
+  // (like FramesTimeline); layer/sprite add/remove follow via App's effects /
+  // safe-id fallbacks.
+  const commandCtx: CommandContext = {
+    ...shortcutCtx,
+    target,
+    activeSprite,
+    spriteCount: doc.sprites.length,
+    canUndo: state.past.length > 0,
+    canRedo: state.future.length > 0,
+    hasSelection: !!(selection || floating),
+    hasClipboard: !!clipboard,
+    addLayer: () => dispatch({ type: 'ADD_LAYER', spriteId: activeSprite.id, name: `Layer ${activeSprite.layers.length + 1}` }),
+    duplicateLayer: () => dispatch({ type: 'DUPLICATE_LAYER', spriteId: activeSprite.id, layerId: safeLayerId }),
+    removeLayer: () => { if (activeSprite.layers.length > 1) dispatch({ type: 'REMOVE_LAYER', spriteId: activeSprite.id, layerId: safeLayerId }) },
+    moveLayer: (delta) => dispatch({ type: 'MOVE_LAYER', spriteId: activeSprite.id, layerId: safeLayerId, delta }),
+    addFrame: () => { const at = safeFrame + 1; dispatch({ type: 'ADD_FRAME', spriteId: activeSprite.id, atIndex: at }); setFrameIndex(at) },
+    duplicateFrame: () => { const at = safeFrame + 1; dispatch({ type: 'DUPLICATE_FRAME', spriteId: activeSprite.id, frameIndex: safeFrame }); setFrameIndex(at) },
+    removeFrame: () => { if (activeSprite.frameCount > 1) { dispatch({ type: 'REMOVE_FRAME', spriteId: activeSprite.id, frameIndex: safeFrame }); setFrameIndex(Math.min(safeFrame, activeSprite.frameCount - 2)) } },
+    moveFrame: (delta) => { const to = safeFrame + delta; if (to >= 0 && to < activeSprite.frameCount) { dispatch({ type: 'MOVE_FRAME', spriteId: activeSprite.id, frameIndex: safeFrame, delta }); setFrameIndex(to) } },
+    addSprite: () => dispatch({ type: 'ADD_SPRITE' }),
+    removeSprite: () => { if (doc.sprites.length > 1) dispatch({ type: 'REMOVE_SPRITE', spriteId: activeSprite.id }) },
+    newProject: handleNewProject,
+    saveProject: handleSave,
+    exportPng: handleExportPng,
+    openProject: () => { pickFile('.zip').then((f) => f && handleOpen(f)) },
+    importPng: () => { pickFile('image/*').then((f) => f && importSpritePng(f)) },
+    importColors: () => { pickFile('image/*').then((f) => f && importImagePalette(f)) },
+    importPalette: () => { pickFile('.zip').then((f) => f && importProjectPalette(f)) },
+    toggleMirrorV: () => setMirrorV((v) => !v),
+    toggleMirrorH: () => setMirrorH((v) => !v),
+    togglePlay: () => setPlaying((p) => !p),
+    toggleOnionSkin: () => setOnionSkin((o) => !o),
+    togglePreview: () => setPreviewOpen((o) => !o),
+    toggleGradient: () => setGradientOpen((v) => !v),
+    openSettings: () => setSettingsOpen(true),
+  }
+
   return (
     <div className="h-screen flex flex-col text-ink-soft">
       <Header
         projectName={doc.name}
         onRenameProject={(name) => dispatch({ type: 'RENAME_PROJECT', name })}
-        onNewProject={() => {
-          const dirty = doc !== savedDocRef.current
-          if (dirty && !window.confirm('Discard the current project and start a blank one? Unsaved changes will be lost.')) return
-          const blank = createBlankDocument()
-          dispatch({ type: 'REPLACE', doc: blank })
-          resetSelection(blank)
-          setGradientOpen(false)
-          pendingFitRef.current = true
-          savedDocRef.current = blank
-        }}
+        onNewProject={handleNewProject}
         onSave={handleSave}
         onOpen={handleOpen}
         onImportPng={importSpritePng}
@@ -702,6 +761,12 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         onionSkin={onionSkin}
         onToggleOnionSkin={() => setOnionSkin((o) => !o)}
+      />
+
+      <CommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        ctx={commandCtx}
       />
     </div>
   )

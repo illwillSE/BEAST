@@ -86,6 +86,15 @@ implemented; this file tracks what isn't, organized by area.
 
 ## Animation
 
+## Command palette
+- [ ] Parameterized commands are intentionally excluded from v1 — the palette
+      only runs one-shot actions. Commands that need a value or a dialog (Set
+      FPS, Set Layer Opacity, Set Layer Blend Mode, Set Color, Rename
+      project/sprite/layer, Crop/Resize canvas) are left to their existing
+      panels; revisit if an inline value-editor step in the palette is wanted.
+- [ ] "Add Sprite" from the palette uses the default canvas size (bypasses the
+      New Sprite size dialog that SpriteList's `+` opens).
+
 ## Persistence
 - [ ] Cell-hash is cyrb53 (non-crypto) — fine for in-project dedup, but revisit
       if collisions ever matter.
