@@ -17,8 +17,8 @@
 //   run    ctx => void; ctx = {
 //     dispatch, setTool, setTemporaryTool, tool, filled, setVariant, peekVariants,
 //     brushSize, setBrushSize, copySelection,
-//     cutSelection, pasteClipboard, commitFloating, setSelection,
-//     commitCrop, cancelCrop, cancelContinuousLine, swapColors, stepFrame,
+//     cutSelection, pasteClipboard, commitFloating, setSelection, selectAll, deselect, invertSelection,
+//     clearSelectionToBg, commitCrop, cancelCrop, cancelContinuousLine, swapColors, stepFrame,
 //   }
 //
 // brushSize/setBrushSize are global now (one value for every brush-size tool,
@@ -27,7 +27,7 @@
 
 import { tools } from '../tools/registry.js'
 import type { Action } from '../document/reducer.js'
-import type { Rect } from '../tools/registry.js'
+import type { Selection } from '../tools/registry.js'
 
 export interface ShortcutContext {
   dispatch: (action: Action) => void
@@ -43,7 +43,11 @@ export interface ShortcutContext {
   cutSelection: () => void
   pasteClipboard: () => void
   commitFloating: () => void
-  setSelection: (rect: Rect | null) => void
+  setSelection: (selection: Selection | null) => void
+  selectAll: () => void
+  deselect: () => void
+  invertSelection: () => void
+  clearSelectionToBg: () => void
   commitCrop: () => void
   cancelCrop: () => void
   cancelContinuousLine: () => void
@@ -85,6 +89,11 @@ export const shortcuts: Shortcut[] = [
   { key: 'c', mod: true, run: (ctx) => ctx.copySelection() },
   { key: 'x', mod: true, run: (ctx) => ctx.cutSelection() },
   { key: 'v', mod: true, run: (ctx) => ctx.pasteClipboard() },
+  { key: 'a', mod: true, run: (ctx) => ctx.selectAll() },
+  { key: 'd', mod: true, run: (ctx) => ctx.deselect() },
+  { key: 'i', mod: true, shift: true, run: (ctx) => ctx.invertSelection() },
+  { key: 'backspace', run: (ctx) => ctx.clearSelectionToBg() },
+  { key: 'delete', run: (ctx) => ctx.clearSelectionToBg() },
   { key: 'enter', run: (ctx) => { ctx.commitFloating(); ctx.commitCrop() } },
   { key: 'escape', run: (ctx) => { ctx.commitFloating(); ctx.setSelection(null); ctx.cancelCrop(); ctx.cancelContinuousLine() } },
   { key: 'i', shift: true, run: (ctx) => ctx.setTemporaryTool('eyedropper') },

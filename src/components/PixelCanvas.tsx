@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { compositeFrame, hexToRgba, rgbaToHex, pasteRegion, shapeOffsets } from '../document/model.js'
+import { compositeFrame, hexToRgba, rgbaToHex, pasteRegion, shapeOffsets, selectionOutline } from '../document/model.js'
 import { getTool, tools } from '../tools/registry.js'
 import { getColor } from '../theme/colors.js'
 import { getLastPointer } from '../hooks/lastPointer.js'
 import EyedropperMagnifier, { MAG_RADIUS } from './EyedropperMagnifier.jsx'
-import type { Sprite, CellTarget, RGBA, BrushShape } from '../document/model.js'
+import type { Sprite, CellTarget, RGBA, BrushShape, Selection } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
 import type { Rect, Floating, CropPending, Coord, Preview, ToolContext } from '../tools/registry.js'
 
@@ -58,8 +58,8 @@ interface PixelCanvasProps {
   tool: string
   onFgColor: (hex: string) => void
   onHover?: (pos: { x: number; y: number } | null) => void
-  selection: Rect | null
-  setSelection: (rect: Rect | null) => void
+  selection: Selection | null
+  setSelection: (selection: Selection | null) => void
   floating: Floating | null
   setFloating: React.Dispatch<React.SetStateAction<Floating | null>>
   commitFloating: () => void
@@ -250,12 +250,18 @@ export default function PixelCanvas({
   // step instead. Animated dash offset gives the classic "marching ants" look.
   useEffect(() => {
     const ctx = selectionRef.current!.getContext('2d')!
-    const rect = preview?.kind === 'marquee' ? preview.rect : !floating && (selection || cropPending) ? (selection || cropPending) : null
+    const region: Selection | Rect | null =
+      preview?.kind === 'marquee' ? preview.rect : floating || selection || cropPending
 
-    if (!rect) {
+    if (!region) {
       ctx.clearRect(0, 0, w * scale, h * scale)
       return
     }
+
+    // Outline is computed once per selection change (cheap for the common
+    // plain-rect case, and avoids re-tracing a masked/inverted selection's
+    // boundary every animation frame) — only the dash offset animates.
+    const outline = selectionOutline(region)
 
     let rafId: number
     const draw = () => {
@@ -264,7 +270,12 @@ export default function PixelCanvas({
       ctx.lineWidth = 1
       ctx.setLineDash([4, 3])
       ctx.lineDashOffset = -(performance.now() / 30) % 7
-      ctx.strokeRect(rect.x * scale + 0.5, rect.y * scale + 0.5, rect.w * scale - 1, rect.h * scale - 1)
+      ctx.beginPath()
+      for (const s of outline.top) { ctx.moveTo(s.x0 * scale + 0.5, s.y * scale + 0.5); ctx.lineTo(s.x1 * scale - 0.5, s.y * scale + 0.5) }
+      for (const s of outline.bottom) { ctx.moveTo(s.x0 * scale + 0.5, s.y * scale - 0.5); ctx.lineTo(s.x1 * scale - 0.5, s.y * scale - 0.5) }
+      for (const s of outline.left) { ctx.moveTo(s.x * scale + 0.5, s.y0 * scale + 0.5); ctx.lineTo(s.x * scale + 0.5, s.y1 * scale - 0.5) }
+      for (const s of outline.right) { ctx.moveTo(s.x * scale - 0.5, s.y0 * scale + 0.5); ctx.lineTo(s.x * scale - 0.5, s.y1 * scale - 0.5) }
+      ctx.stroke()
       rafId = requestAnimationFrame(draw)
     }
     draw()

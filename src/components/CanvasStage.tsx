@@ -7,7 +7,7 @@ import { tools } from '../tools/registry.js'
 import BrushSizeButton from './BrushSizeButton.jsx'
 import type { Sprite, CellTarget, BrushShape } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
-import type { Rect, Floating, CropPending, Coord } from '../tools/registry.js'
+import type { Selection, Floating, CropPending, Coord } from '../tools/registry.js'
 
 interface CanvasStageProps {
   tool: string
@@ -17,8 +17,8 @@ interface CanvasStageProps {
   sprite: Sprite
   target: CellTarget
   dispatch: (action: Action) => void
-  selection: Rect | null
-  setSelection: (rect: Rect | null) => void
+  selection: Selection | null
+  setSelection: (selection: Selection | null) => void
   floating: Floating | null
   setFloating: React.Dispatch<React.SetStateAction<Floating | null>>
   commitFloating: () => void

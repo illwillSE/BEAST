@@ -16,6 +16,7 @@ import {
   stampPoints,
   gradientFill,
   clearRegion,
+  fillRegion,
   pasteRegion,
   renameProject,
   addSprite,
@@ -75,7 +76,8 @@ export type Action =
   | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape })
   | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape })
   | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; rgba0: RGBA; rgba1: RGBA; radial: boolean })
-  | (CellTarget & { type: 'CLEAR_REGION'; x: number; y: number; w: number; h: number })
+  | (CellTarget & { type: 'CLEAR_REGION'; x: number; y: number; w: number; h: number; mask?: Uint8Array })
+  | (CellTarget & { type: 'FILL_REGION'; x: number; y: number; w: number; h: number; rgba: RGBA; mask?: Uint8Array })
   | (CellTarget & { type: 'PASTE_REGION'; x: number; y: number; w: number; h: number; data: Cell })
   | { type: 'ADD_SPRITE'; opts?: CreateSpriteOpts }
   | { type: 'ADD_SPRITE_FROM_IMAGE'; name: string; w: number; h: number; cell: Cell }
@@ -197,8 +199,13 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
 
     // Move/cut lift pixels out of the layer; paste/move-drop writes them back.
     case 'CLEAR_REGION': {
-      const { x, y, w: rw, h: rh } = action
-      return editCell(state, action, (cell, sp) => clearRegion(cell, sp.w, sp.h, x, y, rw, rh))
+      const { x, y, w: rw, h: rh, mask } = action
+      return editCell(state, action, (cell, sp) => clearRegion(cell, sp.w, sp.h, x, y, rw, rh, mask))
+    }
+
+    case 'FILL_REGION': {
+      const { x, y, w: rw, h: rh, rgba, mask } = action
+      return editCell(state, action, (cell, sp) => fillRegion(cell, sp.w, sp.h, x, y, rw, rh, rgba, mask))
     }
 
     case 'PASTE_REGION': {

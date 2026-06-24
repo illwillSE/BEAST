@@ -42,10 +42,12 @@
 
 import type { Dispatch, SetStateAction } from 'react'
 import {
-  hexToRgba, linePoints, rectPoints, ellipsePoints, copyRegion, stampPoints, gradientFillPreview,
+  hexToRgba, linePoints, rectPoints, ellipsePoints, copyRegion, stampPoints, gradientFillPreview, selectionContains,
 } from '../document/model.js'
-import type { BrushShape, Cell, CellTarget, Point, RGBA } from '../document/model.js'
+import type { BrushShape, Cell, CellTarget, Point, RGBA, Selection } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
+
+export type { Selection } from '../document/model.js'
 
 // A rectangular region in cell coordinates (selection / crop window / paste box).
 export interface Rect {
@@ -56,9 +58,14 @@ export interface Rect {
 }
 
 // A region lifted off the layer and floating on top until committed (move/paste).
+// `mask` carries through a non-rectangular source selection (see move's
+// onStart) so the marquee can keep tracing the actual selected shape, rather
+// than the data buffer's alpha (which would trace the artwork's own
+// transparent pixels instead of the selection boundary).
 export interface Floating extends Rect {
   data: Cell
   target: CellTarget
+  mask?: Uint8Array
 }
 
 // A drawn-but-not-yet-applied crop rectangle (commits on Enter / tool switch).
@@ -99,8 +106,8 @@ export interface ToolContext {
   brushShape: BrushShape
   setPreview: (preview: Preview | null) => void
   shiftKey: boolean
-  selection: Rect | null
-  setSelection: (rect: Rect | null) => void
+  selection: Selection | null
+  setSelection: (selection: Selection | null) => void
   floating: Floating | null
   setFloating: Dispatch<SetStateAction<Floating | null>>
   commitFloating: () => void
@@ -446,10 +453,10 @@ export const tools: Record<string, Tool<any>> = {
         return { dx: ctx.x - ctx.floating.x, dy: ctx.y - ctx.floating.y }
       }
       const sel = ctx.selection
-      if (!sel || ctx.x < sel.x || ctx.y < sel.y || ctx.x >= sel.x + sel.w || ctx.y >= sel.y + sel.h) return false
-      const data = copyRegion(ctx.getRawCell(), ctx.w, ctx.h, sel.x, sel.y, sel.w, sel.h)
-      ctx.dispatch({ type: 'CLEAR_REGION', ...ctx.target, x: sel.x, y: sel.y, w: sel.w, h: sel.h })
-      ctx.setFloating({ x: sel.x, y: sel.y, w: sel.w, h: sel.h, data, target: ctx.target })
+      if (!sel || !selectionContains(sel, ctx.x, ctx.y)) return false
+      const data = copyRegion(ctx.getRawCell(), ctx.w, ctx.h, sel.x, sel.y, sel.w, sel.h, sel.mask)
+      ctx.dispatch({ type: 'CLEAR_REGION', ...ctx.target, x: sel.x, y: sel.y, w: sel.w, h: sel.h, mask: sel.mask })
+      ctx.setFloating({ x: sel.x, y: sel.y, w: sel.w, h: sel.h, data, target: ctx.target, mask: sel.mask })
       return { dx: ctx.x - sel.x, dy: ctx.y - sel.y }
     },
     onDrag(ctx, _prev, drag) {

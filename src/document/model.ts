@@ -612,22 +612,122 @@ export function gradientFillPreview(cell: Cell, w: number, h: number, x0: number
 }
 
 // ── region ops (move / cut / copy / paste) ──────────────────────────────────
-// Zero out a rectangular region in place, clipped to bounds.
-export function clearRegion(cell: Cell, w: number, h: number, rx: number, ry: number, rw: number, rh: number) {
+// A selected region: a bounding box plus an optional per-pixel mask (1 byte
+// per pixel within the box, local-indexed [ly*w+lx], 1 = selected). No mask
+// means "every pixel in the box is selected" — the common rectangular-marquee
+// case. A mask only appears after inverting a selection (see
+// invertSelectionMask), since the complement of a rectangle generally isn't
+// itself a rectangle.
+export interface Selection {
+  x: number
+  y: number
+  w: number
+  h: number
+  mask?: Uint8Array
+}
+
+// Whether canvas pixel (x, y) is selected.
+export function selectionContains(sel: Selection, x: number, y: number): boolean {
+  const lx = x - sel.x, ly = y - sel.y
+  if (lx < 0 || ly < 0 || lx >= sel.w || ly >= sel.h) return false
+  return !sel.mask || sel.mask[ly * sel.w + lx] === 1
+}
+
+// The complement of `sel` over a canvasW×canvasH canvas, as a fresh
+// canvas-sized mask. Returns null if the result selects nothing (e.g.
+// inverting a selection that already covers the whole canvas).
+export function invertSelectionMask(sel: Selection, canvasW: number, canvasH: number): Selection | null {
+  const mask = new Uint8Array(canvasW * canvasH)
+  let any = false
+  for (let y = 0; y < canvasH; y++) {
+    for (let x = 0; x < canvasW; x++) {
+      if (!selectionContains(sel, x, y)) { mask[y * canvasW + x] = 1; any = true }
+    }
+  }
+  return any ? { x: 0, y: 0, w: canvasW, h: canvasH, mask } : null
+}
+
+// The marching-ants outline of a selection, as merged horizontal/vertical
+// runs (one run per contiguous edge instead of one per pixel, so a plain
+// rectangular selection comes back as exactly 4 segments like before).
+export function selectionOutline(sel: Selection): {
+  top: { x0: number; x1: number; y: number }[]
+  bottom: { x0: number; x1: number; y: number }[]
+  left: { y0: number; y1: number; x: number }[]
+  right: { y0: number; y1: number; x: number }[]
+} {
+  const { x: ox, y: oy, w: bw, h: bh, mask } = sel
+  const at = (lx: number, ly: number) => lx >= 0 && ly >= 0 && lx < bw && ly < bh && (!mask || mask[ly * bw + lx] === 1)
+  const topByRow = new Map<number, number[]>()
+  const bottomByRow = new Map<number, number[]>()
+  const leftByCol = new Map<number, number[]>()
+  const rightByCol = new Map<number, number[]>()
+  const push = (m: Map<number, number[]>, k: number, v: number) => {
+    const a = m.get(k)
+    if (a) a.push(v); else m.set(k, [v])
+  }
+  for (let ly = 0; ly < bh; ly++) {
+    for (let lx = 0; lx < bw; lx++) {
+      if (!at(lx, ly)) continue
+      const gx = ox + lx, gy = oy + ly
+      if (!at(lx, ly - 1)) push(topByRow, gy, gx)
+      if (!at(lx, ly + 1)) push(bottomByRow, gy + 1, gx)
+      if (!at(lx - 1, ly)) push(leftByCol, gx, gy)
+      if (!at(lx + 1, ly)) push(rightByCol, gx + 1, gy)
+    }
+  }
+  const mergeRuns = (vs: number[]): [number, number][] => {
+    const sorted = [...vs].sort((a, b) => a - b)
+    const runs: [number, number][] = []
+    for (const v of sorted) {
+      const last = runs[runs.length - 1]
+      if (last && last[1] === v) last[1] = v + 1
+      else runs.push([v, v + 1])
+    }
+    return runs
+  }
+  return {
+    top: [...topByRow.entries()].flatMap(([y, xs]) => mergeRuns(xs).map(([x0, x1]) => ({ x0, x1, y }))),
+    bottom: [...bottomByRow.entries()].flatMap(([y, xs]) => mergeRuns(xs).map(([x0, x1]) => ({ x0, x1, y }))),
+    left: [...leftByCol.entries()].flatMap(([x, ys]) => mergeRuns(ys).map(([y0, y1]) => ({ y0, y1, x }))),
+    right: [...rightByCol.entries()].flatMap(([x, ys]) => mergeRuns(ys).map(([y0, y1]) => ({ y0, y1, x }))),
+  }
+}
+
+// Zero out a rectangular region in place, clipped to bounds. `mask` (if given,
+// local-indexed to the rw×rh region) restricts this to selected pixels only.
+export function clearRegion(cell: Cell, w: number, h: number, rx: number, ry: number, rw: number, rh: number, mask?: Uint8Array) {
   for (let y = Math.max(0, ry); y < Math.min(h, ry + rh); y++) {
     for (let x = Math.max(0, rx); x < Math.min(w, rx + rw); x++) {
+      if (mask && mask[(y - ry) * rw + (x - rx)] !== 1) continue
       const i = (y * w + x) * 4
       cell[i] = 0; cell[i + 1] = 0; cell[i + 2] = 0; cell[i + 3] = 0
     }
   }
 }
 
+// Fill a rectangular region in place with a solid color, clipped to bounds.
+// `mask` (if given, local-indexed to the rw×rh region) restricts this to
+// selected pixels only.
+export function fillRegion(cell: Cell, w: number, h: number, rx: number, ry: number, rw: number, rh: number, rgba: RGBA, mask?: Uint8Array) {
+  for (let y = Math.max(0, ry); y < Math.min(h, ry + rh); y++) {
+    for (let x = Math.max(0, rx); x < Math.min(w, rx + rw); x++) {
+      if (mask && mask[(y - ry) * rw + (x - rx)] !== 1) continue
+      const i = (y * w + x) * 4
+      cell[i] = rgba[0]; cell[i + 1] = rgba[1]; cell[i + 2] = rgba[2]; cell[i + 3] = rgba[3]
+    }
+  }
+}
+
 // Sample a rectangular region into a new buffer (out-of-bounds samples stay
-// transparent). Does not mutate `cell`.
-export function copyRegion(cell: Cell, w: number, h: number, rx: number, ry: number, rw: number, rh: number): Cell {
+// transparent). Does not mutate `cell`. `mask` (if given, local-indexed to the
+// rw×rh region) leaves unselected pixels transparent in the output, so
+// pasteRegion's alpha-skip naturally reproduces a non-rectangular shape.
+export function copyRegion(cell: Cell, w: number, h: number, rx: number, ry: number, rw: number, rh: number, mask?: Uint8Array): Cell {
   const out = new Uint8ClampedArray(rw * rh * 4)
   for (let y = 0; y < rh; y++) {
     for (let x = 0; x < rw; x++) {
+      if (mask && mask[y * rw + x] !== 1) continue
       const sx = rx + x, sy = ry + y
       if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue
       const si = (sy * w + sx) * 4, di = (y * rw + x) * 4

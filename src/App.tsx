@@ -13,14 +13,14 @@ import EyedropperMagnifier from './components/EyedropperMagnifier.jsx'
 import useFoldable from './hooks/useFoldable.js'
 import usePeek from './hooks/usePeek.js'
 import { useGlobalEyedropper } from './hooks/useGlobalEyedropper.js'
-import { createBlankDocument, createDocument, copyRegion, rgbaToHex, compositeFrame } from './document/model.js'
+import { createBlankDocument, createDocument, copyRegion, rgbaToHex, hexToRgba, invertSelectionMask, compositeFrame } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
 import { projectToZipBlob, projectFromZipFile, projectPaletteFromZipFile, downloadBlob } from './persist/zip.js'
 import { matchShortcut, isTypingTarget } from './shortcuts/registry.js'
 import type { BrushShape, Cell, Doc, Sprite } from './document/model.js'
-import type { Rect, Floating, CropPending, Coord } from './tools/registry.js'
+import type { Selection, Floating, CropPending, Coord } from './tools/registry.js'
 
 interface Clipboard {
   w: number
@@ -36,7 +36,7 @@ export default function App() {
   const [tool, setTool] = useState('pencil')
   const [temporaryToolReturn, setTemporaryToolReturn] = useState<string | null>(null)
   const [fgColor, setFgColor] = useState('#fbbf24')
-  const [bgColor, setBgColor] = useState('#ffffff')
+  const [bgColor, setBgColor] = useState('#ffffff00')
   const swapColors = () => {
     setFgColor(bgColor)
     setBgColor(fgColor)
@@ -44,7 +44,7 @@ export default function App() {
   // Select/move/clipboard state. `selection` is a rect on the active layer's
   // current frame; `floating` is pixels lifted out of the layer by a move or
   // paste, rendered on top until something commits them (see commitFloating).
-  const [selection, setSelection] = useState<Rect | null>(null)
+  const [selection, setSelection] = useState<Selection | null>(null)
   const [floating, setFloating] = useState<Floating | null>(null)
   const [clipboard, setClipboard] = useState<Clipboard | null>(null)
   // Pending crop window from the Crop tool — { x, y, w, h, target } — stays
@@ -253,14 +253,14 @@ export default function App() {
   const copySelection = () => {
     if (floating) { setClipboard({ w: floating.w, h: floating.h, data: floating.data.slice() }); return }
     if (!selection) return
-    setClipboard({ w: selection.w, h: selection.h, data: copyRegion(getActiveCell(), activeSprite.w, activeSprite.h, selection.x, selection.y, selection.w, selection.h) })
+    setClipboard({ w: selection.w, h: selection.h, data: copyRegion(getActiveCell(), activeSprite.w, activeSprite.h, selection.x, selection.y, selection.w, selection.h, selection.mask) })
   }
 
   const cutSelection = () => {
     if (floating) { setClipboard({ w: floating.w, h: floating.h, data: floating.data.slice() }); setFloating(null); return }
     if (!selection) return
-    setClipboard({ w: selection.w, h: selection.h, data: copyRegion(getActiveCell(), activeSprite.w, activeSprite.h, selection.x, selection.y, selection.w, selection.h) })
-    dispatch({ type: 'CLEAR_REGION', ...target, x: selection.x, y: selection.y, w: selection.w, h: selection.h })
+    setClipboard({ w: selection.w, h: selection.h, data: copyRegion(getActiveCell(), activeSprite.w, activeSprite.h, selection.x, selection.y, selection.w, selection.h, selection.mask) })
+    dispatch({ type: 'CLEAR_REGION', ...target, x: selection.x, y: selection.y, w: selection.w, h: selection.h, mask: selection.mask })
   }
 
   const pasteClipboard = () => {
@@ -271,6 +271,34 @@ export default function App() {
     setFloating({ x, y, w: clipboard.w, h: clipboard.h, data: clipboard.data.slice(), target })
     setSelection({ x, y, w: clipboard.w, h: clipboard.h })
     selectTool('move')
+  }
+
+  const selectAll = () => {
+    commitFloating()
+    setSelection({ x: 0, y: 0, w: activeSprite.w, h: activeSprite.h })
+  }
+
+  const deselect = () => {
+    commitFloating()
+    setSelection(null)
+  }
+
+  // Cmd/Ctrl+Shift+I: select the complement of the current selection (or
+  // everything, if nothing's selected). The complement of a rectangle isn't
+  // generally a rectangle, so this stamps a canvas-sized mask (see
+  // invertSelectionMask) rather than another plain Rect.
+  const invertSelection = () => {
+    commitFloating()
+    if (!selection) { setSelection({ x: 0, y: 0, w: activeSprite.w, h: activeSprite.h }); return }
+    setSelection(invertSelectionMask(selection, activeSprite.w, activeSprite.h))
+  }
+
+  // Backspace/Delete: fill the selection with the background color. A
+  // floating move/paste has no committed pixels to fill yet, so just drop it.
+  const clearSelectionToBg = () => {
+    if (floating) { setFloating(null); setSelection(null); return }
+    if (!selection) return
+    dispatch({ type: 'FILL_REGION', ...target, x: selection.x, y: selection.y, w: selection.w, h: selection.h, rgba: hexToRgba(bgColor), mask: selection.mask })
   }
 
   // Apply the pending crop window (CROP_SPRITE on the sprite it was drawn
@@ -356,17 +384,19 @@ export default function App() {
   }
 
   // Routes keydown through the shortcut registry: Cmd/Ctrl+Z undo,
-  // Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo, Cmd/Ctrl+C/X/V for the selection
-  // clipboard, Escape to commit a floating move/paste (and cancel a pending
-  // crop or continuous line) and deselect, Enter to commit a pending crop,
-  // Left/Right to step frames, and a letter per tool (see each tool's `key`
+  // Cmd/Ctrl+Shift+Z (or Ctrl+Y) redo, Cmd/Ctrl+A select all, Cmd/Ctrl+D
+  // deselect, Cmd/Ctrl+Shift+I invert selection, Cmd/Ctrl+C/X/V for the
+  // selection clipboard, Backspace/Delete to fill the selection with the
+  // background color, Escape to commit a floating move/paste (and cancel a
+  // pending crop or continuous line) and deselect, Enter to commit a pending
+  // crop, Left/Right to step frames, and a letter per tool (see each tool's `key`
   // in tools/registry.js).
   useEffect(() => {
     const ctx = {
       dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
       tool, filled, setVariant: setToolVariant, peekVariants, brushSize, setBrushSize,
-      copySelection, cutSelection, pasteClipboard, commitFloating, setSelection,
-      commitCrop, cancelCrop, cancelContinuousLine: () => setContinuousLine(null), swapColors, stepFrame,
+      copySelection, cutSelection, pasteClipboard, commitFloating, setSelection, selectAll, deselect, invertSelection,
+      clearSelectionToBg, commitCrop, cancelCrop, cancelContinuousLine: () => setContinuousLine(null), swapColors, stepFrame,
     }
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return
