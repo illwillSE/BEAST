@@ -109,7 +109,6 @@ implemented; this file tracks what isn't, organized by area.
       decoder; coalesce disposal/transparency. Bigger lift than PNG.
 
 ## Export
-- [ ] PNG with pixel-art upscaling (1×/2×/4×/8×).
 - [ ] Animated GIF (all frames).
 - [ ] Sprite sheet (all frames in one PNG grid).
 
