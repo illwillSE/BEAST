@@ -8,6 +8,7 @@ import LayersPanel from './components/LayersPanel.jsx'
 import ColorPanel from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
 import SettingsModal from './components/SettingsModal.jsx'
+import ImportColorsFromCanvasDialog from './components/ImportColorsFromCanvasDialog.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
 import FoldTab from './components/FoldTab.jsx'
 import EyedropperMagnifier from './components/EyedropperMagnifier.jsx'
@@ -456,6 +457,35 @@ export default function App() {
     savedDocRef.current = doc
   }
 
+  // "Import from canvas": composite the current frame's visible layers and
+  // collect its distinct opaque colors, same cap/dedup as importImagePalette.
+  // Pending colors (non-null) double as the confirm dialog's open flag —
+  // its Replace/Add Unique choice decides SET_PALETTE vs MERGE_SWATCHES.
+  const [importCanvasColors, setImportCanvasColors] = useState<string[] | null>(null)
+  const importColorsFromCanvas = () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = activeSprite.w
+    canvas.height = activeSprite.h
+    const ctx = canvas.getContext('2d')!
+    const imageData = ctx.createImageData(activeSprite.w, activeSprite.h)
+    compositeFrame(activeSprite, safeFrame, imageData)
+    const { data } = imageData
+    const colors = new Set<string>()
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] === 0) continue
+      colors.add(rgbaToHex([data[i], data[i + 1], data[i + 2], data[i + 3]]))
+      if (colors.size > MAX_IMPORTED_COLORS) {
+        window.alert(`This canvas has too many distinct colors (>${MAX_IMPORTED_COLORS}) to import.`)
+        return
+      }
+    }
+    if (colors.size === 0) {
+      window.alert('The current canvas has no opaque pixels to import colors from.')
+      return
+    }
+    setImportCanvasColors([...colors])
+  }
+
   const handleExportPng = async () => {
     const canvas = document.createElement('canvas')
     canvas.width = activeSprite.w
@@ -523,6 +553,7 @@ export default function App() {
     openProject: () => { pickFile('.zip').then((f) => f && handleOpen(f)) },
     importPng: () => { pickFile('image/*').then((f) => f && importSpritePng(f)) },
     importColors: () => { pickFile('image/*').then((f) => f && importImagePalette(f)) },
+    importColorsFromCanvas,
     importPalette: () => { pickFile('.zip').then((f) => f && importProjectPalette(f)) },
     toggleMirrorV: () => setMirrorV((v) => !v),
     toggleMirrorH: () => setMirrorH((v) => !v),
@@ -773,6 +804,13 @@ export default function App() {
         open={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         ctx={commandCtx}
+      />
+
+      <ImportColorsFromCanvasDialog
+        colors={importCanvasColors}
+        onReplace={() => { dispatch({ type: 'SET_PALETTE', palette: importCanvasColors! }); setImportCanvasColors(null) }}
+        onAddUnique={() => { dispatch({ type: 'MERGE_SWATCHES', colors: importCanvasColors! }); setImportCanvasColors(null) }}
+        onClose={() => setImportCanvasColors(null)}
       />
     </div>
   )

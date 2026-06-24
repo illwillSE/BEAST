@@ -43,6 +43,7 @@ export interface CommandContext extends ShortcutContext {
   openProject(): void
   importPng(): void
   importColors(): void
+  importColorsFromCanvas(): void
   importPalette(): void
   // View / toggles.
   toggleMirrorV(): void
@@ -143,6 +144,10 @@ export const commands: Command[] = [
     enabled: (c) => !!tools[c.tool]?.hasBrushSize,
     run: (c) => c.setBrushSize(Math.max(1, c.brushSize - 1)),
   },
+  {
+    id: 'clear-canvas', title: 'Clear Canvas', category: 'Edit', keywords: 'erase delete transparent layer',
+    run: (c) => c.dispatch({ type: 'CLEAR_REGION', ...c.target, x: 0, y: 0, w: c.activeSprite.w, h: c.activeSprite.h }),
+  },
 
   // Selection
   { id: 'select-all', title: 'Select All', category: 'Selection', shortcut: mod('A'), run: (c) => c.selectAll() },
@@ -222,6 +227,7 @@ export const commands: Command[] = [
   { id: 'open', title: 'Open Project…', category: 'File', keywords: 'load import zip', run: (c) => c.openProject() },
   { id: 'import-png', title: 'Import PNG as Sprite…', category: 'File', keywords: 'load image', run: (c) => c.importPng() },
   { id: 'import-colors', title: 'Import Colors from Image…', category: 'File', keywords: 'palette swatch', run: (c) => c.importColors() },
+  { id: 'import-colors-canvas', title: 'Import Colors from Canvas', category: 'File', keywords: 'palette swatch sprite layer', run: (c) => c.importColorsFromCanvas() },
   { id: 'import-palette', title: 'Import Palette from Project…', category: 'File', keywords: 'swatch zip', run: (c) => c.importPalette() },
 ]
 
