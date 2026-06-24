@@ -77,6 +77,7 @@ export interface CropPending extends Rect {
 // shape preview, the dashed marquee for select/crop, or a dashed line (gradient).
 export type Preview =
   | { kind: 'pixels'; points: Point[]; color: string }
+  | { kind: 'erase'; points: Point[] }
   | { kind: 'marquee'; rect: Rect }
   | { kind: 'line'; x0: number; y0: number; x1: number; y1: number }
   | { kind: 'gradient'; points: Point[]; colors: RGBA[]; x0: number; y0: number; x1: number; y1: number }
@@ -107,6 +108,7 @@ export interface ToolContext {
   brushShape: BrushShape
   setPreview: (preview: Preview | null) => void
   shiftKey: boolean
+  erasing: boolean
   selection: Selection | null
   setSelection: (selection: Selection | null) => void
   floating: Floating | null
@@ -134,6 +136,27 @@ export interface Tool<D = unknown> {
   // Pointer move while *not* dragging — for tools that need a hover preview
   // between clicks rather than during a drag (continuous line mode).
   onMove?(ctx: ToolContext): void
+}
+
+// The color the eraser paints with — bg color if "erase to background" is
+// on, transparent otherwise.
+function eraseColor(ctx: ToolContext): RGBA {
+  return ctx.eraseToBg ? hexToRgba(ctx.bgColor) : [0, 0, 0, 0]
+}
+
+// Right-click paints with the erase color instead of fg color, for any tool
+// that resolves its paint color this way (pencil, fill, line, rect, ellipse) —
+// so each tool keeps its own shape logic and just lands a different color.
+function paintColor(ctx: ToolContext): RGBA {
+  return ctx.erasing ? eraseColor(ctx) : hexToRgba(ctx.fgColor)
+}
+
+// Shape-preview helper for line/rect/ellipse: mirrors paintColor, but a
+// right-click erase-to-transparent preview can't show its real (invisible)
+// result, so it renders as a checkerboard instead (see PixelCanvas).
+function shapePreview(ctx: ToolContext, points: Point[]): Preview {
+  if (ctx.erasing && !ctx.eraseToBg) return { kind: 'erase', points }
+  return { kind: 'pixels', points, color: ctx.erasing ? ctx.bgColor : ctx.fgColor }
 }
 
 // Pencil/eraser share a continuous-line stroke; one undo step per drag.
@@ -235,14 +258,14 @@ function resizeRect(orig: Rect, handle: CropHandle, x: number, y: number): Rect 
 }
 
 export const tools: Record<string, Tool<any>> = {
-  pencil: { key: 'b', hasBrushSize: true, ...strokeTool((ctx) => hexToRgba(ctx.fgColor)) },
-  eraser: { key: 'e', hasBrushSize: true, ...strokeTool((ctx) => (ctx.eraseToBg ? hexToRgba(ctx.bgColor) : [0, 0, 0, 0])) },
+  pencil: { key: 'b', hasBrushSize: true, ...strokeTool((ctx) => paintColor(ctx)) },
+  eraser: { key: 'e', hasBrushSize: true, ...strokeTool((ctx) => eraseColor(ctx)) },
 
   fill: {
     key: 'g',
     cursor: 'crosshair',
     onStart(ctx) {
-      commitBracketed(ctx, { type: 'FILL', ...ctx.target, x: ctx.x, y: ctx.y, rgba: hexToRgba(ctx.fgColor) })
+      commitBracketed(ctx, { type: 'FILL', ...ctx.target, x: ctx.x, y: ctx.y, rgba: paintColor(ctx) })
     },
   },
 
@@ -303,7 +326,7 @@ export const tools: Record<string, Tool<any>> = {
         commitBracketed(ctx, {
           type: 'PAINT_LINE', ...ctx.target,
           x0: anchor.x, y0: anchor.y, x1: ctx.x, y1: ctx.y,
-          rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize, shape: ctx.brushShape,
+          rgba: paintColor(ctx), size: ctx.brushSize, shape: ctx.brushShape,
         })
       }
       ctx.setContinuousLine({ x: ctx.x, y: ctx.y })
@@ -313,17 +336,17 @@ export const tools: Record<string, Tool<any>> = {
     onMove(ctx) {
       if (!ctx.filled || !ctx.continuousLine) return
       const pts = stampPoints(linePoints(ctx.continuousLine.x, ctx.continuousLine.y, ctx.x, ctx.y), ctx.brushSize, ctx.brushShape)
-      ctx.setPreview({ kind: 'pixels', points: pts, color: ctx.fgColor })
+      ctx.setPreview(shapePreview(ctx, pts))
     },
     onDrag(ctx, _prev, start) {
       const pts = stampPoints(linePoints(start.x0, start.y0, ctx.x, ctx.y), ctx.brushSize, ctx.brushShape)
-      ctx.setPreview({ kind: 'pixels', points: pts, color: ctx.fgColor })
+      ctx.setPreview(shapePreview(ctx, pts))
     },
     onEnd(ctx, start) {
       commitBracketed(ctx, {
         type: 'PAINT_LINE', ...ctx.target,
         x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y,
-        rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize, shape: ctx.brushShape,
+        rgba: paintColor(ctx), size: ctx.brushSize, shape: ctx.brushShape,
       })
       ctx.setPreview(null)
     },
@@ -340,14 +363,14 @@ export const tools: Record<string, Tool<any>> = {
     onDrag(ctx, _prev, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       const pts = rectPoints(start.x0, start.y0, x1, y1, ctx.filled)
-      ctx.setPreview({ kind: 'pixels', points: ctx.filled ? pts : stampPoints(pts, ctx.brushSize, ctx.brushShape), color: ctx.fgColor })
+      ctx.setPreview(shapePreview(ctx, ctx.filled ? pts : stampPoints(pts, ctx.brushSize, ctx.brushShape)))
     },
     onEnd(ctx, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       commitBracketed(ctx, {
         type: 'PAINT_RECT', ...ctx.target,
         x0: start.x0, y0: start.y0, x1, y1, filled: ctx.filled,
-        rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize, shape: ctx.brushShape,
+        rgba: paintColor(ctx), size: ctx.brushSize, shape: ctx.brushShape,
       })
       ctx.setPreview(null)
     },
@@ -364,14 +387,14 @@ export const tools: Record<string, Tool<any>> = {
     onDrag(ctx, _prev, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       const pts = ellipsePoints(start.x0, start.y0, x1, y1, ctx.filled)
-      ctx.setPreview({ kind: 'pixels', points: ctx.filled ? pts : stampPoints(pts, ctx.brushSize, ctx.brushShape), color: ctx.fgColor })
+      ctx.setPreview(shapePreview(ctx, ctx.filled ? pts : stampPoints(pts, ctx.brushSize, ctx.brushShape)))
     },
     onEnd(ctx, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       commitBracketed(ctx, {
         type: 'PAINT_ELLIPSE', ...ctx.target,
         x0: start.x0, y0: start.y0, x1, y1, filled: ctx.filled,
-        rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize, shape: ctx.brushShape,
+        rgba: paintColor(ctx), size: ctx.brushSize, shape: ctx.brushShape,
       })
       ctx.setPreview(null)
     },

@@ -111,6 +111,7 @@ export default function PixelCanvas({
   const lastRef = useRef<{ x: number; y: number } | null>(null)
   const dragStateRef = useRef<any>(null)
   const shiftRef = useRef(false)
+  const erasingRef = useRef(false)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [magnifier, setMagnifier] = useState<{ clientX: number; clientY: number; pixels: (RGBA | null)[] } | null>(null)
   const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(null)
@@ -169,6 +170,14 @@ export default function PixelCanvas({
       const [r, g, b, a] = hexToRgba(preview.color)
       ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`
       for (const [x, y] of preview.points) ctx.fillRect(x, y, 1, 1)
+    }
+    if (preview?.kind === 'erase') {
+      const checkerA = getColor('checker-a')
+      const checkerB = getColor('checker-b')
+      for (const [x, y] of preview.points) {
+        ctx.fillStyle = (x + y) % 2 === 0 ? checkerA : checkerB
+        ctx.fillRect(x, y, 1, 1)
+      }
     }
     if (preview?.kind === 'gradient') {
       preview.points.forEach(([x, y], i) => {
@@ -385,7 +394,7 @@ export default function PixelCanvas({
 
   const ctxFor = (x: number, y: number): ToolContext => ({
     x, y, target, fgColor, bgColor, eraseToBg, dispatch: mirroredDispatch, setFgColor: onFgColor, sampleColor,
-    w, h, scale, filled, brushSize, brushShape, setPreview, shiftKey: shiftRef.current,
+    w, h, scale, filled, brushSize, brushShape, setPreview, shiftKey: shiftRef.current, erasing: erasingRef.current,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
     cropPending, setCropPending, continuousLine, setContinuousLine,
   })
@@ -401,6 +410,10 @@ export default function PixelCanvas({
     if (!activeTool || playing) return
     const { x, y } = cellFromEvent(e)
     if (!inBounds(x, y)) return
+    // Right-click paints with the erase color for the whole gesture, instead
+    // of swapping tools — so rect/ellipse/line/fill keep their own shape
+    // logic and just resolve to a different color (see ctx.erasing).
+    erasingRef.current = e.button === 2
     const dragState = activeTool.onStart?.(ctxFor(x, y))
     if (tool === 'eyedropper' && onTemporaryToolComplete) {
       setMagnifier(null)
@@ -432,13 +445,17 @@ export default function PixelCanvas({
   }
 
   const handleUp = () => {
-    if (!draggingRef.current) return
+    if (!draggingRef.current) {
+      erasingRef.current = false
+      return
+    }
     const last = lastRef.current!
     const dragState = dragStateRef.current
     draggingRef.current = false
     dragStateRef.current = null
     lastRef.current = null
     activeTool?.onEnd?.(ctxFor(last.x, last.y), dragState)
+    erasingRef.current = false
   }
 
   return (
@@ -465,6 +482,7 @@ export default function PixelCanvas({
         onPointerMove={handleMove}
         onPointerUp={handleUp}
         onPointerLeave={() => { handleUp(); onHover?.(null); setMagnifier(null); setHoverCell(null) }}
+        onContextMenu={(e) => e.preventDefault()}
         style={{
           position: 'absolute',
           inset: 0,
