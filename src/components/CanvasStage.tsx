@@ -65,6 +65,10 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
     dispatch({ type: 'CROP_SPRITE', spriteId: sprite.id, x, y, w, h })
     setResizeOpen(false)
   }
+  const stretchSprite = (w: number, h: number) => {
+    dispatch({ type: 'STRETCH_SPRITE', spriteId: sprite.id, w, h })
+    setResizeOpen(false)
+  }
 
   // Fits the sprite to the viewport, accounting for the viewport's p-6 padding.
   const fitToFrame = () => {
@@ -174,6 +178,7 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
         open={resizeOpen}
         sprite={sprite}
         onResize={resizeSprite}
+        onStretch={stretchSprite}
         onClose={() => setResizeOpen(false)}
       />
     </div>

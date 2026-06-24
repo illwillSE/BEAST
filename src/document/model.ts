@@ -207,6 +207,36 @@ export function cropSprite(doc: Doc, spriteId: string, x: number, y: number, new
   }))
 }
 
+// Nearest-neighbor scale of a cell to newW×newH — keeps hard pixel edges (no
+// blending), unlike resizeCell which pads/crops instead of scaling.
+function stretchCell(cell: Cell, w: number, h: number, newW: number, newH: number): Cell {
+  const out = createCell(newW, newH)
+  for (let y = 0; y < newH; y++) {
+    const sy = Math.min(h - 1, Math.floor((y * h) / newH))
+    for (let x = 0; x < newW; x++) {
+      const sx = Math.min(w - 1, Math.floor((x * w) / newW))
+      const si = (sy * w + sx) * 4
+      const di = (y * newW + x) * 4
+      out[di] = cell[si]; out[di + 1] = cell[si + 1]; out[di + 2] = cell[si + 2]; out[di + 3] = cell[si + 3]
+    }
+  }
+  return out
+}
+
+// Scale a sprite's whole canvas to newW×newH using nearest-neighbor sampling,
+// stretching existing content to fill the new size rather than crop/pad.
+export function stretchSprite(doc: Doc, spriteId: string, newW: number, newH: number): Doc {
+  return mapSprite(doc, spriteId, (sp) => ({
+    ...sp,
+    w: newW,
+    h: newH,
+    layers: sp.layers.map((l) => ({
+      ...l,
+      cells: l.cells.map((c) => stretchCell(c, sp.w, sp.h, newW, newH)),
+    })),
+  }))
+}
+
 // ── lookups ──────────────────────────────────────────────────────────────
 export function findSprite(doc: Doc, spriteId: string): Sprite | undefined {
   return doc.sprites.find((s) => s.id === spriteId)

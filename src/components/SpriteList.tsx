@@ -42,6 +42,10 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pi
     dispatch({ type: 'CROP_SPRITE', spriteId: selectedSprite!.id, x, y, w, h })
     setResizeOpen(false)
   }
+  const stretchSprite = (w: number, h: number) => {
+    dispatch({ type: 'STRETCH_SPRITE', spriteId: selectedSprite!.id, w, h })
+    setResizeOpen(false)
+  }
   const removeSprite = (spriteId: string) => sprites.length > 1 && dispatch({ type: 'REMOVE_SPRITE', spriteId })
   const moveSprite = (delta: number) => selectedId && dispatch({ type: 'MOVE_SPRITE', spriteId: selectedId, delta })
 
@@ -157,6 +161,7 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pi
           open={resizeOpen}
           sprite={selectedSprite}
           onResize={resizeSprite}
+          onStretch={stretchSprite}
           onClose={() => setResizeOpen(false)}
         />
       )}

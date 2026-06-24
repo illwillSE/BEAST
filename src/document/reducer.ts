@@ -25,6 +25,7 @@ import {
   removeSprite,
   moveSprite,
   cropSprite,
+  stretchSprite,
   addLayer,
   duplicateLayer,
   removeLayer,
@@ -87,6 +88,7 @@ export type Action =
   | { type: 'REMOVE_SPRITE'; spriteId: string }
   | { type: 'MOVE_SPRITE'; spriteId: string; delta: number }
   | { type: 'CROP_SPRITE'; spriteId: string; x: number; y: number; w: number; h: number }
+  | { type: 'STRETCH_SPRITE'; spriteId: string; w: number; h: number }
   | { type: 'ADD_LAYER'; spriteId: string; name?: string }
   | { type: 'DUPLICATE_LAYER'; spriteId: string; layerId: string }
   | { type: 'REMOVE_LAYER'; spriteId: string; layerId: string }
@@ -234,6 +236,9 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
 
     case 'CROP_SPRITE':
       return editDoc(state, (doc) => cropSprite(doc, action.spriteId, action.x, action.y, action.w, action.h))
+
+    case 'STRETCH_SPRITE':
+      return editDoc(state, (doc) => stretchSprite(doc, action.spriteId, action.w, action.h))
 
     case 'ADD_LAYER':
       return editDoc(state, (doc) => addLayer(doc, action.spriteId, action.name))

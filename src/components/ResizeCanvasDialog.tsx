@@ -16,18 +16,21 @@ interface ResizeCanvasDialogProps {
   open: boolean
   sprite: Sprite
   onResize: (x: number, y: number, w: number, h: number) => void
+  onStretch: (w: number, h: number) => void
   onClose: () => void
 }
 
-// Modal for resizing the active sprite's canvas to an explicit W×H, anchored
-// at one of 9 points (like Photoshop's Canvas Size) — existing pixels stay
-// put relative to the anchor, padding (or cropping) the rest. Dispatches the
-// same undoable CROP_SPRITE action as the Crop tool (document/model.js
-// cropSprite handles both growing and shrinking generically).
-export default function ResizeCanvasDialog({ open, sprite, onResize, onClose }: ResizeCanvasDialogProps) {
+// Modal for resizing the active sprite's canvas to an explicit W×H. Two
+// modes: anchored crop/pad (like Photoshop's Canvas Size — existing pixels
+// stay put relative to one of 9 anchor points, padding or cropping the rest;
+// dispatches the undoable CROP_SPRITE action, same as the Crop tool) or
+// stretch (nearest-neighbor scale of the whole canvas to the new size, so it
+// stays pixel-perfect with no blending; dispatches STRETCH_SPRITE).
+export default function ResizeCanvasDialog({ open, sprite, onResize, onStretch, onClose }: ResizeCanvasDialogProps) {
   const [w, setW] = useState(32)
   const [h, setH] = useState(32)
   const [anchor, setAnchor] = useState<[number, number]>([0, 0])
+  const [stretch, setStretch] = useState(false)
   const firstInputRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
 
@@ -36,6 +39,7 @@ export default function ResizeCanvasDialog({ open, sprite, onResize, onClose }: 
     setW(sprite.w)
     setH(sprite.h)
     setAnchor([0, 0])
+    setStretch(false)
     firstInputRef.current?.focus()
   }, [open, sprite])
 
@@ -49,6 +53,10 @@ export default function ResizeCanvasDialog({ open, sprite, onResize, onClose }: 
   const resize = () => {
     const newW = clamp(w)
     const newH = clamp(h)
+    if (stretch) {
+      onStretch(newW, newH)
+      return
+    }
     const deltaW = newW - sprite.w
     const deltaH = newH - sprite.h
     const [ax, ay] = anchor
@@ -100,14 +108,20 @@ export default function ResizeCanvasDialog({ open, sprite, onResize, onClose }: 
           </label>
         </div>
 
-        <label className="block text-xs text-faint mb-1.5">Anchor</label>
-        <div className="grid grid-cols-3 gap-1 w-24 mb-4">
+        <label className="flex items-center gap-1.5 text-xs text-faint mb-3">
+          <input type="checkbox" checked={stretch} onChange={(e) => setStretch(e.target.checked)} />
+          Stretch to fit
+        </label>
+
+        <label className={'block text-xs text-faint mb-1.5' + (stretch ? ' opacity-40' : '')}>Anchor</label>
+        <div className={'grid grid-cols-3 gap-1 w-24 mb-4' + (stretch ? ' opacity-40 pointer-events-none' : '')}>
           {ANCHORS.map(([ax, ay]) => {
             const selected = anchor[0] === ax && anchor[1] === ay
             return (
               <button
                 key={`${ax},${ay}`}
                 type="button"
+                disabled={stretch}
                 onClick={() => setAnchor([ax, ay])}
                 className={
                   'h-7 rounded border grid place-items-center ' +
