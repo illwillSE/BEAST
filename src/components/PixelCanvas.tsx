@@ -75,6 +75,7 @@ interface PixelCanvasProps {
   onTemporaryToolComplete?: () => void
   playing: boolean
   onionSkin: boolean
+  eraseToBg: boolean
   showGrid: boolean
   gridSpacing: number
 }
@@ -98,7 +99,7 @@ export default function PixelCanvas({
   sprite, frameIndex, target, dispatch, scale, fgColor, bgColor, tool, onFgColor, onHover,
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, continuousLine, setContinuousLine, filled, brushSize, brushShape,
-  mirrorV, mirrorH, onTemporaryToolComplete, playing, onionSkin, showGrid, gridSpacing,
+  mirrorV, mirrorH, onTemporaryToolComplete, playing, onionSkin, eraseToBg, showGrid, gridSpacing,
 }: PixelCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const onionRef = useRef<HTMLCanvasElement>(null)
@@ -383,7 +384,7 @@ export default function PixelCanvas({
   const getRawCell = () => sprite.layers.find((l) => l.id === target.layerId)!.cells[target.frameIndex]
 
   const ctxFor = (x: number, y: number): ToolContext => ({
-    x, y, target, fgColor, bgColor, dispatch: mirroredDispatch, setFgColor: onFgColor, sampleColor,
+    x, y, target, fgColor, bgColor, eraseToBg, dispatch: mirroredDispatch, setFgColor: onFgColor, sampleColor,
     w, h, scale, filled, brushSize, brushShape, setPreview, shiftKey: shiftRef.current,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
     cropPending, setCropPending, continuousLine, setContinuousLine,

@@ -95,6 +95,7 @@ export interface ToolContext {
   target: CellTarget
   fgColor: string
   bgColor: string
+  eraseToBg: boolean
   dispatch: (action: Action) => void
   setFgColor: (hex: string) => void
   sampleColor: (x: number, y: number) => string | null
@@ -235,7 +236,7 @@ function resizeRect(orig: Rect, handle: CropHandle, x: number, y: number): Rect 
 
 export const tools: Record<string, Tool<any>> = {
   pencil: { key: 'b', hasBrushSize: true, ...strokeTool((ctx) => hexToRgba(ctx.fgColor)) },
-  eraser: { key: 'e', hasBrushSize: true, ...strokeTool(() => [0, 0, 0, 0]) },
+  eraser: { key: 'e', hasBrushSize: true, ...strokeTool((ctx) => (ctx.eraseToBg ? hexToRgba(ctx.bgColor) : [0, 0, 0, 0])) },
 
   fill: {
     key: 'g',

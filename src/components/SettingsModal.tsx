@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Eye, X } from 'lucide-react'
+import { Eraser, Eye, X } from 'lucide-react'
 import { clearAllStorage } from '../persist/autosave.js'
 import { focusAdjacentButton } from '../hooks/dialogFocusNav.js'
 import useEscapeKey from '../hooks/useEscapeKey.js'
@@ -10,14 +10,17 @@ interface SettingsModalProps {
   onClose: () => void
   onionSkin: boolean
   onToggleOnionSkin: () => void
+  eraseToBg: boolean
+  onToggleEraseToBg: () => void
 }
 
-type TabId = 'onion-skin' | 'system'
+type TabId = 'onion-skin' | 'eraser' | 'system'
 
 // Tab list lives here so adding a new settings section later is just another
 // entry + another `activeTab === id` branch below.
 const TABS: { id: TabId; label: string }[] = [
   { id: 'onion-skin', label: 'Onion Skin' },
+  { id: 'eraser', label: 'Eraser' },
   { id: 'system', label: 'System' },
 ]
 
@@ -26,7 +29,7 @@ const CONFIRM_WORD = 'yes'
 // Settings modal opened from the Header cogwheel. Tabbed shell so future
 // settings can be added as sibling panes; onion skin (moved out of
 // FramesTimeline) is the first tab.
-export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionSkin }: SettingsModalProps) {
+export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionSkin, eraseToBg, onToggleEraseToBg }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('onion-skin')
   const [confirmingClearData, setConfirmingClearData] = useState(false)
   const [confirmText, setConfirmText] = useState('')
@@ -108,6 +111,23 @@ export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionS
                 <Eye size={11} />
               </span>
               Onion skin
+            </button>
+          )}
+
+          {activeTab === 'eraser' && (
+            <button
+              onClick={onToggleEraseToBg}
+              className={'flex items-center gap-1.5 text-[11px] select-none ' + (eraseToBg ? 'text-muted' : 'text-faint')}
+            >
+              <span
+                className={
+                  'grid place-items-center w-4 h-4 rounded-sm border ' +
+                  (eraseToBg ? 'bg-accent-deep/20 border-accent-deep text-accent-bright' : 'border-edge text-faint')
+                }
+              >
+                <Eraser size={11} />
+              </span>
+              Erase to background color
             </button>
           )}
 

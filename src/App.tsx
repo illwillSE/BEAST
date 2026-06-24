@@ -211,6 +211,7 @@ export default function App() {
   const [playing, setPlaying] = useState(false)
   const [fps, setFps] = useState(12)
   const [onionSkin, setOnionSkin] = useState(true)
+  const [eraseToBg, setEraseToBg] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [gradientOpen, setGradientOpen] = useState(true)
@@ -667,6 +668,7 @@ export default function App() {
               onClosePreview={() => setPreviewOpen(false)}
               playing={playing}
               onionSkin={onionSkin}
+              eraseToBg={eraseToBg}
               showGrid={showGrid}
               gridSpacing={gridSpacing}
             />
@@ -810,6 +812,8 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         onionSkin={onionSkin}
         onToggleOnionSkin={() => setOnionSkin((o) => !o)}
+        eraseToBg={eraseToBg}
+        onToggleEraseToBg={() => setEraseToBg((v) => !v)}
       />
 
       <CommandPalette
