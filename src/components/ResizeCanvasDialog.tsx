@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Sprite } from '../document/model.js'
+import { focusAdjacentButton } from '../hooks/dialogFocusNav.js'
+import useEscapeKey from '../hooks/useEscapeKey.js'
+import useFocusTrap from '../hooks/useFocusTrap.js'
 
 const MIN_SIZE = 1
 const MAX_SIZE = 256
@@ -26,6 +29,7 @@ export default function ResizeCanvasDialog({ open, sprite, onResize, onClose }: 
   const [h, setH] = useState(32)
   const [anchor, setAnchor] = useState<[number, number]>([0, 0])
   const firstInputRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -34,6 +38,9 @@ export default function ResizeCanvasDialog({ open, sprite, onResize, onClose }: 
     setAnchor([0, 0])
     firstInputRef.current?.focus()
   }, [open, sprite])
+
+  useEscapeKey(open, onClose)
+  useFocusTrap(open, formRef)
 
   if (!open) return null
 
@@ -56,13 +63,10 @@ export default function ResizeCanvasDialog({ open, sprite, onResize, onClose }: 
       onMouseDown={onClose}
     >
       <form
+        ref={formRef}
+        role="dialog"
         onMouseDown={(e) => e.stopPropagation()}
         onSubmit={(e) => { e.preventDefault(); resize() }}
-        onKeyDown={(e) => {
-          if (e.key !== 'Enter') return
-          e.preventDefault()
-          resize()
-        }}
         className="bg-panel border border-divider rounded-lg p-4 w-72 shadow-xl"
       >
         <h2 className="text-sm font-semibold text-ink mb-3">Resize Canvas</h2>
@@ -116,7 +120,7 @@ export default function ResizeCanvasDialog({ open, sprite, onResize, onClose }: 
           })}
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2" onKeyDown={focusAdjacentButton}>
           <button
             type="button"
             onClick={onClose}

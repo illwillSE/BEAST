@@ -119,3 +119,11 @@ export function isTypingTarget(el: EventTarget | null): boolean {
   const tag = (el as HTMLElement)?.tagName
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el as HTMLElement)?.isContentEditable
 }
+
+// Don't fire canvas/document shortcuts (Enter, arrow keys, Backspace, ...)
+// while a modal dialog owns focus — e.g. pressing Enter on a focused dialog
+// button should activate that button, not also commit the canvas's floating
+// selection.
+export function isInsideDialog(el: EventTarget | null): boolean {
+  return (el as HTMLElement)?.closest?.('[role="dialog"]') != null
+}

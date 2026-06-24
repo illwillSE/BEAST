@@ -45,6 +45,7 @@ export interface CommandContext extends ShortcutContext {
   importColors(): void
   importColorsFromCanvas(): void
   importPalette(): void
+  openClassicPalettes(): void
   // View / toggles.
   toggleMirrorV(): void
   toggleMirrorH(): void
@@ -177,6 +178,7 @@ export const commands: Command[] = [
     run: () => {},
   },
   { id: 'palette-reverse', title: 'Reverse Palette', category: 'Palette', keywords: 'sort', run: (c) => c.dispatch({ type: 'REVERSE_PALETTE' }) },
+  { id: 'classic-palettes', title: 'Classic Palettes', category: 'Palette', keywords: 'preset retro c64 commodore nes nintendo pico-8 pico8 sega master system swatch', run: (c) => c.openClassicPalettes() },
 
   // Layers
   { id: 'layer-add', title: 'Add Layer', category: 'Layers', run: (c) => c.addLayer() },

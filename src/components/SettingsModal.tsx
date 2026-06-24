@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Eye, X } from 'lucide-react'
 import { clearAllStorage } from '../persist/autosave.js'
+import { focusAdjacentButton } from '../hooks/dialogFocusNav.js'
+import useEscapeKey from '../hooks/useEscapeKey.js'
+import useFocusTrap from '../hooks/useFocusTrap.js'
 
 interface SettingsModalProps {
   open: boolean
@@ -27,6 +30,28 @@ export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionS
   const [activeTab, setActiveTab] = useState<TabId>('onion-skin')
   const [confirmingClearData, setConfirmingClearData] = useState(false)
   const [confirmText, setConfirmText] = useState('')
+  const panelRef = useRef<HTMLDivElement>(null)
+  const confirmFormRef = useRef<HTMLFormElement>(null)
+  const firstTabRef = useRef<HTMLButtonElement>(null)
+
+  // Without this, focus stays on the cogwheel button that opened the modal —
+  // Tab would then walk through the rest of the page before ever reaching
+  // the dialog, instead of cycling within it right away.
+  useEffect(() => {
+    if (open) firstTabRef.current?.focus()
+  }, [open])
+
+  // Escape closes whichever layer is on top: the "clear data" confirm if
+  // it's up, otherwise the settings modal itself.
+  useEscapeKey(open, () => {
+    if (confirmingClearData) setConfirmingClearData(false)
+    else onClose()
+  })
+
+  // Only one layer traps Tab at a time — the confirm dialog while it's up,
+  // otherwise the main panel.
+  useFocusTrap(open && !confirmingClearData, panelRef)
+  useFocusTrap(confirmingClearData, confirmFormRef)
 
   if (!open) return null
 
@@ -38,13 +63,16 @@ export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionS
   return (
     <div className="fixed inset-0 bg-black/50 grid place-items-center z-50" onMouseDown={onClose}>
       <div
+        ref={panelRef}
+        role="dialog"
         onMouseDown={(e) => e.stopPropagation()}
         className="bg-panel border border-divider rounded-lg shadow-xl w-[28rem] h-72 flex"
       >
         <nav className="w-32 border-r border-divider p-2 flex flex-col gap-0.5 shrink-0">
-          {TABS.map((t) => (
+          {TABS.map((t, i) => (
             <button
               key={t.id}
+              ref={i === 0 ? firstTabRef : undefined}
               onClick={() => setActiveTab(t.id)}
               className={
                 'text-left px-2 py-1.5 rounded text-sm ' +
@@ -106,6 +134,8 @@ export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionS
           onMouseDown={() => setConfirmingClearData(false)}
         >
           <form
+            ref={confirmFormRef}
+            role="dialog"
             onMouseDown={(e) => e.stopPropagation()}
             onSubmit={(e) => {
               e.preventDefault()
@@ -126,7 +156,7 @@ export default function SettingsModal({ open, onClose, onionSkin, onToggleOnionS
               onChange={(e) => setConfirmText(e.target.value)}
               className="w-full bg-well text-sm text-ink-soft rounded px-2 py-1.5 border border-edge mb-4"
             />
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2" onKeyDown={focusAdjacentButton}>
               <button
                 type="button"
                 onClick={() => setConfirmingClearData(false)}

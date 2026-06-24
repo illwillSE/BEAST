@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { focusAdjacentButton } from '../hooks/dialogFocusNav.js'
+import useEscapeKey from '../hooks/useEscapeKey.js'
+import useFocusTrap from '../hooks/useFocusTrap.js'
 
 const PRESETS = [16, 32, 64, 128]
 const MIN_SIZE = 1
@@ -16,6 +19,7 @@ export default function NewSpriteDialog({ open, onCreate, onClose }: NewSpriteDi
   const [w, setW] = useState(32)
   const [h, setH] = useState(32)
   const firstInputRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
 
   // Opening the dialog doesn't move focus on its own, so without this Enter
   // would activate whatever still has focus from before the dialog opened
@@ -23,6 +27,9 @@ export default function NewSpriteDialog({ open, onCreate, onClose }: NewSpriteDi
   useEffect(() => {
     if (open) firstInputRef.current?.focus()
   }, [open])
+
+  useEscapeKey(open, onClose)
+  useFocusTrap(open, formRef)
 
   if (!open) return null
 
@@ -37,16 +44,10 @@ export default function NewSpriteDialog({ open, onCreate, onClose }: NewSpriteDi
       onMouseDown={onClose}
     >
       <form
+        ref={formRef}
+        role="dialog"
         onMouseDown={(e) => e.stopPropagation()}
         onSubmit={(e) => { e.preventDefault(); create() }}
-        onKeyDown={(e) => {
-          // Enter always creates, even when focus is on a preset/Cancel
-          // button (which would otherwise just re-fire that button's own
-          // click instead of submitting).
-          if (e.key !== 'Enter') return
-          e.preventDefault()
-          create()
-        }}
         className="bg-panel border border-divider rounded-lg p-4 w-72 shadow-xl"
       >
         <h2 className="text-sm font-semibold text-ink mb-3">New Sprite</h2>
@@ -98,7 +99,7 @@ export default function NewSpriteDialog({ open, onCreate, onClose }: NewSpriteDi
           </label>
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2" onKeyDown={focusAdjacentButton}>
           <button
             type="button"
             onClick={onClose}

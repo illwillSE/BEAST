@@ -8,7 +8,8 @@ import LayersPanel from './components/LayersPanel.jsx'
 import ColorPanel from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
 import SettingsModal from './components/SettingsModal.jsx'
-import ImportColorsFromCanvasDialog from './components/ImportColorsFromCanvasDialog.jsx'
+import MergeColorsDialog from './components/MergeColorsDialog.jsx'
+import ClassicPalettesDialog from './components/ClassicPalettesDialog.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
 import FoldTab from './components/FoldTab.jsx'
 import EyedropperMagnifier from './components/EyedropperMagnifier.jsx'
@@ -20,7 +21,7 @@ import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
 import { projectToZipBlob, projectFromZipFile, projectPaletteFromZipFile, downloadBlob } from './persist/zip.js'
-import { matchShortcut, isTypingTarget } from './shortcuts/registry.js'
+import { matchShortcut, isTypingTarget, isInsideDialog } from './shortcuts/registry.js'
 import type { ShortcutContext } from './shortcuts/registry.js'
 import type { CommandContext } from './commands/registry.js'
 import type { BrushShape, Cell, Doc, Sprite } from './document/model.js'
@@ -420,7 +421,7 @@ export default function App() {
   }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target)) return
+      if (isTypingTarget(e.target) || isInsideDialog(e.target)) return
       const shortcut = matchShortcut(e)
       if (!shortcut) return
       e.preventDefault()
@@ -457,11 +458,14 @@ export default function App() {
     savedDocRef.current = doc
   }
 
+  // Shared by every "load colors from X" flow (canvas extraction, classic
+  // palette presets, ...) — `colors` (non-null) doubles as MergeColorsDialog's
+  // open flag, with its Replace/Add Unique choice deciding SET_PALETTE vs
+  // MERGE_SWATCHES.
+  const [pendingMerge, setPendingMerge] = useState<{ title: string; description: string; colors: string[] } | null>(null)
+
   // "Import from canvas": composite the current frame's visible layers and
   // collect its distinct opaque colors, same cap/dedup as importImagePalette.
-  // Pending colors (non-null) double as the confirm dialog's open flag —
-  // its Replace/Add Unique choice decides SET_PALETTE vs MERGE_SWATCHES.
-  const [importCanvasColors, setImportCanvasColors] = useState<string[] | null>(null)
   const importColorsFromCanvas = () => {
     const canvas = document.createElement('canvas')
     canvas.width = activeSprite.w
@@ -483,8 +487,15 @@ export default function App() {
       window.alert('The current canvas has no opaque pixels to import colors from.')
       return
     }
-    setImportCanvasColors([...colors])
+    const list = [...colors]
+    setPendingMerge({
+      title: 'Import Colors from Canvas',
+      description: `Found ${list.length} color${list.length === 1 ? '' : 's'} on the current canvas. Replace the palette with these, or add only the ones not already in it?`,
+      colors: list,
+    })
   }
+
+  const [classicPalettesOpen, setClassicPalettesOpen] = useState(false)
 
   const handleExportPng = async () => {
     const canvas = document.createElement('canvas')
@@ -555,6 +566,7 @@ export default function App() {
     importColors: () => { pickFile('image/*').then((f) => f && importImagePalette(f)) },
     importColorsFromCanvas,
     importPalette: () => { pickFile('.zip').then((f) => f && importProjectPalette(f)) },
+    openClassicPalettes: () => setClassicPalettesOpen(true),
     toggleMirrorV: () => setMirrorV((v) => !v),
     toggleMirrorH: () => setMirrorH((v) => !v),
     togglePlay: () => setPlaying((p) => !p),
@@ -806,11 +818,26 @@ export default function App() {
         ctx={commandCtx}
       />
 
-      <ImportColorsFromCanvasDialog
-        colors={importCanvasColors}
-        onReplace={() => { dispatch({ type: 'SET_PALETTE', palette: importCanvasColors! }); setImportCanvasColors(null) }}
-        onAddUnique={() => { dispatch({ type: 'MERGE_SWATCHES', colors: importCanvasColors! }); setImportCanvasColors(null) }}
-        onClose={() => setImportCanvasColors(null)}
+      <ClassicPalettesDialog
+        open={classicPalettesOpen}
+        onSelect={(p) => {
+          setClassicPalettesOpen(false)
+          setPendingMerge({
+            title: p.name,
+            description: `Load the ${p.colors.length} colors of the ${p.name} palette? Replace the palette with these, or add only the ones not already in it?`,
+            colors: p.colors,
+          })
+        }}
+        onClose={() => setClassicPalettesOpen(false)}
+      />
+
+      <MergeColorsDialog
+        colors={pendingMerge?.colors ?? null}
+        title={pendingMerge?.title ?? ''}
+        description={pendingMerge?.description ?? ''}
+        onReplace={() => { dispatch({ type: 'SET_PALETTE', palette: pendingMerge!.colors }); setPendingMerge(null) }}
+        onAddUnique={() => { dispatch({ type: 'MERGE_SWATCHES', colors: pendingMerge!.colors }); setPendingMerge(null) }}
+        onClose={() => setPendingMerge(null)}
       />
     </div>
   )
