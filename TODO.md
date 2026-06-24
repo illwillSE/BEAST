@@ -49,6 +49,8 @@ implemented; this file tracks what isn't, organized by area.
       selection content, not the live mirror-painting guides), and a
       move/nudge tool to shift layer content in place (distinct from the
       existing select-then-move-floating-region workflow).
+- [ ] Rotate selection — rotate the selected region's pixels (at least 90°
+      increments; arbitrary-angle is a bigger lift, needs resampling).
 - [x] Gradient drag preview (`tools/registry.ts` gradient entry, rendered in
       `PixelCanvas.tsx`) only draws the Bresenham line between drag endpoints,
       not anything representing the gradient spread itself (now fg→bg).
