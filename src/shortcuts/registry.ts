@@ -53,6 +53,7 @@ export interface ShortcutContext {
   cancelContinuousLine: () => void
   swapColors: () => void
   stepFrame: (delta: number) => void
+  nudgeLayer: (dx: number, dy: number) => void
   openCommandPalette: () => void
 }
 
@@ -101,8 +102,14 @@ export const shortcuts: Shortcut[] = [
   { key: 'x', run: (ctx) => ctx.swapColors() },
   { key: '[', run: (ctx) => stepBrushSize(ctx, -1) },
   { key: ']', run: (ctx) => stepBrushSize(ctx, 1) },
-  { key: 'arrowleft', run: (ctx) => ctx.stepFrame(-1) },
-  { key: 'arrowright', run: (ctx) => ctx.stepFrame(1) },
+  { key: 'arrowleft',  run: (ctx) => ctx.tool === 'move' ? ctx.nudgeLayer(-1, 0) : ctx.stepFrame(-1) },
+  { key: 'arrowright', run: (ctx) => ctx.tool === 'move' ? ctx.nudgeLayer(1, 0) : ctx.stepFrame(1) },
+  { key: 'arrowup',    run: (ctx) => { if (ctx.tool === 'move') ctx.nudgeLayer(0, -1) } },
+  { key: 'arrowdown',  run: (ctx) => { if (ctx.tool === 'move') ctx.nudgeLayer(0, 1) } },
+  { key: 'arrowleft',  shift: true, run: (ctx) => { if (ctx.tool === 'move') ctx.nudgeLayer(-10, 0) } },
+  { key: 'arrowright', shift: true, run: (ctx) => { if (ctx.tool === 'move') ctx.nudgeLayer(10, 0) } },
+  { key: 'arrowup',    shift: true, run: (ctx) => { if (ctx.tool === 'move') ctx.nudgeLayer(0, -10) } },
+  { key: 'arrowdown',  shift: true, run: (ctx) => { if (ctx.tool === 'move') ctx.nudgeLayer(0, 10) } },
   { key: 'p', mod: true, run: (ctx) => ctx.openCommandPalette() },
   ...toolShortcuts,
 ]

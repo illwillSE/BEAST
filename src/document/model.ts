@@ -1187,6 +1187,68 @@ export function hsvToRgb(h: number, s: number, v: number): [number, number, numb
   return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)]
 }
 
+// Flip pixels horizontally within the selection bounding box (or the whole cell).
+export function flipCellH(cell: Cell, w: number, h: number, clip?: Selection) {
+  const rx = clip?.x ?? 0, ry = clip?.y ?? 0
+  const rw = clip?.w ?? w, rh = clip?.h ?? h
+  for (let y = ry; y < ry + rh; y++) {
+    for (let lx = 0; lx < Math.floor(rw / 2); lx++) {
+      const x = rx + lx, mx = rx + rw - 1 - lx
+      const ai = (y * w + x) * 4, bi = (y * w + mx) * 4
+      for (let c = 0; c < 4; c++) { const t = cell[ai + c]; cell[ai + c] = cell[bi + c]; cell[bi + c] = t }
+    }
+  }
+}
+
+// Flip pixels vertically within the selection bounding box (or the whole cell).
+export function flipCellV(cell: Cell, w: number, h: number, clip?: Selection) {
+  const rx = clip?.x ?? 0, ry = clip?.y ?? 0
+  const rw = clip?.w ?? w, rh = clip?.h ?? h
+  for (let ly = 0; ly < Math.floor(rh / 2); ly++) {
+    const y = ry + ly, my = ry + rh - 1 - ly
+    for (let x = rx; x < rx + rw; x++) {
+      const ai = (y * w + x) * 4, bi = (my * w + x) * 4
+      for (let c = 0; c < 4; c++) { const t = cell[ai + c]; cell[ai + c] = cell[bi + c]; cell[bi + c] = t }
+    }
+  }
+}
+
+// Wrap-around (torus) shift: every pixel at (x,y) moves to ((x+dx)%w, (y+dy)%h).
+export function shiftCell(cell: Cell, w: number, h: number, dx: number, dy: number) {
+  const src = cell.slice()
+  for (let y = 0; y < h; y++) {
+    const ny = ((y + dy) % h + h) % h
+    for (let x = 0; x < w; x++) {
+      const nx = ((x + dx) % w + w) % w
+      const si = (y * w + x) * 4, di = (ny * w + nx) * 4
+      cell[di] = src[si]; cell[di + 1] = src[si + 1]; cell[di + 2] = src[si + 2]; cell[di + 3] = src[si + 3]
+    }
+  }
+}
+
+// Rotate selection content 90° CW (cw=true) or CCW within the bounding box.
+// For non-square regions, content that would land outside the bounding box is
+// dropped and vacated corners become transparent.
+export function rotateCell90(cell: Cell, w: number, h: number, clip: Selection, cw: boolean) {
+  const { x: rx, y: ry, w: rw, h: rh } = clip
+  const src = copyRegion(cell, w, h, rx, ry, rw, rh)
+  clearRegion(cell, w, h, rx, ry, rw, rh)
+  for (let ly = 0; ly < rh; ly++) {
+    for (let lx = 0; lx < rw; lx++) {
+      const si = (ly * rw + lx) * 4
+      if (src[si + 3] === 0) continue
+      // CW: (lx,ly) → (rh-1-ly, lx) in a rh×rw space, clipped to rw×rh
+      // CCW: (lx,ly) → (ly, rw-1-lx)
+      const [dlx, dly] = cw ? [rh - 1 - ly, lx] : [ly, rw - 1 - lx]
+      if (dlx >= rw || dly >= rh) continue
+      const cx = rx + dlx, cy = ry + dly
+      if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue
+      const di = (cy * w + cx) * 4
+      cell[di] = src[si]; cell[di + 1] = src[si + 1]; cell[di + 2] = src[si + 2]; cell[di + 3] = src[si + 3]
+    }
+  }
+}
+
 // Shift hue (degrees) and scale saturation/value (percent, multiplicative) of
 // every opaque pixel, optionally clipped to a selection. Transparent pixels are
 // left untouched so they don't pick up a color.

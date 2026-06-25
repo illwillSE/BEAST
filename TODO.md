@@ -9,8 +9,6 @@ implemented; this file tracks what isn't, organized by area.
       affects the active sprite, not the whole project. Currently global.
 
 ## Canvas
-- [x] Crop tool: resize handles on all edges/corners, with an appropriate
-      resize cursor on hover.
 - [ ] Bug: making a rect selection with the select tool, then switching to
       the crop tool while that selection is still active, behaves weird
       (crop tool likely isn't expecting a pre-existing `selection` to seed
@@ -30,36 +28,22 @@ implemented; this file tracks what isn't, organized by area.
       registry's `ctx` doesn't carry arbitrary UI setters yet
       (`shortcuts/registry.ts`); add if it becomes annoying to reach via mouse.
 - [ ] shift+space Real Preview shortcut?
-- [x] Preview follows playback — it was already wired to `target.frameIndex`,
-      which is the same global `frameIndex` the playback loop advances, so this
-      came for free with loop playback below.
 
 ## Tools (v1 registry)
 - [ ] Outline tool doesn't support right-click erase (unlike pencil/fill/line/rect/ellipse) —
       deliberately scoped to fg-color only per the initial request.
 - [ ] Lasso (freehand polygon) select — deferred; only rectangular select is
       implemented for now.
-- [x] Color select — select all pixels of a specific color (e.g. click a
-      color, or eyedropper-style sample) across the layer/canvas, for use as
-      a mask or to drive color replace.
 - [ ] Type tool — render text onto the canvas (font select, maybe a predefined
       set) and an emoji picker/insert.
-- [x] Eraser: decide whether it stays a separate tool (current) or is also
-      reachable via right-click while another paint tool is active.
 - [ ] "Pixel perfect" diagonal-stroke thinning at width>1 (Aseprite-style —
       avoids chunky corners where a thick diagonal stroke overlaps itself).
-- [ ] Transform tools: flip horizontal / flip vertical (whole layer or
-      selection content, not the live mirror-painting guides), and a
-      move/nudge tool to shift layer content in place (distinct from the
-      existing select-then-move-floating-region workflow).
-- [ ] Rotate selection — rotate the selected region's pixels (at least 90°
-      increments; arbitrary-angle is a bigger lift, needs resampling).
-- [ ] transform canvas and selection "rotate" up down left right
-- [x] Gradient drag preview (`tools/registry.ts` gradient entry, rendered in
-      `PixelCanvas.tsx`) only draws the Bresenham line between drag endpoints,
-      not anything representing the gradient spread itself (now fg→bg).
-- [x] Gradient fill shape option: linear vs. circular/radial, toggled via the
-      same Outline/Filled-style variant flyout rect/ellipse already use.
+- [x] Transform tools: flip horizontal / flip vertical (whole layer or
+      selection content) — command palette "Flip Horizontal" / "Flip Vertical".
+- [x] Move tool wrap-around shift: dragging with no selection shifts the
+      whole layer with torus wrap-around; arrow keys nudge 1px, Shift+arrow 10px.
+- [x] Rotate selection 90° CW / CCW — command palette "Rotate Selection 90°…"
+      (selection only; arbitrary-angle needs resampling, still deferred).
 - [ ] Gradient angle/direction lock: Shift-constrain the drag to 0/45/90°
       increments, same idea as the rect/ellipse square-circle Shift constraint.
 - [ ] Gradient dithering option — smooth fg→bg steps can band visibly at small
@@ -68,11 +52,6 @@ implemented; this file tracks what isn't, organized by area.
       color-stop editing UI in `ColorPanel.tsx`, not just a toggle.
 
 ## Color
-- [x] Docked sidebar overflow: `<aside>` in `App.tsx` now scrolls
-      (`overflow-y-auto`) instead of clipping/overflowing on short viewports,
-      and the palette swatch grid in `ColorPanel.tsx` is capped at `max-h-44
-      overflow-y-auto` (same pattern as `LayersPanel`'s layer list) instead of
-      growing unbounded.
 - [ ] Multiple named palettes per project — deliberately deferred; a project
       currently holds exactly one palette. The header's "New palette" `+`
       button is still an unwired placeholder for this.
@@ -117,8 +96,6 @@ implemented; this file tracks what isn't, organized by area.
       decoder; coalesce disposal/transparency. Bigger lift than PNG.
 
 ## Export
-- [x] Frames as ZIP (one PNG per frame, in place of an animated GIF).
-- [x] Sprite sheet (all frames, single row, in one PNG).
 
 ## Infra
 - [ ] Deploy: gh-pages, Vite `base: '/BEAST/'`. (`base` is already set in

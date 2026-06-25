@@ -26,6 +26,9 @@ export interface CommandContext extends ShortcutContext {
   palette: string[]
   setFgColor(hex: string): void
   fillSelectionToFg(): void
+  flipH(): void
+  flipV(): void
+  rotate90(cw: boolean): void
   // Layers (selection-follow handled in App).
   addLayer(): void
   duplicateLayer(): void
@@ -183,6 +186,10 @@ export const commands: Command[] = [
   { id: 'paste', title: 'Paste', category: 'Selection', shortcut: mod('V'), enabled: (c) => c.hasClipboard, run: (c) => c.pasteClipboard() },
   { id: 'clear-bg', title: 'Clear Selection to Background', category: 'Selection', keywords: 'delete erase', enabled: (c) => c.hasSelection, run: (c) => c.clearSelectionToBg() },
   { id: 'fill-fg', title: 'Fill Selection with Foreground', category: 'Selection', keywords: 'replace color recolor paint', enabled: (c) => c.hasSelection, run: (c) => c.fillSelectionToFg() },
+  { id: 'flip-h', title: 'Flip Horizontal', category: 'Edit', keywords: 'mirror transform flip canvas layer', run: (c) => c.flipH() },
+  { id: 'flip-v', title: 'Flip Vertical', category: 'Edit', keywords: 'mirror transform flip canvas layer', run: (c) => c.flipV() },
+  { id: 'rotate-cw', title: 'Rotate Selection 90° Clockwise', category: 'Edit', keywords: 'rotate transform turn cw', enabled: (c) => c.hasSelection, run: (c) => c.rotate90(true) },
+  { id: 'rotate-ccw', title: 'Rotate Selection 90° Counter-Clockwise', category: 'Edit', keywords: 'rotate transform turn ccw', enabled: (c) => c.hasSelection, run: (c) => c.rotate90(false) },
 
   // Palette
   {

@@ -19,6 +19,10 @@ import {
   clearRegion,
   fillRegion,
   pasteRegion,
+  flipCellH,
+  flipCellV,
+  shiftCell,
+  rotateCell90,
   adjustHsl,
   renameProject,
   addSprite,
@@ -88,6 +92,10 @@ export type Action =
   | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape; clip?: Selection })
   | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape; clip?: Selection })
   | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; rgba0: RGBA; rgba1: RGBA; radial: boolean; mirror?: Mirror; clip?: Selection })
+  | (CellTarget & { type: 'FLIP_H'; clip?: Selection })
+  | (CellTarget & { type: 'FLIP_V'; clip?: Selection })
+  | (CellTarget & { type: 'SHIFT_LAYER'; dx: number; dy: number })
+  | (CellTarget & { type: 'ROTATE_90'; clip: Selection; cw: boolean })
   | (CellTarget & { type: 'CLEAR_REGION'; x: number; y: number; w: number; h: number; mask?: Uint8Array })
   | (CellTarget & { type: 'FILL_REGION'; x: number; y: number; w: number; h: number; rgba: RGBA; mask?: Uint8Array })
   | (CellTarget & { type: 'PASTE_REGION'; x: number; y: number; w: number; h: number; data: Cell })
@@ -259,6 +267,22 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
     case 'GRADIENT_FILL': {
       const { x0, y0, x1, y1, rgba0, rgba1, radial, mirror, clip } = action
       return editCell(state, action, (cell, sp) => gradientFill(cell, sp.w, sp.h, x0, y0, x1, y1, rgba0, rgba1, radial, mirror, clip))
+    }
+
+    case 'FLIP_H':
+      return editCell(state, action, (cell, sp) => flipCellH(cell, sp.w, sp.h, action.clip))
+
+    case 'FLIP_V':
+      return editCell(state, action, (cell, sp) => flipCellV(cell, sp.w, sp.h, action.clip))
+
+    case 'SHIFT_LAYER': {
+      const { dx, dy } = action
+      return editCell(state, action, (cell, sp) => shiftCell(cell, sp.w, sp.h, dx, dy))
+    }
+
+    case 'ROTATE_90': {
+      const { clip, cw } = action
+      return editCell(state, action, (cell, sp) => rotateCell90(cell, sp.w, sp.h, clip, cw))
     }
 
     // Move/cut lift pixels out of the layer; paste/move-drop writes them back.

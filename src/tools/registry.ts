@@ -517,22 +517,40 @@ export const tools: Record<string, Tool<any>> = {
   // Drag the current selection: first grab lifts its pixels into a floating
   // buffer (clearing the source in the layer); it stays floating — movable by
   // further drags — until something commits it (see App's commitFloating).
+  // With no selection active, dragging shifts the whole layer with wrap-around
+  // (torus); arrow keys nudge by 1px (Shift: 10px) while this tool is active.
   move: {
     key: 'v',
     cursor: 'move',
     onStart(ctx) {
       if (ctx.floating) {
-        return { dx: ctx.x - ctx.floating.x, dy: ctx.y - ctx.floating.y }
+        return { mode: 'float', dx: ctx.x - ctx.floating.x, dy: ctx.y - ctx.floating.y }
       }
       const sel = ctx.selection
-      if (!sel || !selectionContains(sel, ctx.x, ctx.y)) return false
-      const data = copyRegion(ctx.getRawCell(), ctx.w, ctx.h, sel.x, sel.y, sel.w, sel.h, sel.mask)
-      ctx.dispatch({ type: 'CLEAR_REGION', ...ctx.target, x: sel.x, y: sel.y, w: sel.w, h: sel.h, mask: sel.mask })
-      ctx.setFloating({ x: sel.x, y: sel.y, w: sel.w, h: sel.h, data, target: ctx.target, mask: sel.mask })
-      return { dx: ctx.x - sel.x, dy: ctx.y - sel.y }
+      if (sel && selectionContains(sel, ctx.x, ctx.y)) {
+        const data = copyRegion(ctx.getRawCell(), ctx.w, ctx.h, sel.x, sel.y, sel.w, sel.h, sel.mask)
+        ctx.dispatch({ type: 'CLEAR_REGION', ...ctx.target, x: sel.x, y: sel.y, w: sel.w, h: sel.h, mask: sel.mask })
+        ctx.setFloating({ x: sel.x, y: sel.y, w: sel.w, h: sel.h, data, target: ctx.target, mask: sel.mask })
+        return { mode: 'float', dx: ctx.x - sel.x, dy: ctx.y - sel.y }
+      }
+      // No selection: bracket a shift-drag as one undo step.
+      ctx.dispatch({ type: 'STROKE_BEGIN' })
+      return { mode: 'shift', px: ctx.x, py: ctx.y }
     },
     onDrag(ctx, _prev, drag) {
-      ctx.setFloating((f) => (f ? { ...f, x: ctx.x - drag.dx, y: ctx.y - drag.dy } : f))
+      if (drag.mode === 'float') {
+        ctx.setFloating((f) => (f ? { ...f, x: ctx.x - drag.dx, y: ctx.y - drag.dy } : f))
+      } else {
+        const dx = ctx.x - drag.px, dy = ctx.y - drag.py
+        if (dx !== 0 || dy !== 0) {
+          ctx.dispatch({ type: 'SHIFT_LAYER', ...ctx.target, dx, dy })
+          drag.px = ctx.x
+          drag.py = ctx.y
+        }
+      }
+    },
+    onEnd(ctx, drag) {
+      if (drag.mode === 'shift') ctx.dispatch({ type: 'STROKE_END' })
     },
   },
 }

@@ -334,6 +334,29 @@ export default function App() {
     dispatch({ type: 'FILL_REGION', ...target, x: selection.x, y: selection.y, w: selection.w, h: selection.h, rgba: hexToRgba(fgColor), mask: selection.mask })
   }
 
+  // Flip/rotate the active cell (or selection bounding box). Floating is a
+  // no-op — nothing is committed to the layer to flip yet.
+  const flipH = () => {
+    if (floating) return
+    const clip = selection ?? { x: 0, y: 0, w: activeSprite.w, h: activeSprite.h }
+    dispatch({ type: 'FLIP_H', ...target, clip })
+  }
+
+  const flipV = () => {
+    if (floating) return
+    const clip = selection ?? { x: 0, y: 0, w: activeSprite.w, h: activeSprite.h }
+    dispatch({ type: 'FLIP_V', ...target, clip })
+  }
+
+  const rotate90 = (cw: boolean) => {
+    if (floating || !selection) return
+    dispatch({ type: 'ROTATE_90', ...target, clip: selection, cw })
+  }
+
+  const nudgeLayer = (dx: number, dy: number) => {
+    dispatch({ type: 'SHIFT_LAYER', ...target, dx, dy })
+  }
+
   // Apply the pending crop window (CROP_SPRITE on the sprite it was drawn
   // against) and clear it. cancelCrop discards it without applying.
   const commitCrop = () => {
@@ -428,7 +451,7 @@ export default function App() {
     dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
     tool, filled, setVariant: setToolVariant, peekVariants, brushSize, setBrushSize,
     copySelection, cutSelection, pasteClipboard, commitFloating, setSelection, selectAll, deselect, invertSelection,
-    clearSelectionToBg, commitCrop, cancelCrop, cancelContinuousLine: () => setContinuousLine(null), swapColors, stepFrame,
+    clearSelectionToBg, commitCrop, cancelCrop, cancelContinuousLine: () => setContinuousLine(null), swapColors, stepFrame, nudgeLayer,
     openCommandPalette: () => setCommandPaletteOpen(true),
   }
   useEffect(() => {
@@ -585,6 +608,9 @@ export default function App() {
     palette,
     setFgColor,
     fillSelectionToFg,
+    flipH,
+    flipV,
+    rotate90,
     addLayer: () => dispatch({ type: 'ADD_LAYER', spriteId: activeSprite.id, name: `Layer ${activeSprite.layers.length + 1}` }),
     duplicateLayer: () => dispatch({ type: 'DUPLICATE_LAYER', spriteId: activeSprite.id, layerId: safeLayerId }),
     removeLayer: () => { if (activeSprite.layers.length > 1) dispatch({ type: 'REMOVE_LAYER', spriteId: activeSprite.id, layerId: safeLayerId }) },
