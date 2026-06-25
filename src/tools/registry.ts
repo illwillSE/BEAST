@@ -42,7 +42,8 @@
 
 import type { Dispatch, SetStateAction } from 'react'
 import {
-  hexToRgba, linePoints, rectPoints, ellipsePoints, copyRegion, stampPoints, gradientFillPreview, selectionContains,
+  hexToRgba, linePoints, rectPoints, ellipsePoints, copyRegion, stampPoints, gradientFillPreview, selectionContains, selectByColor,
+  unionSelections, subtractSelection,
 } from '../document/model.js'
 import type { BrushShape, Cell, CellTarget, Point, RGBA, Selection } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
@@ -108,6 +109,7 @@ export interface ToolContext {
   brushShape: BrushShape
   setPreview: (preview: Preview | null) => void
   shiftKey: boolean
+  modKey: boolean
   erasing: boolean
   selection: Selection | null
   setSelection: (selection: Selection | null) => void
@@ -201,6 +203,19 @@ function normalizeRect(x0: number, y0: number, x1: number, y1: number): Rect {
     y: Math.min(y0, y1),
     w: Math.abs(x1 - x0) + 1,
     h: Math.abs(y1 - y0) + 1,
+  }
+}
+
+// Resolve a freshly built selection (`picked`) against the current one using
+// the active modifiers: Shift adds, Ctrl/Cmd+Shift subtracts, otherwise it
+// replaces. A null `picked` (nothing matched) leaves add/subtract a no-op.
+function applySelectionMode(ctx: ToolContext, picked: Selection | null) {
+  if (ctx.shiftKey && ctx.modKey) {
+    ctx.setSelection(picked ? subtractSelection(ctx.selection, picked, ctx.w, ctx.h) : ctx.selection)
+  } else if (ctx.shiftKey) {
+    ctx.setSelection(picked ? unionSelections(ctx.selection, picked, ctx.w, ctx.h) : ctx.selection)
+  } else {
+    ctx.setSelection(picked)
   }
 }
 
@@ -431,8 +446,23 @@ export const tools: Record<string, Tool<any>> = {
       ctx.setPreview({ kind: 'marquee', rect: normalizeRect(start.x0, start.y0, ctx.x, ctx.y) })
     },
     onEnd(ctx, start) {
-      ctx.setSelection(normalizeRect(start.x0, start.y0, ctx.x, ctx.y))
+      applySelectionMode(ctx, normalizeRect(start.x0, start.y0, ctx.x, ctx.y))
       ctx.setPreview(null)
+    },
+  },
+
+  // Select every pixel of the clicked color, as a selection mask — so the
+  // ordinary paint tools (clipped to the selection) recolor just those pixels.
+  // Contiguous picks only the 4-connected blob; Global every matching pixel on
+  // the layer (variant via ctx.filled). Shift adds to the current selection,
+  // Ctrl/Cmd+Shift subtracts (see applySelectionMode). Flushes pending move/paste.
+  selectColor: {
+    key: 'w',
+    cursor: 'crosshair',
+    variants: [['Contiguous', false], ['Global', true]],
+    onStart(ctx) {
+      ctx.commitFloating()
+      applySelectionMode(ctx, selectByColor(ctx.getRawCell(), ctx.w, ctx.h, ctx.x, ctx.y, ctx.filled))
     },
   },
 

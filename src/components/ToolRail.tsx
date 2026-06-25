@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Pencil, Eraser, PaintBucket, Pipette, Minus, Square, Circle,
-  BoxSelect, Move, FlipHorizontal, FlipVertical, Crop,
+  BoxSelect, Move, FlipHorizontal, FlipVertical, Crop, Wand2,
   createLucideIcon,
 } from 'lucide-react'
 import type { LucideProps } from 'lucide-react'
@@ -131,6 +131,7 @@ const TOOLS: (ToolEntry | null)[] = [
       { id: 'crop', label: 'Crop', Icon: Crop },
     ],
   },
+  { id: 'selectColor', label: 'Select Color', Icon: Wand2 },
   { id: 'move', label: 'Move', Icon: Move },
 ]
 

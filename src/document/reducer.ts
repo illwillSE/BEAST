@@ -54,7 +54,7 @@ import {
   reversePalette,
   reseedUid,
 } from './model.js'
-import type { BlendMode, BrushShape, Cell, CellTarget, CreateSpriteOpts, Doc, Mirror, PaletteSortKey, RGBA, Sprite } from './model.js'
+import type { BlendMode, BrushShape, Cell, CellTarget, CreateSpriteOpts, Doc, Mirror, PaletteSortKey, RGBA, Selection, Sprite } from './model.js'
 
 // An open gesture (STROKE_BEGIN…STROKE_END). `committed` flips true once the
 // first edit of the gesture has snapshotted history, so later edits in the same
@@ -79,12 +79,12 @@ export type Action =
   | { type: 'RENAME_PROJECT'; name: string }
   | { type: 'STROKE_BEGIN' }
   | { type: 'STROKE_END' }
-  | (CellTarget & { type: 'PAINT_LINE'; x0: number; y0: number; x1: number; y1: number; rgba: RGBA; size: number; shape: BrushShape })
-  | (CellTarget & { type: 'FILL'; x: number; y: number; rgba: RGBA; mirror?: Mirror })
-  | (CellTarget & { type: 'OUTLINE'; x: number; y: number; rgba: RGBA; size: number; shape: BrushShape; fat: boolean; mirror?: Mirror })
-  | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape })
-  | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape })
-  | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; rgba0: RGBA; rgba1: RGBA; radial: boolean; mirror?: Mirror })
+  | (CellTarget & { type: 'PAINT_LINE'; x0: number; y0: number; x1: number; y1: number; rgba: RGBA; size: number; shape: BrushShape; clip?: Selection })
+  | (CellTarget & { type: 'FILL'; x: number; y: number; rgba: RGBA; mirror?: Mirror; clip?: Selection })
+  | (CellTarget & { type: 'OUTLINE'; x: number; y: number; rgba: RGBA; size: number; shape: BrushShape; fat: boolean; mirror?: Mirror; clip?: Selection })
+  | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape; clip?: Selection })
+  | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape; clip?: Selection })
+  | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; rgba0: RGBA; rgba1: RGBA; radial: boolean; mirror?: Mirror; clip?: Selection })
   | (CellTarget & { type: 'CLEAR_REGION'; x: number; y: number; w: number; h: number; mask?: Uint8Array })
   | (CellTarget & { type: 'FILL_REGION'; x: number; y: number; w: number; h: number; rgba: RGBA; mask?: Uint8Array })
   | (CellTarget & { type: 'PASTE_REGION'; x: number; y: number; w: number; h: number; data: Cell })
@@ -185,37 +185,37 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
       return state.stroke ? { ...state, stroke: null } : state
 
     case 'PAINT_LINE': {
-      const { x0, y0, x1, y1, rgba, size, shape } = action
-      return editCell(state, action, (cell, sp) => paintLine(cell, sp.w, sp.h, x0, y0, x1, y1, rgba, size, shape))
+      const { x0, y0, x1, y1, rgba, size, shape, clip } = action
+      return editCell(state, action, (cell, sp) => paintLine(cell, sp.w, sp.h, x0, y0, x1, y1, rgba, size, shape, clip))
     }
 
     case 'FILL': {
-      const { x, y, rgba, mirror } = action
-      return editCell(state, action, (cell, sp) => floodFill(cell, sp.w, sp.h, x, y, rgba, mirror))
+      const { x, y, rgba, mirror, clip } = action
+      return editCell(state, action, (cell, sp) => floodFill(cell, sp.w, sp.h, x, y, rgba, mirror, clip))
     }
 
     case 'OUTLINE': {
-      const { x, y, rgba, size, shape, fat, mirror } = action
-      return editCell(state, action, (cell, sp) => outlineObject(cell, sp.w, sp.h, x, y, rgba, size, shape, fat, mirror))
+      const { x, y, rgba, size, shape, fat, mirror, clip } = action
+      return editCell(state, action, (cell, sp) => outlineObject(cell, sp.w, sp.h, x, y, rgba, size, shape, fat, mirror, clip))
     }
 
     // Width only widens the outline — a filled shape is already solid, so
     // `size` is ignored when `filled` is true.
     case 'PAINT_RECT': {
-      const { x0, y0, x1, y1, filled, rgba, size, shape } = action
+      const { x0, y0, x1, y1, filled, rgba, size, shape, clip } = action
       const pts = rectPoints(x0, y0, x1, y1, filled)
-      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, filled ? pts : stampPoints(pts, size, shape), rgba))
+      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, filled ? pts : stampPoints(pts, size, shape), rgba, clip))
     }
 
     case 'PAINT_ELLIPSE': {
-      const { x0, y0, x1, y1, filled, rgba, size, shape } = action
+      const { x0, y0, x1, y1, filled, rgba, size, shape, clip } = action
       const pts = ellipsePoints(x0, y0, x1, y1, filled)
-      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, filled ? pts : stampPoints(pts, size, shape), rgba))
+      return editCell(state, action, (cell, sp) => paintPoints(cell, sp.w, sp.h, filled ? pts : stampPoints(pts, size, shape), rgba, clip))
     }
 
     case 'GRADIENT_FILL': {
-      const { x0, y0, x1, y1, rgba0, rgba1, radial, mirror } = action
-      return editCell(state, action, (cell, sp) => gradientFill(cell, sp.w, sp.h, x0, y0, x1, y1, rgba0, rgba1, radial, mirror))
+      const { x0, y0, x1, y1, rgba0, rgba1, radial, mirror, clip } = action
+      return editCell(state, action, (cell, sp) => gradientFill(cell, sp.w, sp.h, x0, y0, x1, y1, rgba0, rgba1, radial, mirror, clip))
     }
 
     // Move/cut lift pixels out of the layer; paste/move-drop writes them back.

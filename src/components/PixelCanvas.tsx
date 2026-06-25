@@ -128,6 +128,7 @@ export default function PixelCanvas({
   const lastRef = useRef<{ x: number; y: number } | null>(null)
   const dragStateRef = useRef<any>(null)
   const shiftRef = useRef(false)
+  const modRef = useRef(false)
   const erasingRef = useRef(false)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [magnifier, setMagnifier] = useState<{ clientX: number; clientY: number; pixels: (RGBA | null)[] } | null>(null)
@@ -414,6 +415,12 @@ export default function PixelCanvas({
   // coordinates flipped; flood-fill actions instead carry a `mirror` field so
   // the reducer mirrors the one region it actually finds (see FLOOD_MIRRORABLE).
   const mirroredDispatch = (action: Action) => {
+    // An active selection clips every paint tool to the selected pixels: attach
+    // it to the cell-painting actions so the reducer/writers gate writes (the
+    // mirror/flip copies below spread the action, so they carry it too).
+    if (selection && (MIRRORABLE.has(action.type) || FLOOD_MIRRORABLE.has(action.type))) {
+      action = { ...action, clip: selection } as Action
+    }
     if (FLOOD_MIRRORABLE.has(action.type) && (mirrorV || mirrorH)) {
       dispatch({ ...action, mirror: { v: mirrorV, h: mirrorH } } as Action)
       return
@@ -429,7 +436,7 @@ export default function PixelCanvas({
 
   const ctxFor = (x: number, y: number): ToolContext => ({
     x, y, target, fgColor, bgColor, eraseToBg, dispatch: mirroredDispatch, setFgColor: onFgColor, sampleColor,
-    w, h, scale, filled, brushSize, brushShape, setPreview, shiftKey: shiftRef.current, erasing: erasingRef.current,
+    w, h, scale, filled, brushSize, brushShape, setPreview, shiftKey: shiftRef.current, modKey: modRef.current, erasing: erasingRef.current,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
     cropPending, setCropPending, continuousLine, setContinuousLine,
   })
@@ -449,6 +456,9 @@ export default function PixelCanvas({
     // of swapping tools — so rect/ellipse/line/fill keep their own shape
     // logic and just resolve to a different color (see ctx.erasing).
     erasingRef.current = e.button === 2
+    // Capture Ctrl/Cmd at gesture start (Shift is tracked live above) so the
+    // selection tools can resolve add/subtract mode — see applySelectionMode.
+    modRef.current = e.ctrlKey || e.metaKey
     const dragState = activeTool.onStart?.(ctxFor(x, y))
     if (tool === 'eyedropper' && onTemporaryToolComplete) {
       setMagnifier(null)

@@ -23,6 +23,7 @@ export interface CommandContext extends ShortcutContext {
   canRedo: boolean
   hasSelection: boolean
   hasClipboard: boolean
+  fillSelectionToFg(): void
   // Layers (selection-follow handled in App).
   addLayer(): void
   duplicateLayer(): void
@@ -81,7 +82,7 @@ export interface Command {
 const TOOL_LABELS: Record<string, string> = {
   pencil: 'Pencil', eraser: 'Eraser', fill: 'Fill', gradient: 'Gradient',
   eyedropper: 'Eyedropper', line: 'Line', rect: 'Rectangle', ellipse: 'Ellipse',
-  outline: 'Outline', select: 'Select', crop: 'Crop', move: 'Move',
+  outline: 'Outline', select: 'Select', selectColor: 'Select Color', crop: 'Crop', move: 'Move',
 }
 
 // Extra search terms per tool, so a different name finds the same command
@@ -163,6 +164,7 @@ export const commands: Command[] = [
   { id: 'cut', title: 'Cut Selection', category: 'Selection', shortcut: mod('X'), enabled: (c) => c.hasSelection, run: (c) => c.cutSelection() },
   { id: 'paste', title: 'Paste', category: 'Selection', shortcut: mod('V'), enabled: (c) => c.hasClipboard, run: (c) => c.pasteClipboard() },
   { id: 'clear-bg', title: 'Clear Selection to Background', category: 'Selection', keywords: 'delete erase', enabled: (c) => c.hasSelection, run: (c) => c.clearSelectionToBg() },
+  { id: 'fill-fg', title: 'Fill Selection with Foreground', category: 'Selection', keywords: 'replace color recolor paint', enabled: (c) => c.hasSelection, run: (c) => c.fillSelectionToFg() },
 
   // Palette
   {

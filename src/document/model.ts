@@ -596,8 +596,13 @@ export function ellipsePoints(x0: number, y0: number, x1: number, y1: number, fi
   return pts
 }
 
-export function paintPoints(cell: Cell, w: number, h: number, points: Point[], rgba: RGBA) {
-  for (const [x, y] of points) paintPixel(cell, w, h, x, y, rgba)
+// `clip` (if given) restricts writes to the active selection — the same gating
+// fillRegion/clearRegion apply, here for freehand strokes/lines/shapes/outlines.
+export function paintPoints(cell: Cell, w: number, h: number, points: Point[], rgba: RGBA, clip?: Selection) {
+  for (const [x, y] of points) {
+    if (clip && !selectionContains(clip, x, y)) continue
+    paintPixel(cell, w, h, x, y, rgba)
+  }
 }
 
 // The dx/dy offsets of one brush stamp, relative to its anchor point. Sizes
@@ -651,8 +656,8 @@ export function stampPoints(points: Point[], size: number, shape: BrushShape = '
   return out
 }
 
-export function paintLine(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba: RGBA, size: number, shape: BrushShape = 'square') {
-  paintPoints(cell, w, h, stampPoints(linePoints(x0, y0, x1, y1), size, shape), rgba)
+export function paintLine(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba: RGBA, size: number, shape: BrushShape = 'square', clip?: Selection) {
+  paintPoints(cell, w, h, stampPoints(linePoints(x0, y0, x1, y1), size, shape), rgba, clip)
 }
 
 // Compute the 4-connected region matching the RGBA at (x,y), without mutating.
@@ -750,7 +755,7 @@ export function mirroredFill(region: FillPixel[], ax: number, ay: number, w: num
 // 4-connected flood fill from (x,y): replace the contiguous region matching the
 // clicked pixel's RGBA with `rgba`. Mutates the cell in place. `mirror` reflects
 // the fill across the active symmetry axes — see mirroredFill.
-export function floodFill(cell: Cell, w: number, h: number, x: number, y: number, rgba: RGBA, mirror?: Mirror) {
+export function floodFill(cell: Cell, w: number, h: number, x: number, y: number, rgba: RGBA, mirror?: Mirror, clip?: Selection) {
   const region = floodMask(cell, w, h, x, y)
   if (!region) return
   const [fr, fg, fb, fa] = rgba
@@ -758,6 +763,7 @@ export function floodFill(cell: Cell, w: number, h: number, x: number, y: number
   if (!mirror || (!mirror.v && !mirror.h)) {
     for (let i = 0; i < region.mask.length; i++) {
       if (!region.mask[i]) continue
+      if (clip && !selectionContains(clip, i % w, (i / w) | 0)) continue
       const o = i * 4
       cell[o] = fr; cell[o + 1] = fg; cell[o + 2] = fb; cell[o + 3] = fa
     }
@@ -768,6 +774,7 @@ export function floodFill(cell: Cell, w: number, h: number, x: number, y: number
     if (region.mask[i]) pts.push({ x: i % w, y: (i / w) | 0, rgba })
   }
   for (const { x: px, y: py } of mirroredFill(pts, x, y, w, h, mirror)) {
+    if (clip && !selectionContains(clip, px, py)) continue
     const o = (py * w + px) * 4
     cell[o] = fr; cell[o + 1] = fg; cell[o + 2] = fb; cell[o + 3] = fa
   }
@@ -834,7 +841,7 @@ function objectBorderPoints(mask: Uint8Array, w: number, h: number, fat: boolean
 // 8-connected object touching (x,y) — the outline tool. `fat` is the
 // Fat/Fine border variant (see objectBorderPoints); `mirror` reflects across
 // the active symmetry axes, same as floodFill.
-export function outlineObject(cell: Cell, w: number, h: number, x: number, y: number, rgba: RGBA, size: number, shape: BrushShape, fat: boolean, mirror?: Mirror) {
+export function outlineObject(cell: Cell, w: number, h: number, x: number, y: number, rgba: RGBA, size: number, shape: BrushShape, fat: boolean, mirror?: Mirror, clip?: Selection) {
   const mask = floodObjectMask(cell, w, h, x, y)
   if (!mask) return
   const border = objectBorderPoints(mask, w, h, fat)
@@ -842,7 +849,7 @@ export function outlineObject(cell: Cell, w: number, h: number, x: number, y: nu
   const pts: FillPixel[] = border.map(([px, py]) => ({ x: px, y: py, rgba }))
   const resolved = mirroredFill(pts, x, y, w, h, mirror)
   const stamped = stampPoints(resolved.map(({ x: px, y: py }): Point => [px, py]), size, shape)
-  paintPoints(cell, w, h, stamped, rgba)
+  paintPoints(cell, w, h, stamped, rgba, clip)
 }
 
 // Per-pixel result of a gradient fill over the flood-connected region from
@@ -882,9 +889,10 @@ function gradientPoints(cell: Cell, w: number, h: number, x0: number, y0: number
 
 // Mutates the cell in place. `mirror` reflects the gradient across the active
 // symmetry axes — see mirroredFill.
-export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA, radial: boolean, mirror?: Mirror) {
+export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA, radial: boolean, mirror?: Mirror, clip?: Selection) {
   const points = gradientPoints(cell, w, h, x0, y0, x1, y1, rgba0, rgba1, radial)
   for (const { x, y, rgba } of mirroredFill(points, x0, y0, w, h, mirror)) {
+    if (clip && !selectionContains(clip, x, y)) continue
     const o = (y * w + x) * 4
     cell[o] = rgba[0]; cell[o + 1] = rgba[1]; cell[o + 2] = rgba[2]; cell[o + 3] = rgba[3]
   }
@@ -914,6 +922,52 @@ export function selectionContains(sel: Selection, x: number, y: number): boolean
   const lx = x - sel.x, ly = y - sel.y
   if (lx < 0 || ly < 0 || lx >= sel.w || ly >= sel.h) return false
   return !sel.mask || sel.mask[ly * sel.w + lx] === 1
+}
+
+// All pixels matching the RGBA at (x,y), as a canvas-sized selection (mask
+// indexed gy*w+gx). global=false selects only the 4-connected region (reuse
+// floodMask); global=true selects every matching pixel on the layer. Null if
+// (x,y) is out of bounds.
+export function selectByColor(cell: Cell, w: number, h: number, x: number, y: number, global: boolean): Selection | null {
+  if (x < 0 || y < 0 || x >= w || y >= h) return null
+  if (!global) {
+    const region = floodMask(cell, w, h, x, y)
+    return region ? { x: 0, y: 0, w, h, mask: region.mask } : null
+  }
+  const t = (y * w + x) * 4
+  const tr = cell[t], tg = cell[t + 1], tb = cell[t + 2], ta = cell[t + 3]
+  const mask = new Uint8Array(w * h)
+  for (let i = 0; i < w * h; i++) {
+    const o = i * 4
+    if (cell[o] === tr && cell[o + 1] === tg && cell[o + 2] === tb && cell[o + 3] === ta) mask[i] = 1
+  }
+  return { x: 0, y: 0, w, h, mask }
+}
+
+// Union of an existing selection (or none) with `add`, as a canvas-sized
+// selection — Shift+select to grow the selection.
+export function unionSelections(base: Selection | null, add: Selection, w: number, h: number): Selection {
+  const mask = new Uint8Array(w * h)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if ((base && selectionContains(base, x, y)) || selectionContains(add, x, y)) mask[y * w + x] = 1
+    }
+  }
+  return { x: 0, y: 0, w, h, mask }
+}
+
+// `base` minus `sub`, as a canvas-sized selection — Ctrl/Cmd+Shift+select to
+// shrink the selection. Null if nothing remains (or there was no base).
+export function subtractSelection(base: Selection | null, sub: Selection, w: number, h: number): Selection | null {
+  if (!base) return null
+  const mask = new Uint8Array(w * h)
+  let any = false
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (selectionContains(base, x, y) && !selectionContains(sub, x, y)) { mask[y * w + x] = 1; any = true }
+    }
+  }
+  return any ? { x: 0, y: 0, w, h, mask } : null
 }
 
 // The complement of `sel` over a canvasW×canvasH canvas, as a fresh

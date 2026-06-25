@@ -325,6 +325,14 @@ export default function App() {
     dispatch({ type: 'FILL_REGION', ...target, x: selection.x, y: selection.y, w: selection.w, h: selection.h, rgba: hexToRgba(bgColor), mask: selection.mask })
   }
 
+  // Flood the selected pixels with the foreground color — the one-click
+  // "recolor everything selected" (e.g. after Select Color). A floating
+  // move/paste has nothing committed to fill, so it's a no-op there.
+  const fillSelectionToFg = () => {
+    if (floating || !selection) return
+    dispatch({ type: 'FILL_REGION', ...target, x: selection.x, y: selection.y, w: selection.w, h: selection.h, rgba: hexToRgba(fgColor), mask: selection.mask })
+  }
+
   // Apply the pending crop window (CROP_SPRITE on the sprite it was drawn
   // against) and clear it. cancelCrop discards it without applying.
   const commitCrop = () => {
@@ -563,6 +571,7 @@ export default function App() {
     canRedo: state.future.length > 0,
     hasSelection: !!(selection || floating),
     hasClipboard: !!clipboard,
+    fillSelectionToFg,
     addLayer: () => dispatch({ type: 'ADD_LAYER', spriteId: activeSprite.id, name: `Layer ${activeSprite.layers.length + 1}` }),
     duplicateLayer: () => dispatch({ type: 'DUPLICATE_LAYER', spriteId: activeSprite.id, layerId: safeLayerId }),
     removeLayer: () => { if (activeSprite.layers.length > 1) dispatch({ type: 'REMOVE_LAYER', spriteId: activeSprite.id, layerId: safeLayerId }) },
