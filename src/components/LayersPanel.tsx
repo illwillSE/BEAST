@@ -48,6 +48,15 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
   // `ordered` is top-of-stack first (reverse of the model's bottom-to-top
   // `layers`), so drag indices need flipping before they reach REORDER_LAYER,
   // which operates on model (bottom-to-top) indices.
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const startRename = (l: Layer) => { setEditingId(l.id); setEditValue(l.name) }
+  const commitRename = () => {
+    const name = editValue.trim()
+    if (name) dispatch({ type: 'RENAME_LAYER', spriteId, layerId: editingId!, name })
+    setEditingId(null)
+  }
+
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const reorderLayer = (fromUi: number, toUi: number) => {
     if (fromUi === toUi) return
@@ -127,7 +136,7 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
           return (
             <div
               key={l.id}
-              draggable
+              draggable={editingId !== l.id}
               onDragStart={() => setDragIndex(i)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
@@ -150,16 +159,35 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
               >
                 {l.visible ? <Eye size={15} /> : <EyeOff size={15} />}
               </button>
-              <button onClick={() => { onSelect(l.id); onPeekSelect?.() }} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+              <button
+                onClick={() => { onSelect(l.id); onPeekSelect?.() }}
+                onDoubleClick={() => startRename(l)}
+                className="flex items-center gap-2 flex-1 min-w-0 text-left"
+              >
                 <SpritePreview
                   sprite={{ id: l.id, name: l.name, w, h, frameCount: l.cells.length, layers: [{ ...l, visible: true, opacity: 1 }] }}
                   frameIndex={frameIndex}
                   size={28}
                   className="rounded border border-edge"
                 />
-                <span className={'flex-1 text-sm truncate ' + (isSelected ? 'text-accent-soft' : 'text-ink-soft')}>
-                  {l.name}
-                </span>
+                {editingId === l.id ? (
+                  <input
+                    autoFocus
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={commitRename}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRename()
+                      if (e.key === 'Escape') setEditingId(null)
+                    }}
+                    className="min-w-0 flex-1 bg-well text-sm text-ink-soft rounded px-1 border border-edge"
+                  />
+                ) : (
+                  <span className={'flex-1 text-sm truncate ' + (isSelected ? 'text-accent-soft' : 'text-ink-soft')}>
+                    {l.name}
+                  </span>
+                )}
               </button>
               <button
                 title="Delete"

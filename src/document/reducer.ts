@@ -32,6 +32,7 @@ import {
   removeLayer,
   moveLayer,
   reorderLayer,
+  renameLayer,
   setLayerVisible,
   setLayerOpacity,
   setLayerBlendMode,
@@ -96,6 +97,7 @@ export type Action =
   | { type: 'REMOVE_LAYER'; spriteId: string; layerId: string }
   | { type: 'MOVE_LAYER'; spriteId: string; layerId: string; delta: number }
   | { type: 'REORDER_LAYER'; spriteId: string; from: number; to: number }
+  | { type: 'RENAME_LAYER'; spriteId: string; layerId: string; name: string }
   | { type: 'SET_LAYER_VISIBLE'; spriteId: string; layerId: string; visible: boolean }
   | { type: 'SET_LAYER_OPACITY'; spriteId: string; layerId: string; opacity: number }
   | { type: 'SET_LAYER_BLEND_MODE'; spriteId: string; layerId: string; blendMode: BlendMode }
@@ -261,6 +263,9 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
 
     case 'REORDER_LAYER':
       return editDoc(state, (doc) => reorderLayer(doc, action.spriteId, action.from, action.to))
+
+    case 'RENAME_LAYER':
+      return editDoc(state, (doc) => renameLayer(doc, action.spriteId, action.layerId, action.name))
 
     case 'SET_LAYER_VISIBLE':
       return editDoc(state, (doc) => setLayerVisible(doc, action.spriteId, action.layerId, action.visible))

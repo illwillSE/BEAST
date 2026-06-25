@@ -331,6 +331,13 @@ export function reorderLayer(doc: Doc, spriteId: string, from: number, to: numbe
   })
 }
 
+export function renameLayer(doc: Doc, spriteId: string, layerId: string, name: string): Doc {
+  return mapSprite(doc, spriteId, (sp) => ({
+    ...sp,
+    layers: sp.layers.map((l) => (l.id === layerId ? { ...l, name } : l)),
+  }))
+}
+
 export function setLayerVisible(doc: Doc, spriteId: string, layerId: string, visible: boolean): Doc {
   return mapSprite(doc, spriteId, (sp) => ({
     ...sp,
