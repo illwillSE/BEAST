@@ -582,6 +582,8 @@ export default function App() {
     canRedo: state.future.length > 0,
     hasSelection: !!(selection || floating),
     hasClipboard: !!clipboard,
+    palette,
+    setFgColor,
     fillSelectionToFg,
     addLayer: () => dispatch({ type: 'ADD_LAYER', spriteId: activeSprite.id, name: `Layer ${activeSprite.layers.length + 1}` }),
     duplicateLayer: () => dispatch({ type: 'DUPLICATE_LAYER', spriteId: activeSprite.id, layerId: safeLayerId }),

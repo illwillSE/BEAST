@@ -23,6 +23,8 @@ export interface CommandContext extends ShortcutContext {
   canRedo: boolean
   hasSelection: boolean
   hasClipboard: boolean
+  palette: string[]
+  setFgColor(hex: string): void
   fillSelectionToFg(): void
   // Layers (selection-follow handled in App).
   addLayer(): void
@@ -65,6 +67,17 @@ export interface CommandContext extends ShortcutContext {
   openSettings(): void
 }
 
+// Parameterized commands match a raw query string (e.g. "brush 3", "col 1",
+// "rgb 000000"), extract a typed argument, and surface as a single synthesized
+// row in the palette with a dynamic label reflecting the effective outcome.
+export interface ParamCommand<A> {
+  pattern: RegExp
+  parse(raw: string): A | null  // null = arg isn't usable yet → fall through to fuzzy search
+  preview(arg: A, ctx: CommandContext): string
+  disabledReason?(arg: A, ctx: CommandContext): string | null
+  run(arg: A, ctx: CommandContext): void
+}
+
 export interface Command {
   id: string
   title: string
@@ -76,6 +89,10 @@ export interface Command {
   // (browse mode) instead of running. `run` is a no-op for groups.
   submenu?: Command[]
   run(ctx: CommandContext): void
+  // Present only on parameterized commands. When set, this command is kept out
+  // of filterCommands/browse and only surfaces via matchParamCommand.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  param?: ParamCommand<any>
 }
 
 // Display names per tool id (the Tool registry entries carry no label — those
@@ -249,6 +266,57 @@ export const commands: Command[] = [
 
 export function commandEnabled(cmd: Command, ctx: CommandContext): boolean {
   return cmd.enabled ? cmd.enabled(ctx) : true
+}
+
+export function paramCommandEnabled(cmd: Command, arg: unknown, ctx: CommandContext): boolean {
+  return !cmd.param?.disabledReason?.(arg, ctx)
+}
+
+const normalizeHex = (raw: string) => (raw.startsWith('#') ? raw : '#' + raw).toLowerCase()
+
+const paramCommands: Command[] = [
+  {
+    id: 'param:brush', title: 'Set Brush Size', category: 'Edit', run: () => {},
+    param: {
+      pattern: /^brush\s+(\d+)$/i,
+      parse: (raw) => { const n = Number(raw); return Number.isInteger(n) ? n : null },
+      preview: (n: number) => `Set brush size to ${Math.max(1, Math.min(20, n))} and switch to Brush`,
+      run: (n: number, ctx) => { ctx.setBrushSize(Math.max(1, Math.min(20, n))); ctx.setTool('pencil') },
+    },
+  },
+  {
+    id: 'param:col', title: 'Select Palette Swatch', category: 'Palette', run: () => {},
+    param: {
+      pattern: /^col\s+(\d+)$/i,
+      parse: (raw) => { const n = Number(raw); return Number.isInteger(n) && n >= 1 ? n : null },
+      preview: (n: number, ctx) => ctx.palette[n - 1]
+        ? `Set foreground to swatch ${n} (${ctx.palette[n - 1]})`
+        : `Swatch ${n} does not exist (palette has ${ctx.palette.length} colors)`,
+      disabledReason: (n: number, ctx) => ctx.palette[n - 1] ? null : `Palette only has ${ctx.palette.length} swatches`,
+      run: (n: number, ctx) => ctx.setFgColor(ctx.palette[n - 1]),
+    },
+  },
+  {
+    id: 'param:rgb', title: 'Set Foreground Color (Hex)', category: 'Palette', run: () => {},
+    param: {
+      pattern: /^(?:rgb|hex)\s+(#?[0-9a-f]{3}|#?[0-9a-f]{6}|#?[0-9a-f]{8})$/i,
+      parse: (raw) => raw,
+      preview: (raw: string) => `Set foreground color to ${normalizeHex(raw)}`,
+      run: (raw: string, ctx) => ctx.setFgColor(normalizeHex(raw)),
+    },
+  },
+]
+
+export function matchParamCommand(query: string): { cmd: Command; arg: unknown } | null {
+  const trimmed = query.trim().replace(/\s+/g, ' ')
+  for (const cmd of paramCommands) {
+    const m = trimmed.match(cmd.param!.pattern)
+    if (!m) continue
+    const arg = cmd.param!.parse(m[1])
+    if (arg === null) continue
+    return { cmd, arg }
+  }
+  return null
 }
 
 // Flattened command set used for searching: each group is replaced by its

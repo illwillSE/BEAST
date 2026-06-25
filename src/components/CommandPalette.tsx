@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
-import { commands, filterCommands, commandEnabled } from '../commands/registry.js'
+import { commands, filterCommands, commandEnabled, matchParamCommand, paramCommandEnabled } from '../commands/registry.js'
 import type { Command, CommandContext } from '../commands/registry.js'
 
 interface CommandPaletteProps {
@@ -28,12 +28,13 @@ export default function CommandPalette({ open, onClose, ctx }: CommandPalettePro
   const activeRef = useRef<HTMLButtonElement>(null)
 
   const searching = query.trim() !== ''
+  const paramMatch = searching ? matchParamCommand(query) : null
   // Search flattens everything; otherwise show the last search's results (if
   // the palette was just opened and nothing has been typed yet), the open
   // submenu's children, or the top-level browse list.
   const items = useMemo<Command[]>(
-    () => (searching ? filterCommands(query) : showingLast ? filterCommands(lastQueryRef.current) : submenu ? submenu.submenu ?? [] : commands),
-    [searching, query, showingLast, submenu],
+    () => (searching ? (paramMatch ? [paramMatch.cmd] : filterCommands(query)) : showingLast ? filterCommands(lastQueryRef.current) : submenu ? submenu.submenu ?? [] : commands),
+    [searching, paramMatch, query, showingLast, submenu],
   )
 
   // Reset to a clean root browse each time the palette opens, showing the
@@ -61,6 +62,13 @@ export default function CommandPalette({ open, onClose, ctx }: CommandPalettePro
   // Run a leaf, or drill into a group.
   const activate = (cmd: Command) => {
     if (cmd.submenu) { openSubmenu(cmd); return }
+    if (cmd.param) {
+      if (!paramMatch || cmd.id !== paramMatch.cmd.id) return
+      if (!paramCommandEnabled(cmd, paramMatch.arg, ctx)) return
+      cmd.param.run(paramMatch.arg, ctx)
+      onClose()
+      return
+    }
     if (!commandEnabled(cmd, ctx)) return
     cmd.run(ctx)
     onClose()
@@ -117,7 +125,9 @@ export default function CommandPalette({ open, onClose, ctx }: CommandPalettePro
           )}
 
           {items.map((cmd, i) => {
-            const enabled = commandEnabled(cmd, ctx)
+            const isParam = !!cmd.param && cmd.id === paramMatch?.cmd.id
+            const enabled = isParam ? paramCommandEnabled(cmd, paramMatch!.arg, ctx) : commandEnabled(cmd, ctx)
+            const label = isParam ? cmd.param!.preview(paramMatch!.arg, ctx) : cmd.title
             const isActive = i === active
             const prevCat = items[i - 1]?.category
             return (
@@ -138,7 +148,7 @@ export default function CommandPalette({ open, onClose, ctx }: CommandPalettePro
                     (enabled ? 'text-ink-soft' : 'text-dim cursor-default')
                   }
                 >
-                  <span className="truncate">{cmd.title}</span>
+                  <span className="truncate">{label}</span>
                   {cmd.submenu
                     ? <ChevronRight size={15} className="shrink-0 text-faint" />
                     : cmd.shortcut && <span className="shrink-0 text-[11px] text-faint tabular-nums">{cmd.shortcut}</span>}

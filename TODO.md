@@ -3,11 +3,6 @@
 Deferred / planned work — open items only. See [README.md](./README.md) for what's already
 implemented; this file tracks what isn't, organized by area.
 
-To be sorted:
-Make it possible to write rgb 000000 in command palette to get a black color (or any color selected, including but not requiring alpha). Other commands that could benefit is maybe brush x
-shift+space Real Preview shortcut?
-transform canvas and selection "rotate" up down left right
-
 ## Core data models
 - [ ] Content-addressed storage for binary pixel data (BLAST sample-cache pattern).
 - [ ] (optional) Per-sprite undo — scope history per sprite so undo/redo only
@@ -34,6 +29,7 @@ transform canvas and selection "rotate" up down left right
 - [ ] No keyboard shortcut to toggle it — only the header button. The shortcut
       registry's `ctx` doesn't carry arbitrary UI setters yet
       (`shortcuts/registry.ts`); add if it becomes annoying to reach via mouse.
+- [ ] shift+space Real Preview shortcut?
 - [x] Preview follows playback — it was already wired to `target.frameIndex`,
       which is the same global `frameIndex` the playback loop advances, so this
       came for free with loop playback below.
@@ -58,6 +54,7 @@ transform canvas and selection "rotate" up down left right
       existing select-then-move-floating-region workflow).
 - [ ] Rotate selection — rotate the selected region's pixels (at least 90°
       increments; arbitrary-angle is a bigger lift, needs resampling).
+- [ ] transform canvas and selection "rotate" up down left right
 - [x] Gradient drag preview (`tools/registry.ts` gradient entry, rendered in
       `PixelCanvas.tsx`) only draws the Bresenham line between drag endpoints,
       not anything representing the gradient spread itself (now fg→bg).
@@ -96,6 +93,7 @@ transform canvas and selection "rotate" up down left right
 ## Animation
 
 ## Command palette
+- [ ] Make it possible to write rgb 000000 in command palette to get a black color (or any color selected, including but not requiring alpha). Other commands that could benefit is maybe brush x
 - [ ] Parameterized commands are intentionally excluded from v1 — the palette
       only runs one-shot actions. Commands that need a value or a dialog (Set
       FPS, Set Layer Opacity, Set Layer Blend Mode, Set Color, Rename
