@@ -10,6 +10,7 @@ import {
   replaceCell,
   paintLine,
   floodFill,
+  outlineObject,
   rectPoints,
   ellipsePoints,
   paintPoints,
@@ -76,6 +77,7 @@ export type Action =
   | { type: 'STROKE_END' }
   | (CellTarget & { type: 'PAINT_LINE'; x0: number; y0: number; x1: number; y1: number; rgba: RGBA; size: number; shape: BrushShape })
   | (CellTarget & { type: 'FILL'; x: number; y: number; rgba: RGBA; mirror?: Mirror })
+  | (CellTarget & { type: 'OUTLINE'; x: number; y: number; rgba: RGBA; size: number; shape: BrushShape; fat: boolean; mirror?: Mirror })
   | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape })
   | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape })
   | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; rgba0: RGBA; rgba1: RGBA; radial: boolean; mirror?: Mirror })
@@ -182,6 +184,11 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
     case 'FILL': {
       const { x, y, rgba, mirror } = action
       return editCell(state, action, (cell, sp) => floodFill(cell, sp.w, sp.h, x, y, rgba, mirror))
+    }
+
+    case 'OUTLINE': {
+      const { x, y, rgba, size, shape, fat, mirror } = action
+      return editCell(state, action, (cell, sp) => outlineObject(cell, sp.w, sp.h, x, y, rgba, size, shape, fat, mirror))
     }
 
     // Width only widens the outline — a filled shape is already solid, so

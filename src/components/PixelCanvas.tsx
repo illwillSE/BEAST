@@ -15,7 +15,7 @@ import type { Rect, Floating, CropPending, Coord, Preview, ToolContext } from '.
 // they flood outward from the click point instead of stamping fixed points.
 const MIRRORABLE = new Set(['PAINT_LINE', 'PAINT_RECT', 'PAINT_ELLIPSE'])
 
-const FLOOD_MIRRORABLE = new Set(['FILL', 'GRADIENT_FILL'])
+const FLOOD_MIRRORABLE = new Set(['FILL', 'GRADIENT_FILL', 'OUTLINE'])
 
 // The coordinate transforms a point preview needs drawn at — identity plus
 // one per active mirror axis — so the live shape/gradient preview shows the

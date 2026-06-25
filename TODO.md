@@ -34,6 +34,8 @@ implemented; this file tracks what isn't, organized by area.
       came for free with loop playback below.
 
 ## Tools (v1 registry)
+- [ ] Outline tool doesn't support right-click erase (unlike pencil/fill/line/rect/ellipse) —
+      deliberately scoped to fg-color only per the initial request.
 - [ ] Lasso (freehand polygon) select — deferred; only rectangular select is
       implemented for now.
 - [ ] Color select — select all pixels of a specific color (e.g. click a

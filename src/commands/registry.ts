@@ -78,7 +78,7 @@ export interface Command {
 const TOOL_LABELS: Record<string, string> = {
   pencil: 'Pencil', eraser: 'Eraser', fill: 'Fill', gradient: 'Gradient',
   eyedropper: 'Eyedropper', line: 'Line', rect: 'Rectangle', ellipse: 'Ellipse',
-  select: 'Select', crop: 'Crop', move: 'Move',
+  outline: 'Outline', select: 'Select', crop: 'Crop', move: 'Move',
 }
 
 // Extra search terms per tool, so a different name finds the same command

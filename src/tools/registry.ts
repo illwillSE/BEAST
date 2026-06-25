@@ -400,6 +400,24 @@ export const tools: Record<string, Tool<any>> = {
     },
   },
 
+  // Outlines the 8-connected object touching the click — a seldom-used tool,
+  // reachable only from the command palette (no rail icon, no shortcut key).
+  // Fine/Fat picks the border's connectivity: Fine (4-connected) hugs tighter
+  // on sparse/dot art but leaves ordinary shapes' corners open; Fat
+  // (8-connected) keeps every outline's corners closed, at the cost of a
+  // diagonally-touching pair's border bridging the gap between them.
+  outline: {
+    hasBrushSize: true,
+    variants: [['Fine', false], ['Fat', true]],
+    cursor: 'crosshair',
+    onStart(ctx) {
+      commitBracketed(ctx, {
+        type: 'OUTLINE', ...ctx.target, x: ctx.x, y: ctx.y,
+        rgba: hexToRgba(ctx.fgColor), size: ctx.brushSize, shape: ctx.brushShape, fat: ctx.filled,
+      })
+    },
+  },
+
   // Rectangular marquee. Starting a new selection flushes any pending
   // move/paste first, since a selection only makes sense for one at a time.
   select: {

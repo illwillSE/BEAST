@@ -677,6 +677,78 @@ export function floodFill(cell: Cell, w: number, h: number, x: number, y: number
   }
 }
 
+// The 8-connected region of opaque pixels ("the object") reachable from
+// (x,y) — unlike floodMask, matches on alpha>0 rather than exact RGBA, and is
+// always 8-connected (diagonal touches count as the same object) regardless
+// of the outline tool's Fat/Fine border variant, which only changes how the
+// border around this mask gets traced (see objectBorderPoints). Returns null
+// if (x,y) is out of bounds or already transparent — nothing to outline.
+function floodObjectMask(cell: Cell, w: number, h: number, x: number, y: number): Uint8Array | null {
+  if (x < 0 || y < 0 || x >= w || y >= h) return null
+  if (cell[(y * w + x) * 4 + 3] === 0) return null
+  const mask = new Uint8Array(w * h)
+  const stack: Point[] = [[x, y]]
+  while (stack.length) {
+    const [cx, cy] = stack.pop()!
+    if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue
+    const mi = cy * w + cx
+    if (mask[mi]) continue
+    if (cell[mi * 4 + 3] === 0) continue
+    mask[mi] = 1
+    stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1], [cx + 1, cy + 1], [cx + 1, cy - 1], [cx - 1, cy + 1], [cx - 1, cy - 1])
+  }
+  return mask
+}
+
+const ORTHOGONAL_DIRS: Point[] = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+const DIAGONAL_DIRS: Point[] = [[1, 1], [1, -1], [-1, 1], [-1, -1]]
+
+// The pixels just outside an object mask — its border. `fat` picks 8- vs
+// 4-connected neighbor checks (the outline tool's Fat/Fine variant): Fat
+// includes diagonal neighbors too, so a lone pixel's or a touching pair's
+// border has no diagonal gaps and a filled shape's outline corners stay
+// closed; Fine checks only N/S/E/W, hugging tighter (a lone pixel outlines to
+// 4 instead of 8) at the cost of also leaving ordinary shapes' corners open.
+// Since the mask is always 8-connected (a superset of the 4 orthogonal
+// directions), any orthogonally-adjacent opaque pixel is already inside it —
+// so border points are guaranteed transparent in both modes, never an
+// unrelated shape's pixels.
+function objectBorderPoints(mask: Uint8Array, w: number, h: number, fat: boolean): Point[] {
+  const dirs = fat ? [...ORTHOGONAL_DIRS, ...DIAGONAL_DIRS] : ORTHOGONAL_DIRS
+  const seen = new Set<number>()
+  const out: Point[] = []
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!mask[y * w + x]) continue
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx, ny = y + dy
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
+        if (mask[ny * w + nx]) continue
+        const k = ny * w + nx
+        if (seen.has(k)) continue
+        seen.add(k)
+        out.push([nx, ny])
+      }
+    }
+  }
+  return out
+}
+
+// Draws a `size`/`shape` brush stroke (see stampPoints) in `rgba` around the
+// 8-connected object touching (x,y) — the outline tool. `fat` is the
+// Fat/Fine border variant (see objectBorderPoints); `mirror` reflects across
+// the active symmetry axes, same as floodFill.
+export function outlineObject(cell: Cell, w: number, h: number, x: number, y: number, rgba: RGBA, size: number, shape: BrushShape, fat: boolean, mirror?: Mirror) {
+  const mask = floodObjectMask(cell, w, h, x, y)
+  if (!mask) return
+  const border = objectBorderPoints(mask, w, h, fat)
+  if (!border.length) return
+  const pts: FillPixel[] = border.map(([px, py]) => ({ x: px, y: py, rgba }))
+  const resolved = mirroredFill(pts, x, y, w, h, mirror)
+  const stamped = stampPoints(resolved.map(({ x: px, y: py }): Point => [px, py]), size, shape)
+  paintPoints(cell, w, h, stamped, rgba)
+}
+
 // Per-pixel result of a gradient fill over the flood-connected region from
 // (x0,y0), fading from `rgba0` to `rgba1`. Linear fades along the
 // (x0,y0)→(x1,y1) vector; radial fades by distance from (x0,y0), with
