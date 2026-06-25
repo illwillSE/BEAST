@@ -85,6 +85,11 @@ implemented; this file tracks what isn't, organized by area.
       for now.
 
 ## Layers
+- [ ] Merge Down bakes a layer into the one below as a normal/opacity-1 layer.
+      If either merged layer used a non-'normal' blend mode it was blending
+      against the layers further down too (which aren't part of the merge), so
+      the result can shift appearance. Standard editor limitation; left as-is.
+      (Merge Visible / Flatten are faithful since the whole stack is baked.)
 
 ## Sprites
 

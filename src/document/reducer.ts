@@ -36,6 +36,9 @@ import {
   setLayerVisible,
   setLayerOpacity,
   setLayerBlendMode,
+  mergeLayerDown,
+  mergeVisibleLayers,
+  flattenSprite,
   addFrame,
   duplicateFrame,
   removeFrame,
@@ -101,6 +104,9 @@ export type Action =
   | { type: 'SET_LAYER_VISIBLE'; spriteId: string; layerId: string; visible: boolean }
   | { type: 'SET_LAYER_OPACITY'; spriteId: string; layerId: string; opacity: number }
   | { type: 'SET_LAYER_BLEND_MODE'; spriteId: string; layerId: string; blendMode: BlendMode }
+  | { type: 'MERGE_LAYER_DOWN'; spriteId: string; layerId: string }
+  | { type: 'MERGE_VISIBLE_LAYERS'; spriteId: string }
+  | { type: 'FLATTEN_SPRITE'; spriteId: string }
   | { type: 'ADD_FRAME'; spriteId: string; atIndex: number }
   | { type: 'DUPLICATE_FRAME'; spriteId: string; frameIndex: number }
   | { type: 'REMOVE_FRAME'; spriteId: string; frameIndex: number }
@@ -277,6 +283,15 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
 
     case 'SET_LAYER_BLEND_MODE':
       return editDoc(state, (doc) => setLayerBlendMode(doc, action.spriteId, action.layerId, action.blendMode))
+
+    case 'MERGE_LAYER_DOWN':
+      return editDoc(state, (doc) => mergeLayerDown(doc, action.spriteId, action.layerId))
+
+    case 'MERGE_VISIBLE_LAYERS':
+      return editDoc(state, (doc) => mergeVisibleLayers(doc, action.spriteId))
+
+    case 'FLATTEN_SPRITE':
+      return editDoc(state, (doc) => flattenSprite(doc, action.spriteId))
 
     case 'ADD_FRAME':
       return editDoc(state, (doc) => addFrame(doc, action.spriteId, action.atIndex))

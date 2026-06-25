@@ -28,6 +28,9 @@ export interface CommandContext extends ShortcutContext {
   duplicateLayer(): void
   removeLayer(): void
   moveLayer(delta: number): void
+  mergeLayerDown(): void
+  mergeVisibleLayers(): void
+  flattenImage(): void
   // Frames.
   addFrame(): void
   duplicateFrame(): void
@@ -188,6 +191,9 @@ export const commands: Command[] = [
   { id: 'layer-remove', title: 'Delete Layer', category: 'Layers', enabled: (c) => c.activeSprite.layers.length > 1, run: (c) => c.removeLayer() },
   { id: 'layer-up', title: 'Move Layer Up', category: 'Layers', enabled: (c) => layerIndex(c) < c.activeSprite.layers.length - 1, run: (c) => c.moveLayer(1) },
   { id: 'layer-down', title: 'Move Layer Down', category: 'Layers', enabled: (c) => layerIndex(c) > 0, run: (c) => c.moveLayer(-1) },
+  { id: 'layer-merge-down', title: 'Merge Down', category: 'Layers', keywords: 'flatten combine', enabled: (c) => layerIndex(c) > 0, run: (c) => c.mergeLayerDown() },
+  { id: 'layer-merge-visible', title: 'Merge Visible', category: 'Layers', keywords: 'flatten combine', enabled: (c) => c.activeSprite.layers.filter((l) => l.visible).length > 1, run: (c) => c.mergeVisibleLayers() },
+  { id: 'layer-flatten', title: 'Flatten Image', category: 'Layers', keywords: 'merge combine single', enabled: (c) => c.activeSprite.layers.length > 1, run: (c) => c.flattenImage() },
 
   // Frames
   { id: 'frame-add', title: 'Add Frame', category: 'Frames', run: (c) => c.addFrame() },

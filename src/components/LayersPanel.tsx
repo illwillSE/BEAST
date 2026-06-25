@@ -70,6 +70,24 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
   const [solo, setSolo] = useState<{ spriteId: string; layerId: string; prev: Record<string, boolean> } | null>(null)
   useEffect(() => setSolo(null), [spriteId])
 
+  // Right-click menu with the layer-merge actions, anchored at the cursor.
+  const [menu, setMenu] = useState<{ layerId: string; x: number; y: number } | null>(null)
+  useEffect(() => setMenu(null), [spriteId])
+  useEffect(() => {
+    if (!menu) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(null)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menu])
+
+  const openMenu = (l: Layer, e: React.MouseEvent) => {
+    e.preventDefault()
+    onSelect(l.id)
+    setMenu({ layerId: l.id, x: e.clientX, y: e.clientY })
+  }
+  const visibleCount = layers.filter((l) => l.visible).length
+  const menuIndex = menu ? layers.findIndex((l) => l.id === menu.layerId) : -1
+
   const restoreSolo = (s: { prev: Record<string, boolean> }) => {
     layers.forEach((x) => {
       const v = s.prev[x.id]
@@ -137,6 +155,7 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
             <div
               key={l.id}
               draggable={editingId !== l.id}
+              onContextMenu={(e) => openMenu(l, e)}
               onDragStart={() => setDragIndex(i)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
@@ -238,6 +257,31 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
         />
         <span className="text-[11px] text-text tabular-nums w-8 text-right">{opacityPct}</span>
       </div>
+
+      {menu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null) }} />
+          <div
+            className="fixed z-50 min-w-40 py-1 bg-panel border border-divider rounded shadow-lg text-sm"
+            style={{ left: menu.x, top: menu.y }}
+          >
+            {([
+              ['Merge Down', menuIndex <= 0, () => dispatch({ type: 'MERGE_LAYER_DOWN', spriteId, layerId: menu.layerId })],
+              ['Merge Visible', visibleCount <= 1, () => dispatch({ type: 'MERGE_VISIBLE_LAYERS', spriteId })],
+              ['Flatten Image', layers.length <= 1, () => dispatch({ type: 'FLATTEN_SPRITE', spriteId })],
+            ] as [string, boolean, () => void][]).map(([label, disabled, run]) => (
+              <button
+                key={label}
+                disabled={disabled}
+                onClick={() => { run(); setMenu(null) }}
+                className="block w-full text-left px-3 py-1.5 text-ink-soft hover:bg-surface-hover disabled:opacity-40 disabled:hover:bg-transparent"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

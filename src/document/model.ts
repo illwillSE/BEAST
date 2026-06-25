@@ -359,6 +359,95 @@ export function setLayerBlendMode(doc: Doc, spriteId: string, layerId: string, b
   }))
 }
 
+// Bake a stack of layers down into one cell per frame by compositing them
+// (honoring each layer's opacity + blend mode) against a transparent backdrop,
+// reusing compositeFrame — the same math the canvas and exporters use. The
+// result is a plain normal/opacity-1 layer. Note: blend modes are defined
+// against everything beneath, so a merged layer only looks identical if its
+// whole backdrop was part of the merge (see mergeLayerDown's caveat).
+function flattenCells(layers: Layer[], w: number, h: number, frameCount: number): Cell[] {
+  const fake = { id: '', name: '', w, h, frameCount, layers } as Sprite
+  const out: Cell[] = []
+  for (let f = 0; f < frameCount; f++) {
+    const img = new ImageData(w, h)
+    compositeFrame(fake, f, img)
+    out.push(img.data)
+  }
+  return out
+}
+
+// Merge the layer at `layerId` into the one directly below it, leaving the
+// result in the lower layer's slot. No-op if it's the bottom layer. Both are
+// composited as visible so hiding a layer never silently drops its pixels; the
+// lower layer keeps its visibility. Caveat: if either layer used a non-'normal'
+// blend mode it blended against the layers further down too, which aren't part
+// of the merge — so a merged non-normal layer can shift appearance.
+export function mergeLayerDown(doc: Doc, spriteId: string, layerId: string): Doc {
+  return mapSprite(doc, spriteId, (sp) => {
+    const i = sp.layers.findIndex((l) => l.id === layerId)
+    if (i <= 0) return sp
+    const lower = sp.layers[i - 1]
+    const upper = sp.layers[i]
+    const merged: Layer = {
+      id: uid('ly'),
+      name: lower.name,
+      visible: lower.visible,
+      opacity: 1,
+      blendMode: 'normal',
+      cells: flattenCells([{ ...lower, visible: true }, { ...upper, visible: true }], sp.w, sp.h, sp.frameCount),
+    }
+    const layers = [...sp.layers]
+    layers.splice(i - 1, 2, merged)
+    return { ...sp, layers }
+  })
+}
+
+// Collapse all visible layers into one, left in the bottom-most visible layer's
+// slot; hidden layers are kept untouched in place. No-op with fewer than two
+// visible layers.
+export function mergeVisibleLayers(doc: Doc, spriteId: string): Doc {
+  return mapSprite(doc, spriteId, (sp) => {
+    const visible = sp.layers.filter((l) => l.visible)
+    if (visible.length <= 1) return sp
+    const merged: Layer = {
+      id: uid('ly'),
+      name: visible[0].name,
+      visible: true,
+      opacity: 1,
+      blendMode: 'normal',
+      cells: flattenCells(visible, sp.w, sp.h, sp.frameCount),
+    }
+    let inserted = false
+    const layers: Layer[] = []
+    for (const l of sp.layers) {
+      if (l.visible) {
+        if (!inserted) { layers.push(merged); inserted = true }
+      } else {
+        layers.push(l)
+      }
+    }
+    return { ...sp, layers }
+  })
+}
+
+// Collapse the whole sprite to a single layer: composite the visible layers and
+// discard the hidden ones (true flatten). No-op if there's already one layer.
+export function flattenSprite(doc: Doc, spriteId: string): Doc {
+  return mapSprite(doc, spriteId, (sp) => {
+    if (sp.layers.length <= 1) return sp
+    const visible = sp.layers.filter((l) => l.visible)
+    const merged: Layer = {
+      id: uid('ly'),
+      name: (visible[0] ?? sp.layers[0]).name,
+      visible: true,
+      opacity: 1,
+      blendMode: 'normal',
+      cells: flattenCells(visible, sp.w, sp.h, sp.frameCount),
+    }
+    return { ...sp, layers: [merged] }
+  })
+}
+
 // ── frame CRUD ───────────────────────────────────────────────────────────
 // Every layer keeps one cell per frame, so frame CRUD touches every layer's
 // cells array in lockstep and updates the sprite's frameCount.
