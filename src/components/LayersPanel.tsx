@@ -267,8 +267,8 @@ export default function LayersPanel({ layers, selectedId, onSelect, spriteId, w,
           >
             {([
               ['Merge Down', menuIndex <= 0, () => dispatch({ type: 'MERGE_LAYER_DOWN', spriteId, layerId: menu.layerId })],
-              ['Merge Visible', visibleCount <= 1, () => dispatch({ type: 'MERGE_VISIBLE_LAYERS', spriteId })],
-              ['Flatten Image', layers.length <= 1, () => dispatch({ type: 'FLATTEN_SPRITE', spriteId })],
+              ['Merge Visible', visibleCount <= 1, () => dispatch({ type: 'MERGE_VISIBLE_LAYERS', spriteId, layerId: menu.layerId })],
+              ['Flatten Image', layers.length <= 1, () => dispatch({ type: 'FLATTEN_SPRITE', spriteId, layerId: menu.layerId })],
             ] as [string, boolean, () => void][]).map(([label, disabled, run]) => (
               <button
                 key={label}

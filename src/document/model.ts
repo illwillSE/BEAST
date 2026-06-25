@@ -390,7 +390,7 @@ export function mergeLayerDown(doc: Doc, spriteId: string, layerId: string): Doc
     const upper = sp.layers[i]
     const merged: Layer = {
       id: uid('ly'),
-      name: lower.name,
+      name: upper.name,
       visible: lower.visible,
       opacity: 1,
       blendMode: 'normal',
@@ -405,13 +405,13 @@ export function mergeLayerDown(doc: Doc, spriteId: string, layerId: string): Doc
 // Collapse all visible layers into one, left in the bottom-most visible layer's
 // slot; hidden layers are kept untouched in place. No-op with fewer than two
 // visible layers.
-export function mergeVisibleLayers(doc: Doc, spriteId: string): Doc {
+export function mergeVisibleLayers(doc: Doc, spriteId: string, layerId: string): Doc {
   return mapSprite(doc, spriteId, (sp) => {
     const visible = sp.layers.filter((l) => l.visible)
     if (visible.length <= 1) return sp
     const merged: Layer = {
       id: uid('ly'),
-      name: visible[0].name,
+      name: (sp.layers.find((l) => l.id === layerId) ?? visible[0]).name,
       visible: true,
       opacity: 1,
       blendMode: 'normal',
@@ -432,13 +432,13 @@ export function mergeVisibleLayers(doc: Doc, spriteId: string): Doc {
 
 // Collapse the whole sprite to a single layer: composite the visible layers and
 // discard the hidden ones (true flatten). No-op if there's already one layer.
-export function flattenSprite(doc: Doc, spriteId: string): Doc {
+export function flattenSprite(doc: Doc, spriteId: string, layerId: string): Doc {
   return mapSprite(doc, spriteId, (sp) => {
     if (sp.layers.length <= 1) return sp
     const visible = sp.layers.filter((l) => l.visible)
     const merged: Layer = {
       id: uid('ly'),
-      name: (visible[0] ?? sp.layers[0]).name,
+      name: (sp.layers.find((l) => l.id === layerId) ?? visible[0] ?? sp.layers[0]).name,
       visible: true,
       opacity: 1,
       blendMode: 'normal',
