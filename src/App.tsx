@@ -10,6 +10,7 @@ import FramesTimeline from './components/FramesTimeline.jsx'
 import SettingsModal from './components/SettingsModal.jsx'
 import MergeColorsDialog from './components/MergeColorsDialog.jsx'
 import ClassicPalettesDialog from './components/ClassicPalettesDialog.jsx'
+import AdjustHslDialog from './components/AdjustHslDialog.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
 import FoldTab from './components/FoldTab.jsx'
 import EyedropperMagnifier from './components/EyedropperMagnifier.jsx'
@@ -508,6 +509,16 @@ export default function App() {
 
   const [classicPalettesOpen, setClassicPalettesOpen] = useState(false)
 
+  // Adjust Hue/Sat/Brightness: a live-preview gesture. Opening brackets the
+  // gesture (STROKE_BEGIN) so every preview tick coalesces into one undo step;
+  // Apply ends it, Cancel rolls it back (STROKE_CANCEL).
+  const [hslOpen, setHslOpen] = useState(false)
+  const openAdjustHsl = () => {
+    commitFloating()
+    dispatch({ type: 'STROKE_BEGIN' })
+    setHslOpen(true)
+  }
+
   const handleExportPng = async () => {
     const canvas = document.createElement('canvas')
     canvas.width = activeSprite.w
@@ -596,6 +607,7 @@ export default function App() {
     importColorsFromCanvas,
     importPalette: () => { pickFile('.zip').then((f) => f && importProjectPalette(f)) },
     openClassicPalettes: () => setClassicPalettesOpen(true),
+    openAdjustHsl,
     toggleMirrorV: () => setMirrorV((v) => !v),
     toggleMirrorH: () => setMirrorH((v) => !v),
     togglePlay: () => setPlaying((p) => !p),
@@ -872,6 +884,18 @@ export default function App() {
         onReplace={() => { dispatch({ type: 'SET_PALETTE', palette: pendingMerge!.colors }); setPendingMerge(null) }}
         onAddUnique={() => { dispatch({ type: 'MERGE_SWATCHES', colors: pendingMerge!.colors }); setPendingMerge(null) }}
         onClose={() => setPendingMerge(null)}
+      />
+
+      <AdjustHslDialog
+        open={hslOpen}
+        hasSelection={!!selection}
+        frameCount={activeSprite.frameCount}
+        onChange={(dh, ds, dv, allFrames) => {
+          const frames = allFrames ? Array.from({ length: activeSprite.frameCount }, (_, i) => i) : [safeFrame]
+          dispatch({ type: 'ADJUST_HSL', spriteId: activeSprite.id, layerId: safeLayerId, frames, dh, ds, dv, clip: selection ?? undefined })
+        }}
+        onApply={() => { dispatch({ type: 'STROKE_END' }); setHslOpen(false) }}
+        onCancel={() => { dispatch({ type: 'STROKE_CANCEL' }); setHslOpen(false) }}
       />
     </div>
   )

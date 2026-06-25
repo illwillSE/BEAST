@@ -1156,6 +1156,56 @@ export function rgbaToHex([r, g, b, a]: RGBA): string {
   return '#' + c(r) + c(g) + c(b) + (a < 255 ? c(a) : '')
 }
 
+// RGB (0–255) ↔ HSV (h 0–360, s/v 0–1). Shared by the color picker and the
+// hue/saturation/brightness adjustment.
+export function rgbToHsv(r: number, g: number, b: number): [number, number, number] {
+  r /= 255; g /= 255; b /= 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  const d = max - min
+  let h = 0
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6
+    else if (max === g) h = (b - r) / d + 2
+    else h = (r - g) / d + 4
+    h *= 60
+    if (h < 0) h += 360
+  }
+  return [h, max === 0 ? 0 : d / max, max]
+}
+
+export function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
+  const c = v * s
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = v - c
+  let r = 0, g = 0, b = 0
+  if (h < 60) [r, g, b] = [c, x, 0]
+  else if (h < 120) [r, g, b] = [x, c, 0]
+  else if (h < 180) [r, g, b] = [0, c, x]
+  else if (h < 240) [r, g, b] = [0, x, c]
+  else if (h < 300) [r, g, b] = [x, 0, c]
+  else [r, g, b] = [c, 0, x]
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)]
+}
+
+// Shift hue (degrees) and scale saturation/value (percent, multiplicative) of
+// every opaque pixel, optionally clipped to a selection. Transparent pixels are
+// left untouched so they don't pick up a color.
+export function adjustHsl(cell: Cell, w: number, h: number, dh: number, ds: number, dv: number, clip?: Selection) {
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (clip && !selectionContains(clip, x, y)) continue
+      const i = (y * w + x) * 4
+      if (cell[i + 3] === 0) continue
+      let [hh, ss, vv] = rgbToHsv(cell[i], cell[i + 1], cell[i + 2])
+      hh = ((hh + dh) % 360 + 360) % 360
+      ss = Math.min(1, Math.max(0, ss * (1 + ds / 100)))
+      vv = Math.min(1, Math.max(0, vv * (1 + dv / 100)))
+      const [r, g, b] = hsvToRgb(hh, ss, vv)
+      cell[i] = r; cell[i + 1] = g; cell[i + 2] = b
+    }
+  }
+}
+
 // ── palette CRUD ─────────────────────────────────────────────────────────
 export function addSwatch(doc: Doc, hex: string): Doc {
   return doc.palette.includes(hex) ? doc : { ...doc, palette: [...doc.palette, hex] }

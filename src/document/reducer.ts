@@ -19,6 +19,7 @@ import {
   clearRegion,
   fillRegion,
   pasteRegion,
+  adjustHsl,
   renameProject,
   addSprite,
   addSpriteFromImage,
@@ -79,6 +80,8 @@ export type Action =
   | { type: 'RENAME_PROJECT'; name: string }
   | { type: 'STROKE_BEGIN' }
   | { type: 'STROKE_END' }
+  | { type: 'STROKE_CANCEL' }
+  | { type: 'ADJUST_HSL'; spriteId: string; layerId: string; frames: number[]; dh: number; ds: number; dv: number; clip?: Selection }
   | (CellTarget & { type: 'PAINT_LINE'; x0: number; y0: number; x1: number; y1: number; rgba: RGBA; size: number; shape: BrushShape; clip?: Selection })
   | (CellTarget & { type: 'FILL'; x: number; y: number; rgba: RGBA; mirror?: Mirror; clip?: Selection })
   | (CellTarget & { type: 'OUTLINE'; x: number; y: number; rgba: RGBA; size: number; shape: BrushShape; fat: boolean; mirror?: Mirror; clip?: Selection })
@@ -183,6 +186,46 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
 
     case 'STROKE_END':
       return state.stroke ? { ...state, stroke: null } : state
+
+    // Abandon an open gesture, reverting any edits it made. Used by live-preview
+    // dialogs (Adjust HSL) on Cancel: pop the snapshot this gesture pushed back
+    // into present without leaving a redo entry. If nothing was painted yet
+    // (committed is false), there's no snapshot to pop — just close the gesture.
+    case 'STROKE_CANCEL':
+      if (!state.stroke) return state
+      if (!state.stroke.committed) return { ...state, stroke: null }
+      return {
+        past: state.past.slice(0, -1),
+        present: state.past[state.past.length - 1],
+        future: state.future,
+        stroke: null,
+      }
+
+    // Shift hue / scale saturation+value across one or more frames of a layer as
+    // a single undo step. Unlike editCell (which clones only the first cell of a
+    // step), this touches many cells, so it reads each frame's ORIGINAL pixels
+    // from the pre-gesture snapshot and writes a fresh buffer — the snapshot
+    // stays intact and each preview tick re-derives from the original rather than
+    // compounding on the last.
+    case 'ADJUST_HSL': {
+      const { spriteId, layerId, frames, dh, ds, dv, clip } = action
+      let { past, present, future, stroke } = state
+      const startStep = !stroke || !stroke.committed
+      const origin = startStep ? present : past[past.length - 1]
+      if (startStep) {
+        past = [...past, present]
+        if (past.length > MAX_HISTORY) past = past.slice(past.length - MAX_HISTORY)
+        future = []
+        if (stroke) stroke = { committed: true }
+      }
+      const sp = findSprite(origin, spriteId)!
+      for (const f of frames) {
+        const out = getCell(origin, spriteId, layerId, f).slice()
+        adjustHsl(out, sp.w, sp.h, dh, ds, dv, clip)
+        present = replaceCell(present, spriteId, layerId, f, out)
+      }
+      return { past, present, future, stroke }
+    }
 
     case 'PAINT_LINE': {
       const { x0, y0, x1, y1, rgba, size, shape, clip } = action

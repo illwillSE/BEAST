@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Plus, ChevronDown, ChevronRight, ArrowLeftRight, Trash2, ImagePlus, FolderInput } from 'lucide-react'
 import PinToggle from './PinToggle.jsx'
-import { hexToRgba, rgbaToHex } from '../document/model.js'
+import { hexToRgba, rgbaToHex, rgbToHsv, hsvToRgb } from '../document/model.js'
 import { useEyedropperSampler } from '../hooks/eyedropperSamplers.js'
 
 // Color: a managed swatch palette + a free RGBA picker (HSV square, hue/alpha
@@ -13,35 +13,6 @@ interface Hsva {
   s: number // 0–1
   v: number // 0–1
   a: number // 0–255
-}
-
-function rgbToHsv(r: number, g: number, b: number): [number, number, number] {
-  r /= 255; g /= 255; b /= 255
-  const max = Math.max(r, g, b), min = Math.min(r, g, b)
-  const d = max - min
-  let h = 0
-  if (d !== 0) {
-    if (max === r) h = ((g - b) / d) % 6
-    else if (max === g) h = (b - r) / d + 2
-    else h = (r - g) / d + 4
-    h *= 60
-    if (h < 0) h += 360
-  }
-  return [h, max === 0 ? 0 : d / max, max]
-}
-
-function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
-  const c = v * s
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
-  const m = v - c
-  let r = 0, g = 0, b = 0
-  if (h < 60) [r, g, b] = [c, x, 0]
-  else if (h < 120) [r, g, b] = [x, c, 0]
-  else if (h < 180) [r, g, b] = [0, c, x]
-  else if (h < 240) [r, g, b] = [0, x, c]
-  else if (h < 300) [r, g, b] = [x, 0, c]
-  else [r, g, b] = [c, 0, x]
-  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)]
 }
 
 function hexToHsva(hex: string): Hsva {
