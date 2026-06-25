@@ -3,6 +3,11 @@
 Deferred / planned work — open items only. See [README.md](./README.md) for what's already
 implemented; this file tracks what isn't, organized by area.
 
+To be sorted:
+Make it possible to write rgb 000000 in command palette to get a black color (or any color selected, including but not requiring alpha). Other commands that could benefit is maybe brush x
+shift+space Real Preview shortcut?
+transform canvas and selection "rotate" up down left right
+
 ## Core data models
 - [ ] Content-addressed storage for binary pixel data (BLAST sample-cache pattern).
 - [ ] (optional) Per-sprite undo — scope history per sprite so undo/redo only
@@ -38,12 +43,12 @@ implemented; this file tracks what isn't, organized by area.
       deliberately scoped to fg-color only per the initial request.
 - [ ] Lasso (freehand polygon) select — deferred; only rectangular select is
       implemented for now.
-- [ ] Color select — select all pixels of a specific color (e.g. click a
+- [x] Color select — select all pixels of a specific color (e.g. click a
       color, or eyedropper-style sample) across the layer/canvas, for use as
       a mask or to drive color replace.
 - [ ] Type tool — render text onto the canvas (font select, maybe a predefined
       set) and an emoji picker/insert.
-- [ ] Eraser: decide whether it stays a separate tool (current) or is also
+- [x] Eraser: decide whether it stays a separate tool (current) or is also
       reachable via right-click while another paint tool is active.
 - [ ] "Pixel perfect" diagonal-stroke thinning at width>1 (Aseprite-style —
       avoids chunky corners where a thick diagonal stroke overlaps itself).
@@ -71,11 +76,6 @@ implemented; this file tracks what isn't, organized by area.
       and the palette swatch grid in `ColorPanel.tsx` is capped at `max-h-44
       overflow-y-auto` (same pattern as `LayersPanel`'s layer list) instead of
       growing unbounded.
-- [ ] Right-click paints with bg color instead of fg — deliberately deferred
-      when fg/bg landed. Needs `event.button` handling in `PixelCanvas.tsx`
-      (`handleDown`/`ctxFor` currently treat all clicks the same) and
-      suppressing the canvas's `contextmenu` event; decide which tools it
-      applies to (eraser already paints transparent, so it wouldn't apply there).
 - [ ] Multiple named palettes per project — deliberately deferred; a project
       currently holds exactly one palette. The header's "New palette" `+`
       button is still an unwired placeholder for this.
@@ -103,6 +103,7 @@ implemented; this file tracks what isn't, organized by area.
       panels; revisit if an inline value-editor step in the palette is wanted.
 - [ ] "Add Sprite" from the palette uses the default canvas size (bypasses the
       New Sprite size dialog that SpriteList's `+` opens).
+
 
 ## Persistence
 - [ ] Cell-hash is cyrb53 (non-crypto) — fine for in-project dedup, but revisit
