@@ -302,10 +302,15 @@ export default function PixelCanvas({
   // step instead. Animated dash offset gives the classic "marching ants" look.
   useEffect(() => {
     const ctx = selectionRef.current!.getContext('2d')!
-    const region: Selection | Rect | null =
-      preview?.kind === 'marquee' ? preview.rect : floating || selection || cropPending
 
-    if (!region) {
+    // When drawing a new marquee, keep the existing selection visible too so
+    // the user can see what's already selected during a Shift-drag add.
+    const regions: (Selection | Rect)[] =
+      preview?.kind === 'marquee'
+        ? (selection ? [preview.rect, selection] : [preview.rect])
+        : [floating || selection || cropPending].filter(Boolean) as (Selection | Rect)[]
+
+    if (regions.length === 0) {
       ctx.clearRect(0, 0, w * scale, h * scale)
       return
     }
@@ -313,7 +318,7 @@ export default function PixelCanvas({
     // Outline is computed once per selection change (cheap for the common
     // plain-rect case, and avoids re-tracing a masked/inverted selection's
     // boundary every animation frame) — only the dash offset animates.
-    const outline = selectionOutline(region)
+    const outlines = regions.map(selectionOutline)
 
     let rafId: number
     const draw = () => {
@@ -323,10 +328,12 @@ export default function PixelCanvas({
       ctx.setLineDash([4, 3])
       ctx.lineDashOffset = -(performance.now() / 30) % 7
       ctx.beginPath()
-      for (const s of outline.top) { ctx.moveTo(s.x0 * scale + 0.5, s.y * scale + 0.5); ctx.lineTo(s.x1 * scale - 0.5, s.y * scale + 0.5) }
-      for (const s of outline.bottom) { ctx.moveTo(s.x0 * scale + 0.5, s.y * scale - 0.5); ctx.lineTo(s.x1 * scale - 0.5, s.y * scale - 0.5) }
-      for (const s of outline.left) { ctx.moveTo(s.x * scale + 0.5, s.y0 * scale + 0.5); ctx.lineTo(s.x * scale + 0.5, s.y1 * scale - 0.5) }
-      for (const s of outline.right) { ctx.moveTo(s.x * scale - 0.5, s.y0 * scale + 0.5); ctx.lineTo(s.x * scale - 0.5, s.y1 * scale - 0.5) }
+      for (const outline of outlines) {
+        for (const s of outline.top) { ctx.moveTo(s.x0 * scale + 0.5, s.y * scale + 0.5); ctx.lineTo(s.x1 * scale - 0.5, s.y * scale + 0.5) }
+        for (const s of outline.bottom) { ctx.moveTo(s.x0 * scale + 0.5, s.y * scale - 0.5); ctx.lineTo(s.x1 * scale - 0.5, s.y * scale - 0.5) }
+        for (const s of outline.left) { ctx.moveTo(s.x * scale + 0.5, s.y0 * scale + 0.5); ctx.lineTo(s.x * scale + 0.5, s.y1 * scale - 0.5) }
+        for (const s of outline.right) { ctx.moveTo(s.x * scale - 0.5, s.y0 * scale + 0.5); ctx.lineTo(s.x * scale - 0.5, s.y1 * scale - 0.5) }
+      }
       ctx.stroke()
       rafId = requestAnimationFrame(draw)
     }
