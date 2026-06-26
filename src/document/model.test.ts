@@ -4,7 +4,7 @@ import {
   rgbToHsv, hsvToRgb,
   linePoints,
   createCell, createBlankDocument, createSprite,
-  paintPixel, floodFill,
+  paintPixel, floodFill, gradientFill,
   addLayer, removeLayer, setLayerVisible,
   addFrame, removeFrame,
   selectionContains, copyRegion, clearRegion,
@@ -372,5 +372,285 @@ describe('mergeVisibleLayers', () => {
     const sp2 = doc.sprites[0]
     const doc2 = mergeVisibleLayers(doc, sp2.id, sp2.layers[0].id)
     expect(doc2.sprites[0].layers).toHaveLength(2)
+  })
+})
+
+// ── gradientFill ──────────────────────────────────────────────────────────
+
+// Helper: read pixel [r,g,b,a] from a cell at (x,y)
+const px = (cell: ReturnType<typeof createCell>, w: number, x: number, y: number) => {
+  const i = (y * w + x) * 4
+  return [cell[i], cell[i + 1], cell[i + 2], cell[i + 3]]
+}
+
+describe('gradientFill — linear, no mirror', () => {
+  // 4×1 cell, red→blue left-to-right
+  const RED = [255, 0, 0, 255] as const
+  const BLUE = [0, 0, 255, 255] as const
+
+  it('start pixel gets rgba0', () => {
+    const cell = createCell(4, 1)
+    gradientFill(cell, 4, 1, 0, 0, 3, 0, RED, BLUE, false)
+    expect(px(cell, 4, 0, 0)).toEqual([255, 0, 0, 255])
+  })
+
+  it('end pixel gets rgba1', () => {
+    const cell = createCell(4, 1)
+    gradientFill(cell, 4, 1, 0, 0, 3, 0, RED, BLUE, false)
+    expect(px(cell, 4, 3, 0)).toEqual([0, 0, 255, 255])
+  })
+
+  it('interpolates midpoint correctly (t=1/3)', () => {
+    const cell = createCell(4, 1)
+    gradientFill(cell, 4, 1, 0, 0, 3, 0, RED, BLUE, false)
+    // t at x=1: ((1)*3)/9 = 1/3
+    const [r, , b] = px(cell, 4, 1, 0)
+    expect(r).toBe(Math.round(255 * (1 - 1 / 3)))
+    expect(b).toBe(Math.round(255 * (1 / 3)))
+  })
+
+  it('pixels beyond end are clamped to rgba1', () => {
+    // gradient from x=0 to x=1 on a 4-wide cell — x=2,3 clamp to blue
+    const cell = createCell(4, 1)
+    gradientFill(cell, 4, 1, 0, 0, 1, 0, RED, BLUE, false)
+    expect(px(cell, 4, 2, 0)).toEqual([0, 0, 255, 255])
+    expect(px(cell, 4, 3, 0)).toEqual([0, 0, 255, 255])
+  })
+})
+
+describe('gradientFill — radial, no mirror', () => {
+  // 3×3 cell, center (1,1), radius to (1,0) = distance 1
+  const WHITE = [255, 255, 255, 255] as const
+  const BLACK = [0, 0, 0, 255] as const
+
+  it('center pixel gets rgba0', () => {
+    const cell = createCell(3, 3)
+    gradientFill(cell, 3, 3, 1, 1, 1, 0, WHITE, BLACK, true)
+    expect(px(cell, 3, 1, 1)).toEqual([255, 255, 255, 255])
+  })
+
+  it('pixel at radius distance gets rgba1', () => {
+    const cell = createCell(3, 3)
+    gradientFill(cell, 3, 3, 1, 1, 1, 0, WHITE, BLACK, true)
+    // distance from (1,1) to (1,0) = 1 = radius → t=1 → BLACK
+    expect(px(cell, 3, 1, 0)).toEqual([0, 0, 0, 255])
+  })
+
+  it('pixel beyond radius is clamped to rgba1', () => {
+    // (0,0): distance = sqrt(2) > 1, clamped to t=1 → BLACK
+    const cell = createCell(3, 3)
+    gradientFill(cell, 3, 3, 1, 1, 1, 0, WHITE, BLACK, true)
+    expect(px(cell, 3, 0, 0)).toEqual([0, 0, 0, 255])
+  })
+})
+
+describe('gradientFill — vertical mirror (v=true)', () => {
+  // 4×1 cell, RED→BLUE from (0,0) to (1,0).
+  // Orbits: {(0,0),(3,0)} canonical=(0,0)=red; {(1,0),(2,0)} canonical=(1,0)=blue.
+  // Expected: [red, blue, blue, red]
+  const RED = [255, 0, 0, 255] as const
+  const BLUE = [0, 0, 255, 255] as const
+
+  it('anchor-side pixel (0,0) is red', () => {
+    const cell = createCell(4, 1)
+    gradientFill(cell, 4, 1, 0, 0, 1, 0, RED, BLUE, false, { v: true, h: false })
+    expect(px(cell, 4, 0, 0)).toEqual([255, 0, 0, 255])
+  })
+
+  it('mirrored edge (3,0) gets the same color as anchor (0,0)', () => {
+    const cell = createCell(4, 1)
+    gradientFill(cell, 4, 1, 0, 0, 1, 0, RED, BLUE, false, { v: true, h: false })
+    expect(px(cell, 4, 3, 0)).toEqual([255, 0, 0, 255])
+  })
+
+  it('inner pixels (1,0) and (2,0) are both blue', () => {
+    const cell = createCell(4, 1)
+    gradientFill(cell, 4, 1, 0, 0, 1, 0, RED, BLUE, false, { v: true, h: false })
+    expect(px(cell, 4, 1, 0)).toEqual([0, 0, 255, 255])
+    expect(px(cell, 4, 2, 0)).toEqual([0, 0, 255, 255])
+  })
+
+  it('drawing from the opposite corner (3,0) produces the same pixel colors', () => {
+    // gradient from right: (3,0)→(2,0), anchor on right side
+    const left = createCell(4, 1)
+    const right = createCell(4, 1)
+    gradientFill(left,  4, 1, 0, 0, 1, 0, RED, BLUE, false, { v: true, h: false })
+    gradientFill(right, 4, 1, 3, 0, 2, 0, RED, BLUE, false, { v: true, h: false })
+    for (let x = 0; x < 4; x++) {
+      expect(px(right, 4, x, 0)).toEqual(px(left, 4, x, 0))
+    }
+  })
+})
+
+describe('gradientFill — horizontal mirror (h=true)', () => {
+  // 1×4 cell, RED→BLUE from (0,0) to (0,1).
+  // Orbits: {(0,0),(0,3)} canonical=(0,0)=red; {(0,1),(0,2)} canonical=(0,1)=blue.
+  // Expected column: [red, blue, blue, red]
+  const RED = [255, 0, 0, 255] as const
+  const BLUE = [0, 0, 255, 255] as const
+
+  it('anchor-side pixel (0,0) is red', () => {
+    const cell = createCell(1, 4)
+    gradientFill(cell, 1, 4, 0, 0, 0, 1, RED, BLUE, false, { v: false, h: true })
+    expect(px(cell, 1, 0, 0)).toEqual([255, 0, 0, 255])
+  })
+
+  it('mirrored edge (0,3) gets the same color as anchor (0,0)', () => {
+    const cell = createCell(1, 4)
+    gradientFill(cell, 1, 4, 0, 0, 0, 1, RED, BLUE, false, { v: false, h: true })
+    expect(px(cell, 1, 0, 3)).toEqual([255, 0, 0, 255])
+  })
+
+  it('inner pixels (0,1) and (0,2) are both blue', () => {
+    const cell = createCell(1, 4)
+    gradientFill(cell, 1, 4, 0, 0, 0, 1, RED, BLUE, false, { v: false, h: true })
+    expect(px(cell, 1, 0, 1)).toEqual([0, 0, 255, 255])
+    expect(px(cell, 1, 0, 2)).toEqual([0, 0, 255, 255])
+  })
+})
+
+describe('gradientFill — v+h mirror, 16×16 canvas, corner→center', () => {
+  // Diagonal RED→BLUE gradient from each corner toward the opposite center pixel.
+  // With v+h mirror the canonical region is always the quadrant containing the
+  // anchor, so the gradient fans outward symmetrically.
+  //
+  // Gradient (0,0)→(8,8): t(x,y)=(x+y)/16. Canonical center pixel=(7,7), t=0.875
+  //   → center cluster = [32,0,223,255]. All 4 fills use a 45° diagonal of the
+  //   same length, so t values at corresponding canonical pixels are identical.
+  const RED  = [255, 0, 0, 255] as const
+  const BLUE = [0, 0, 255, 255] as const
+  const W = 16, H = 16
+  const M = { v: true, h: true }
+  // (anchor-corner → center pixel in the same quadrant)
+  const CORNER_TO_CENTER: [number,number,number,number][] = [
+    [0,  0,  8, 8],   // TL → center+1
+    [15, 0,  7, 8],   // TR → center
+    [0,  15, 8, 7],   // BL → center
+    [15, 15, 7, 7],   // BR → center
+  ]
+
+  it('all 4 corners are RED for every corner→center fill', () => {
+    for (const [x0,y0,x1,y1] of CORNER_TO_CENTER) {
+      const cell = createCell(W, H)
+      gradientFill(cell, W, H, x0, y0, x1, y1, RED, BLUE, false, M)
+      expect(px(cell, W, 0,  0 )).toEqual([255, 0, 0, 255])
+      expect(px(cell, W, 15, 0 )).toEqual([255, 0, 0, 255])
+      expect(px(cell, W, 0,  15)).toEqual([255, 0, 0, 255])
+      expect(px(cell, W, 15, 15)).toEqual([255, 0, 0, 255])
+    }
+  })
+
+  it('center cluster (7,7)–(8,8) is [32,0,223,255] for every corner→center fill', () => {
+    // t=0.875 at canonical center pixel in all 4 fills
+    const C = [32, 0, 223, 255]
+    for (const [x0,y0,x1,y1] of CORNER_TO_CENTER) {
+      const cell = createCell(W, H)
+      gradientFill(cell, W, H, x0, y0, x1, y1, RED, BLUE, false, M)
+      expect(px(cell, W, 7, 7)).toEqual(C)
+      expect(px(cell, W, 8, 7)).toEqual(C)
+      expect(px(cell, W, 7, 8)).toEqual(C)
+      expect(px(cell, W, 8, 8)).toEqual(C)
+    }
+  })
+
+  it('intermediate pixels at canvas edge have correct interpolated color', () => {
+    // (0,7): t=(0+7)/16=0.4375 → [143,0,112,255]; mirrors at (15,7),(0,8),(15,8)
+    const cell = createCell(W, H)
+    gradientFill(cell, W, H, 0, 0, 8, 8, RED, BLUE, false, M)
+    const MID = [143, 0, 112, 255]
+    expect(px(cell, W,  0, 7)).toEqual(MID)
+    expect(px(cell, W, 15, 7)).toEqual(MID)
+    expect(px(cell, W,  0, 8)).toEqual(MID)
+    expect(px(cell, W, 15, 8)).toEqual(MID)
+  })
+
+  it('all 4 corner→center fills produce identical pixel buffers', () => {
+    const cells = CORNER_TO_CENTER.map(([x0,y0,x1,y1]) => {
+      const cell = createCell(W, H)
+      gradientFill(cell, W, H, x0, y0, x1, y1, RED, BLUE, false, M)
+      return cell
+    })
+    for (let i = 1; i < cells.length; i++) expect(cells[i]).toEqual(cells[0])
+  })
+
+  it('result is symmetric on both axes', () => {
+    const cell = createCell(W, H)
+    gradientFill(cell, W, H, 0, 0, 8, 8, RED, BLUE, false, M)
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        expect(px(cell, W, x, y)).toEqual(px(cell, W, W-1-x, y))
+        expect(px(cell, W, x, y)).toEqual(px(cell, W, x, H-1-y))
+      }
+    }
+  })
+})
+
+describe('gradientFill — v+h mirror, 16×16 canvas, center→corner', () => {
+  // Reversed: anchor at center, gradient toward matching corner in canonical quadrant.
+  // Center cluster = RED (t=0 at anchor). Corners = BLUE (t=1 at far corner).
+  // t(0,0) for fill (7,7)→(0,0): (14-0-0)/14 = 1 → BLUE.
+  const RED  = [255, 0, 0, 255] as const
+  const BLUE = [0, 0, 255, 255] as const
+  const W = 16, H = 16
+  const M = { v: true, h: true }
+  // (center pixel → corner in the same canonical quadrant)
+  const CENTER_TO_CORNER: [number,number,number,number][] = [
+    [7,  7,  0,  0 ],  // TL center → TL corner
+    [8,  7,  15, 0 ],  // TR center → TR corner
+    [7,  8,  0,  15],  // BL center → BL corner
+    [8,  8,  15, 15],  // BR center → BR corner
+  ]
+
+  it('all 4 corners are BLUE for every center→corner fill', () => {
+    for (const [x0,y0,x1,y1] of CENTER_TO_CORNER) {
+      const cell = createCell(W, H)
+      gradientFill(cell, W, H, x0, y0, x1, y1, RED, BLUE, false, M)
+      expect(px(cell, W, 0,  0 )).toEqual([0, 0, 255, 255])
+      expect(px(cell, W, 15, 0 )).toEqual([0, 0, 255, 255])
+      expect(px(cell, W, 0,  15)).toEqual([0, 0, 255, 255])
+      expect(px(cell, W, 15, 15)).toEqual([0, 0, 255, 255])
+    }
+  })
+
+  it('center cluster (7,7)–(8,8) is RED for every center→corner fill', () => {
+    for (const [x0,y0,x1,y1] of CENTER_TO_CORNER) {
+      const cell = createCell(W, H)
+      gradientFill(cell, W, H, x0, y0, x1, y1, RED, BLUE, false, M)
+      expect(px(cell, W, 7, 7)).toEqual([255, 0, 0, 255])
+      expect(px(cell, W, 8, 7)).toEqual([255, 0, 0, 255])
+      expect(px(cell, W, 7, 8)).toEqual([255, 0, 0, 255])
+      expect(px(cell, W, 8, 8)).toEqual([255, 0, 0, 255])
+    }
+  })
+
+  it('intermediate pixels at canvas edge have correct interpolated color', () => {
+    // fill (7,7)→(0,0): t at (0,7) = (14-0-7)/14 = 0.5 → [128,0,128,255]
+    const cell = createCell(W, H)
+    gradientFill(cell, W, H, 7, 7, 0, 0, RED, BLUE, false, M)
+    const MID = [128, 0, 128, 255]
+    expect(px(cell, W,  0, 7)).toEqual(MID)
+    expect(px(cell, W, 15, 7)).toEqual(MID)
+    expect(px(cell, W,  0, 8)).toEqual(MID)
+    expect(px(cell, W, 15, 8)).toEqual(MID)
+  })
+
+  it('all 4 center→corner fills produce identical pixel buffers', () => {
+    const cells = CENTER_TO_CORNER.map(([x0,y0,x1,y1]) => {
+      const cell = createCell(W, H)
+      gradientFill(cell, W, H, x0, y0, x1, y1, RED, BLUE, false, M)
+      return cell
+    })
+    for (let i = 1; i < cells.length; i++) expect(cells[i]).toEqual(cells[0])
+  })
+
+  it('result is symmetric on both axes', () => {
+    const cell = createCell(W, H)
+    gradientFill(cell, W, H, 7, 7, 0, 0, RED, BLUE, false, M)
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        expect(px(cell, W, x, y)).toEqual(px(cell, W, W-1-x, y))
+        expect(px(cell, W, x, y)).toEqual(px(cell, W, x, H-1-y))
+      }
+    }
   })
 })
