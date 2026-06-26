@@ -367,12 +367,12 @@ export default function App() {
   }
   const cancelCrop = () => setCropPending(null)
 
-  // A floating move/paste only makes sense while the move tool is active, and
-  // only for the cell it was lifted from — commit it when either changes. A
-  // pending crop window likewise only makes sense while the crop tool is
-  // active — commit it (apply the crop) when leaving the tool.
+  // A floating move/paste only makes sense while the move or stretch tool is
+  // active, and only for the cell it was lifted from — commit it when either
+  // changes. A pending crop window likewise only makes sense while the crop
+  // tool is active — commit it (apply the crop) when leaving the tool.
   useEffect(() => {
-    if (tool !== 'move') commitFloating()
+    if (tool !== 'move' && tool !== 'stretch') commitFloating()
     if (tool !== 'crop') commitCrop()
     if (tool !== 'line' || !filled.line) setContinuousLine(null)
   }, [tool, filled.line])

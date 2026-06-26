@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Pencil, Eraser, PaintBucket, Pipette, Minus, Square, Circle,
-  BoxSelect, Move, FlipHorizontal, FlipVertical, Crop, Wand2,
+  BoxSelect, Move, FlipHorizontal, FlipVertical, Crop, Wand2, Maximize2,
   createLucideIcon,
 } from 'lucide-react'
 import type { LucideProps } from 'lucide-react'
@@ -133,6 +133,7 @@ const TOOLS: (ToolEntry | null)[] = [
   },
   { id: 'selectColor', label: 'Select Color', Icon: Wand2 },
   { id: 'move', label: 'Move', Icon: Move },
+  { id: 'stretch', label: 'Stretch', Icon: Maximize2 },
 ]
 
 // Which flyout group (if any) a tool id belongs to — a sub-group's id for

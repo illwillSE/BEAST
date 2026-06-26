@@ -209,7 +209,7 @@ export function cropSprite(doc: Doc, spriteId: string, x: number, y: number, new
 
 // Nearest-neighbor scale of a cell to newW×newH — keeps hard pixel edges (no
 // blending), unlike resizeCell which pads/crops instead of scaling.
-function stretchCell(cell: Cell, w: number, h: number, newW: number, newH: number): Cell {
+export function stretchCell(cell: Cell, w: number, h: number, newW: number, newH: number): Cell {
   const out = createCell(newW, newH)
   for (let y = 0; y < newH; y++) {
     const sy = Math.min(h - 1, Math.floor((y * h) / newH))
@@ -218,6 +218,21 @@ function stretchCell(cell: Cell, w: number, h: number, newW: number, newH: numbe
       const si = (sy * w + sx) * 4
       const di = (y * newW + x) * 4
       out[di] = cell[si]; out[di + 1] = cell[si + 1]; out[di + 2] = cell[si + 2]; out[di + 3] = cell[si + 3]
+    }
+  }
+  return out
+}
+
+// Same nearest-neighbor sampling as stretchCell, for a 1-byte-per-pixel
+// selection mask instead of an RGBA cell (used to keep a stretched floating
+// selection's marquee tracing the right shape).
+export function stretchMask(mask: Uint8Array, w: number, h: number, newW: number, newH: number): Uint8Array {
+  const out = new Uint8Array(newW * newH)
+  for (let y = 0; y < newH; y++) {
+    const sy = Math.min(h - 1, Math.floor((y * h) / newH))
+    for (let x = 0; x < newW; x++) {
+      const sx = Math.min(w - 1, Math.floor((x * w) / newW))
+      out[y * newW + x] = mask[sy * w + sx]
     }
   }
   return out

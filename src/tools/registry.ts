@@ -43,7 +43,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import {
   hexToRgba, linePoints, rectPoints, ellipsePoints, copyRegion, stampPoints, gradientFillPreview, selectionContains, selectByColor,
-  unionSelections, subtractSelection,
+  unionSelections, subtractSelection, stretchCell, stretchMask,
 } from '../document/model.js'
 import type { BrushShape, Cell, CellTarget, Point, RGBA, Selection } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
@@ -219,11 +219,11 @@ function applySelectionMode(ctx: ToolContext, picked: Selection | null) {
   }
 }
 
-// Crop resize handles: one per edge/corner of the pending crop rect. Hit
-// radius is a fixed CSS-pixel tolerance converted to cells via the current
-// zoom, so handles stay easy to grab at any scale instead of shrinking to
-// nothing when zoomed in or ballooning when zoomed out.
-type CropHandle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+// Resize handles: one per edge/corner of a rect (crop window or floating
+// stretch selection). Hit radius is a fixed CSS-pixel tolerance converted to
+// cells via the current zoom, so handles stay easy to grab at any scale
+// instead of shrinking to nothing when zoomed in or ballooning when zoomed out.
+type Handle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
 
 const HANDLE_HIT_PX = 6
 
@@ -238,20 +238,20 @@ const OUTLINE_HIT_CURSOR =
   "%3Ccircle cx='10' cy='10' r='1.5' fill='white' stroke='black' stroke-width='.5'/%3E" +
   "%3C/svg%3E\") 10 10, crosshair"
 
-const HANDLE_CURSORS: Record<CropHandle, string> = {
+const HANDLE_CURSORS: Record<Handle, string> = {
   n: 'ns-resize', s: 'ns-resize',
   e: 'ew-resize', w: 'ew-resize',
   ne: 'nesw-resize', sw: 'nesw-resize',
   nw: 'nwse-resize', se: 'nwse-resize',
 }
 
-const HANDLE_DIRS: Record<CropHandle, { h?: 'l' | 'r'; v?: 't' | 'b' }> = {
+const HANDLE_DIRS: Record<Handle, { h?: 'l' | 'r'; v?: 't' | 'b' }> = {
   n: { v: 't' }, s: { v: 'b' }, e: { h: 'r' }, w: { h: 'l' },
   ne: { h: 'r', v: 't' }, nw: { h: 'l', v: 't' }, se: { h: 'r', v: 'b' }, sw: { h: 'l', v: 'b' },
 }
 
 // Which handle (if any) the cell (ctx.x, ctx.y) is within grabbing range of.
-function cropHandleAt(ctx: ToolContext, p: Rect): CropHandle | null {
+function cropHandleAt(ctx: ToolContext, p: Rect): Handle | null {
   const r = Math.max(1, Math.round(HANDLE_HIT_PX / ctx.scale))
   const left = p.x, right = p.x + p.w - 1, top = p.y, bottom = p.y + p.h - 1
   const nearLeft = Math.abs(ctx.x - left) <= r
@@ -273,7 +273,7 @@ function cropHandleAt(ctx: ToolContext, p: Rect): CropHandle | null {
 
 // Recompute a rect dragging one edge/corner of `orig` to (x, y); the opposite
 // edge(s) stay anchored in place.
-function resizeRect(orig: Rect, handle: CropHandle, x: number, y: number): Rect {
+function resizeRect(orig: Rect, handle: Handle, x: number, y: number): Rect {
   const dir = HANDLE_DIRS[handle]
   const left = orig.x, right = orig.x + orig.w - 1, top = orig.y, bottom = orig.y + orig.h - 1
   const x0 = dir.h === 'l' ? x : left
@@ -281,6 +281,44 @@ function resizeRect(orig: Rect, handle: CropHandle, x: number, y: number): Rect 
   const y0 = dir.v === 't' ? y : top
   const y1 = dir.v === 'b' ? y : bottom
   return normalizeRect(x0, y0, x1, y1)
+}
+
+// Like resizeRect, but for the Stretch tool: when lockAspect is true, clamps
+// the dragged rect to preserve orig.w / orig.h. Corner handles shrink
+// whichever axis overshoots the ratio (anchored at the opposite corner);
+// edge handles scale the other axis proportionally, anchored at the rect's
+// own center (matching how most image editors treat a locked-aspect edge drag).
+function resizeRectStretch(orig: Rect, handle: Handle, x: number, y: number, lockAspect: boolean): Rect {
+  const free = resizeRect(orig, handle, x, y)
+  if (!lockAspect) return free
+  const dir = HANDLE_DIRS[handle]
+  const ratio = orig.w / orig.h
+  const left = orig.x, right = orig.x + orig.w - 1, top = orig.y, bottom = orig.y + orig.h - 1
+  if (dir.h && dir.v) {
+    // Corner: keep the axis with the larger relative change, derive the other
+    // from the ratio, anchored at the opposite (untouched) corner.
+    if (free.w / free.h > ratio) {
+      const w = Math.max(1, Math.round(free.h * ratio))
+      const x0 = dir.h === 'r' ? left : right - w + 1
+      const x1 = dir.h === 'r' ? x0 + w - 1 : right
+      return normalizeRect(x0, free.y, x1, free.y + free.h - 1)
+    }
+    const h = Math.max(1, Math.round(free.w / ratio))
+    const y0 = dir.v === 'b' ? top : bottom - h + 1
+    const y1 = dir.v === 'b' ? y0 + h - 1 : bottom
+    return normalizeRect(free.x, y0, free.x + free.w - 1, y1)
+  }
+  // Edge: derive the perpendicular axis from the ratio, centered on the rect.
+  if (dir.h) {
+    const h = Math.max(1, Math.round(free.w / ratio))
+    const cy = (top + bottom) / 2
+    const y0 = Math.round(cy - h / 2)
+    return normalizeRect(free.x, y0, free.x + free.w - 1, y0 + h - 1)
+  }
+  const w = Math.max(1, Math.round(free.h * ratio))
+  const cx = (left + right) / 2
+  const x0 = Math.round(cx - w / 2)
+  return normalizeRect(x0, free.y, x0 + w - 1, free.y + free.h - 1)
 }
 
 export const tools: Record<string, Tool<any>> = {
@@ -568,6 +606,49 @@ export const tools: Record<string, Tool<any>> = {
     },
     onEnd(ctx, drag) {
       if (drag.mode === 'shift') ctx.dispatch({ type: 'STROKE_END' })
+    },
+  },
+
+  // Non-uniformly rescale a floating selection's pixel content by dragging
+  // its bounding-box handles (nearest-neighbor, same algorithm as the Resize
+  // Canvas dialog's stretchSprite). Inert without an active floating
+  // selection — lift one with the Move tool first. Each resize drag always
+  // resamples from the buffer captured at gesture start (never the previous
+  // frame's already-stretched result), so repeated nearest-neighbor passes
+  // within one drag don't compound quality loss. Shift locks the original
+  // aspect ratio. Stays floating (no commit) until the usual Enter/tool
+  // switch/Escape paths commit it, same as Move.
+  stretch: {
+    key: 't',
+    cursor(ctx) {
+      const f = ctx.floating
+      if (!f) return 'crosshair'
+      const handle = cropHandleAt(ctx, f)
+      if (handle) return HANDLE_CURSORS[handle]
+      if (ctx.x >= f.x && ctx.y >= f.y && ctx.x < f.x + f.w && ctx.y < f.y + f.h) return 'move'
+      return 'default'
+    },
+    onStart(ctx) {
+      const f = ctx.floating
+      if (!f) return
+      const handle = cropHandleAt(ctx, f)
+      if (handle) return { mode: 'resize', handle, orig: { x: f.x, y: f.y, w: f.w, h: f.h }, origData: f.data, origMask: f.mask }
+      if (ctx.x >= f.x && ctx.y >= f.y && ctx.x < f.x + f.w && ctx.y < f.y + f.h) {
+        return { mode: 'move', dx: ctx.x - f.x, dy: ctx.y - f.y }
+      }
+    },
+    onDrag(ctx, _prev, drag) {
+      if (drag.mode === 'move') {
+        ctx.setFloating((f) => (f ? { ...f, x: ctx.x - drag.dx, y: ctx.y - drag.dy } : f))
+        return
+      }
+      const rect = resizeRectStretch(drag.orig, drag.handle, ctx.x, ctx.y, ctx.shiftKey)
+      ctx.setFloating((f) => f && {
+        ...f,
+        x: rect.x, y: rect.y, w: rect.w, h: rect.h,
+        data: stretchCell(drag.origData, drag.orig.w, drag.orig.h, rect.w, rect.h),
+        mask: drag.origMask && stretchMask(drag.origMask, drag.orig.w, drag.orig.h, rect.w, rect.h),
+      })
     },
   },
 }

@@ -24,6 +24,8 @@ undo/redo behind every edit.
   vertical/horizontal mirror (symmetry) toggles layered on top of any paint tool. Move tool
   drags shift the whole layer with torus wrap-around (arrow keys nudge 1px, Shift+arrow
   10px). Flip Horizontal/Flip Vertical (whole layer or selection) via the command palette.
+  Stretch tool drags a floating selection's 8 bounding-box handles to non-uniformly rescale
+  its pixel content (nearest-neighbor; Shift locks aspect ratio).
 - **Color** — a free RGBA picker (HSV square, hue/alpha sliders, editable
   hex/RGBA fields) with a foldable gradient section to save space when docked, plus a
   swatch palette you can add mixed colors to; Hue/Saturation/Brightness adjustment with
