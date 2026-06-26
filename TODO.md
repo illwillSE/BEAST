@@ -4,7 +4,7 @@ Deferred / planned work — open items only. See [README.md](./README.md) for wh
 implemented; this file tracks what isn't, organized by area.
 
 ## Core data models
-- [ ] Content-addressed storage for binary pixel data (BLAST sample-cache pattern).
+- [x] Content-addressed storage for binary pixel data (BLAST sample-cache pattern).
 - [ ] (optional) Per-sprite undo — scope history per sprite so undo/redo only
       affects the active sprite, not the whole project. Currently global.
 
@@ -14,7 +14,8 @@ implemented; this file tracks what isn't, organized by area.
       (crop tool likely isn't expecting a pre-existing `selection` to seed
       `cropPending` from — needs repro + fix in `tools/registry.ts` /
       `PixelCanvas.tsx`).
-- [ ] Sane max canvas size cap for performance.
+- [x] Sane max canvas size cap for performance. (MAX_SIZE = 256, enforced in
+      NewSpriteDialog and ResizeCanvasDialog.)
 - [ ] A clear canvas button: clears all pixels and removes all layers (full
       reset, not just the active layer). Decide where it should live in the UI
       — candidates discussed were the LayersPanel header row (if scoped to the
@@ -22,6 +23,8 @@ implemented; this file tracks what isn't, organized by area.
       the whole frame); since this clears everything project-wide it may
       instead deserve its own spot (e.g. near the New Project button in
       Header) — needs a decision before implementing.
+      Note: a `clear-canvas` command exists in the palette but only clears the
+      active cell (current layer + frame), not all layers.
 
 ## Real Preview
 - [ ] No keyboard shortcut to toggle it — only the header button. The shortcut
@@ -57,8 +60,8 @@ implemented; this file tracks what isn't, organized by area.
       button is still an unwired placeholder for this.
 - [ ] Standalone palette export/import (a plain file, separate from the
       project ZIP — e.g. JSON or the Lospec `.hex` community format) —
-      deliberately deferred; palette only travels inside the project file
-      for now.
+      deliberately deferred; importing a palette from another project's ZIP
+      is supported (`projectPaletteFromZipFile`), but no standalone format yet.
 
 ## Layers
 - [ ] Merge Down bakes a layer into the one below as a normal/opacity-1 layer.
@@ -72,7 +75,8 @@ implemented; this file tracks what isn't, organized by area.
 ## Animation
 
 ## Command palette
-- [ ] Make it possible to write rgb 000000 in command palette to get a black color (or any color selected, including but not requiring alpha). Other commands that could benefit is maybe brush x
+- [x] Make it possible to write rgb/hex colors in command palette (`rgb #ff0000`,
+      `hex #ff0000`, 3/6/8-digit hex — parameterized `param:rgb` command).
 - [ ] Parameterized commands are intentionally excluded from v1 — the palette
       only runs one-shot actions. Commands that need a value or a dialog (Set
       FPS, Set Layer Opacity, Set Layer Blend Mode, Set Color, Rename
@@ -85,22 +89,21 @@ implemented; this file tracks what isn't, organized by area.
 ## Persistence
 - [ ] Cell-hash is cyrb53 (non-crypto) — fine for in-project dedup, but revisit
       if collisions ever matter.
-- [ ] No "save before discard" guard: Open replaces the current project without
-      confirmation; autosave overwrites the previous autosave.
+- [ ] No "save before discard" guard on Open: replacing the current project has
+      no confirmation dialog. (New Project does prompt; Open does not.)
 
 ## Import
-- [ ] Open a PNG as a new sprite — draw it to a canvas, read pixels into a cell.
-      Decide sizing: use the PNG's native dimensions (no resampling), and which
-      layer/frame it lands on.
+- [x] Open a PNG as a new sprite — `importSpritePng()` in App.tsx decodes via
+      `createImageBitmap`, reads pixels into a cell, capped at MAX_SPRITE_SIZE.
 - [ ] (maybe) Open an animated GIF — one frame per GIF frame. Needs a GIF
       decoder; coalesce disposal/transparency. Bigger lift than PNG.
 
 ## Export
 
 ## Infra
-- [ ] Deploy: gh-pages, Vite `base: '/BEAST/'`. (`base` is already set in
-      `vite.config.js`; `npm run deploy` hasn't been run yet — no `gh-pages`
-      branch on the remote.)
+- [ ] Deploy: gh-pages, Vite `base: '/BEAST/'`. (`base` is set in
+      `vite.config.js`; `npm run deploy` script is wired (`vite build && gh-pages -d dist`)
+      but hasn't been run yet — no `gh-pages` branch on the remote.)
 
 ## Performance
 - [ ] `compositeFrame` re-composites the whole frame on every paint dispatch

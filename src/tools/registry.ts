@@ -227,6 +227,17 @@ type CropHandle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
 
 const HANDLE_HIT_PX = 6
 
+// Dashed-square SVG cursor for the outline tool when hovering over a shape.
+// A 20×20 box with a white dashed border (black shadow) + center dot — the
+// dashed border is the same marching-ants metaphor used for selections, so it
+// reads immediately as "I'll trace an outline around this object".
+const OUTLINE_HIT_CURSOR =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E" +
+  "%3Crect x='1' y='1' width='18' height='18' rx='1' fill='none' stroke='black' stroke-width='2' stroke-dasharray='3 2'/%3E" +
+  "%3Crect x='1' y='1' width='18' height='18' rx='1' fill='none' stroke='white' stroke-width='1' stroke-dasharray='3 2'/%3E" +
+  "%3Ccircle cx='10' cy='10' r='1.5' fill='white' stroke='black' stroke-width='.5'/%3E" +
+  "%3C/svg%3E\") 10 10, crosshair"
+
 const HANDLE_CURSORS: Record<CropHandle, string> = {
   n: 'ns-resize', s: 'ns-resize',
   e: 'ew-resize', w: 'ew-resize',
@@ -424,7 +435,13 @@ export const tools: Record<string, Tool<any>> = {
   outline: {
     hasBrushSize: true,
     variants: [['Fine', false], ['Fat', true]],
-    cursor: 'crosshair',
+    // Dashed-square cursor on opaque pixels (you can outline this),
+    // not-allowed on transparent (nothing to outline here).
+    cursor(ctx) {
+      const cell = ctx.getRawCell()
+      const hit = cell[(ctx.y * ctx.w + ctx.x) * 4 + 3] > 0
+      return hit ? OUTLINE_HIT_CURSOR : 'not-allowed'
+    },
     onStart(ctx) {
       commitBracketed(ctx, {
         type: 'OUTLINE', ...ctx.target, x: ctx.x, y: ctx.y,

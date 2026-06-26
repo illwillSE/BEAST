@@ -18,15 +18,21 @@ undo/redo behind every edit.
   (9-point anchor picker), both undoable.
 - **Real Preview** — a free-floating window showing the active sprite/frame at literal 1:1
   scale, independent of canvas zoom; click it to scroll/center the main canvas on that pixel.
-- **Tools** — Pencil, Eraser, Fill, Gradient fill, Eyedropper, Line, Rectangle, Ellipse
-  (outline or filled), rectangular Select with Move/Cut/Copy/Paste, Crop, and
+- **Tools** — Pencil, Eraser, Fill, Gradient fill (linear or radial), Eyedropper, Line,
+  Rectangle, Ellipse (outline or filled), Color Select (click to select all pixels of a
+  color across the layer), rectangular Select with Move/Cut/Copy/Paste, Crop, and
   vertical/horizontal mirror (symmetry) toggles layered on top of any paint tool.
 - **Color** — a free RGBA picker (HSV square, hue/alpha sliders, editable
-  hex/RGBA fields) with a foldable gradient section to save space when
-  docked, plus a swatch palette you can add mixed colors to.
+  hex/RGBA fields) with a foldable gradient section to save space when docked, plus a
+  swatch palette you can add mixed colors to; Hue/Saturation/Brightness adjustment with
+  live preview.
+- **Command palette** — Cmd/Ctrl+P; supports parameterized commands (`brush N`, `col N`,
+  `rgb`/`hex`) in addition to one-shot actions.
 - **Layers** — add/duplicate/remove/reorder, per-layer visibility and opacity.
 - **Sprites** — add/rename/delete/reorder, each with its own thumbnail preview.
 - **Animation frames** — add/remove/duplicate/reorder.
+- **Export** — single-frame PNG (1×/2×/4×/8× nearest-neighbor upscale), all frames as a
+  numbered-PNG ZIP, or all frames as a single sprite-sheet PNG (one row).
 - **Persistence** — save/load a project as a `.zip` (manifest + content-addressed pixel
   blobs), plus autosave to the browser (localStorage + IndexedDB) with orphan blob GC and
   restore-on-load.
