@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom'
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 import PixelCanvas from './PixelCanvas.jsx'
@@ -72,6 +73,24 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
     setScale(Math.max(1, Math.min(40, next)))
   }
 
+  // Zooms to newScale while keeping the center of the viewport pinned to the
+  // same sprite pixel. When the canvas fits (no scroll), sprite center is used.
+  const changeScale = (newScale: number) => {
+    const el = viewportRef.current
+    if (!el) { setScale(Math.max(1, Math.min(40, newScale))); return }
+    const clamped = Math.max(1, Math.min(40, newScale))
+    // Sprite pixel currently at the viewport center (canvas is at scroll origin when overflowing)
+    const spX = el.scrollWidth > el.clientWidth
+      ? (el.scrollLeft + el.clientWidth / 2) / scale
+      : sprite.w / 2
+    const spY = el.scrollHeight > el.clientHeight
+      ? (el.scrollTop + el.clientHeight / 2) / scale
+      : sprite.h / 2
+    flushSync(() => setScale(clamped))
+    el.scrollLeft = Math.max(0, spX * clamped - el.clientWidth / 2)
+    el.scrollTop  = Math.max(0, spY * clamped - el.clientHeight / 2)
+  }
+
   useImperativeHandle(ref, () => ({ fitToFrame }), [fitToFrame])
 
   // Scrolls the canvas viewport so the given sprite pixel is centered —
@@ -143,17 +162,17 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
         )}
         <span className="tabular-nums">{pos ? `${pos.x}, ${pos.y}` : '–'}</span>
         <div className="flex-1" />
-        <button className="text-muted hover:text-ink" onClick={() => setScale((s) => Math.max(1, s - 2))}>
+        <button className="text-muted hover:text-ink" onClick={() => changeScale(scale - 2)}>
           <ZoomOut size={14} />
         </button>
         <span className="text-text tabular-nums">{scale * 100}%</span>
-        <button className="text-muted hover:text-ink" onClick={() => setScale((s) => Math.min(40, s + 2))}>
+        <button className="text-muted hover:text-ink" onClick={() => changeScale(scale + 2)}>
           <ZoomIn size={14} />
         </button>
         <button title="Fit to frame" className="text-muted hover:text-ink" onClick={fitToFrame}>
           <Maximize2 size={14} />
         </button>
-        <button title="Actual size (100%)" className="text-muted hover:text-ink text-[11px]" onClick={() => setScale(1)}>
+        <button title="Actual size (100%)" className="text-muted hover:text-ink text-[11px]" onClick={() => changeScale(1)}>
           1:1
         </button>
       </div>

@@ -148,8 +148,8 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto p-2">
-        <div className="beast-checker inline-block rounded border border-edge">
+      <div className="flex-1 overflow-auto p-2 flex items-start">
+        <div className="beast-checker inline-block rounded border border-edge shrink-0">
           <canvas
             ref={canvasRef}
             width={w}

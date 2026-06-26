@@ -5,7 +5,7 @@ import useFocusTrap from '../hooks/useFocusTrap.js'
 
 const PRESETS = [16, 32, 64, 128]
 const MIN_SIZE = 1
-const MAX_SIZE = 1024
+const MAX_SIZE = 256
 
 interface NewSpriteDialogProps {
   open: boolean

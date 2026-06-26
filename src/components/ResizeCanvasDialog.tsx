@@ -5,7 +5,7 @@ import useEscapeKey from '../hooks/useEscapeKey.js'
 import useFocusTrap from '../hooks/useFocusTrap.js'
 
 const MIN_SIZE = 1
-const MAX_SIZE = 1024
+const MAX_SIZE = 256
 const ANCHORS: [number, number][] = [
   [-1, -1], [0, -1], [1, -1],
   [-1, 0], [0, 0], [1, 0],
