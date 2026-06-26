@@ -67,6 +67,7 @@ export default function App() {
   // paste, rendered on top until something commits them (see commitFloating).
   const [floating, setFloating] = useState<Floating | null>(null)
   const [clipboard, setClipboard] = useState<Clipboard | null>(null)
+  const [savedSelection, setSavedSelection] = useState<Selection | null>(null)
   // Pending crop window from the Crop tool — { x, y, w, h, target } — stays
   // editable (movable) until committed/cancelled (see commitCrop/cancelCrop).
   const [cropPending, setCropPending] = useState<CropPending | null>(null)
@@ -478,6 +479,7 @@ export default function App() {
         if (cancelled || !restored) return
         dispatch({ type: 'REPLACE', doc: restored })
         resetSelection(restored)
+        setSavedSelection(null)
       })
       .finally(() => { if (!cancelled) setReady(true) })
     return () => { cancelled = true }
@@ -577,6 +579,7 @@ export default function App() {
       const loaded = await projectFromZipFile(file)
       dispatch({ type: 'REPLACE', doc: loaded })
       resetSelection(loaded)
+      setSavedSelection(null)
       savedDocRef.current = loaded
     } catch (err) {
       console.warn('BEAST project load failed', err)
@@ -590,6 +593,7 @@ export default function App() {
     const blank = createBlankDocument()
     dispatch({ type: 'REPLACE', doc: blank })
     resetSelection(blank)
+    setSavedSelection(null)
     setGradientOpen(false)
     pendingFitRef.current = true
     savedDocRef.current = blank
@@ -608,6 +612,9 @@ export default function App() {
     canRedo: state.future.length > 0,
     hasSelection: !!(selection || floating),
     hasClipboard: !!clipboard,
+    hasSavedSelection: !!savedSelection,
+    saveSelection: () => { if (selection) setSavedSelection(selection) },
+    loadSavedSelection: () => { if (savedSelection) setSelection(savedSelection) },
     palette,
     setFgColor,
     fillSelectionToFg,

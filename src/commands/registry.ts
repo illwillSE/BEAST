@@ -23,6 +23,9 @@ export interface CommandContext extends ShortcutContext {
   canRedo: boolean
   hasSelection: boolean
   hasClipboard: boolean
+  hasSavedSelection: boolean
+  saveSelection(): void
+  loadSavedSelection(): void
   palette: string[]
   setFgColor(hex: string): void
   fillSelectionToFg(): void
@@ -186,6 +189,8 @@ export const commands: Command[] = [
   { id: 'paste', title: 'Paste', category: 'Selection', shortcut: mod('V'), enabled: (c) => c.hasClipboard, run: (c) => c.pasteClipboard() },
   { id: 'clear-bg', title: 'Clear Selection to Background', category: 'Selection', keywords: 'delete erase', enabled: (c) => c.hasSelection, run: (c) => c.clearSelectionToBg() },
   { id: 'fill-fg', title: 'Fill Selection with Foreground', category: 'Selection', keywords: 'replace color recolor paint', enabled: (c) => c.hasSelection, run: (c) => c.fillSelectionToFg() },
+  { id: 'selection-save', title: 'Save Selection', category: 'Selection', keywords: 'store', enabled: (c) => c.hasSelection, run: (c) => c.saveSelection() },
+  { id: 'selection-load', title: 'Load Selection', category: 'Selection', keywords: 'restore', enabled: (c) => c.hasSavedSelection, run: (c) => c.loadSavedSelection() },
   { id: 'flip-h', title: 'Flip Horizontal', category: 'Edit', keywords: 'mirror transform flip canvas layer', run: (c) => c.flipH() },
   { id: 'flip-v', title: 'Flip Vertical', category: 'Edit', keywords: 'mirror transform flip canvas layer', run: (c) => c.flipV() },
   { id: 'rotate-cw', title: 'Rotate Selection 90° Clockwise', category: 'Edit', keywords: 'rotate transform turn cw', enabled: (c) => c.hasSelection, run: (c) => c.rotate90(true) },
