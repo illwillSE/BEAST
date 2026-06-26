@@ -68,11 +68,14 @@ interface Stroke {
   committed: boolean
 }
 
+type Snapshot = { doc: Doc; selection: Selection | null }
+
 // past / present / future undo stack; `present` is the live document.
 export interface HistoryState {
-  past: Doc[]
+  past: Snapshot[]
   present: Doc
-  future: Doc[]
+  selection: Selection | null
+  future: Snapshot[]
   stroke: Stroke | null
 }
 
@@ -131,13 +134,15 @@ export type Action =
   | { type: 'SET_PALETTE'; palette: string[] }
   | { type: 'SORT_PALETTE'; key: PaletteSortKey }
   | { type: 'REVERSE_PALETTE' }
+  | { type: 'SET_SELECTION'; selection: Selection | null }
+  | { type: 'UPDATE_SELECTION'; selection: Selection | null }
   | { type: 'UNDO' }
   | { type: 'REDO' }
 
 const MAX_HISTORY = 200
 
 export function initHistory(doc: Doc): HistoryState {
-  return { past: [], present: doc, future: [], stroke: null }
+  return { past: [], present: doc, selection: null, future: [], stroke: null }
 }
 
 // Apply an in-place edit to one cell as part of an undo step. The first edit of
@@ -145,20 +150,20 @@ export function initHistory(doc: Doc): HistoryState {
 // buffer stays frozen while we mutate the copy; the spine is rebuilt every call
 // so the sprite gets a new identity and the canvas re-composites.
 function editCell(state: HistoryState, { spriteId, layerId, frameIndex }: CellTarget, mutate: (cell: Cell, sprite: Sprite) => void): HistoryState {
-  let { past, present, future, stroke } = state
+  let { past, present, selection, future, stroke } = state
   const sprite = findSprite(present, spriteId)!
   const startStep = !stroke || !stroke.committed
   let cell = getCell(present, spriteId, layerId, frameIndex)
   if (startStep) {
     cell = cell.slice()
-    past = [...past, present]
+    past = [...past, { doc: present, selection }]
     if (past.length > MAX_HISTORY) past = past.slice(past.length - MAX_HISTORY)
     future = []
     if (stroke) stroke = { committed: true }
   }
   mutate(cell, sprite)
   present = replaceCell(present, spriteId, layerId, frameIndex, cell)
-  return { past, present, future, stroke }
+  return { past, present, selection, future, stroke }
 }
 
 // Apply a whole-document edit as one undo step. Coalesces into the current
@@ -166,16 +171,16 @@ function editCell(state: HistoryState, { spriteId, layerId, frameIndex }: CellTa
 // slider so a single drag is one undo step, like a pencil stroke; CRUD
 // actions don't open a gesture, so each one is its own step.
 function editDoc(state: HistoryState, mutate: (doc: Doc) => Doc): HistoryState {
-  let { past, present, future, stroke } = state
+  let { past, present, selection, future, stroke } = state
   const startStep = !stroke || !stroke.committed
   if (startStep) {
-    past = [...past, present]
+    past = [...past, { doc: present, selection }]
     if (past.length > MAX_HISTORY) past = past.slice(past.length - MAX_HISTORY)
     future = []
     if (stroke) stroke = { committed: true }
   }
   present = mutate(present)
-  return { past, present, future, stroke }
+  return { past, present, selection, future, stroke }
 }
 
 export function historyReducer(state: HistoryState, action: Action): HistoryState {
@@ -204,7 +209,8 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
       if (!state.stroke.committed) return { ...state, stroke: null }
       return {
         past: state.past.slice(0, -1),
-        present: state.past[state.past.length - 1],
+        present: state.past[state.past.length - 1].doc,
+        selection: state.past[state.past.length - 1].selection,
         future: state.future,
         stroke: null,
       }
@@ -217,11 +223,11 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
     // compounding on the last.
     case 'ADJUST_HSL': {
       const { spriteId, layerId, frames, dh, ds, dv, clip } = action
-      let { past, present, future, stroke } = state
+      let { past, present, selection, future, stroke } = state
       const startStep = !stroke || !stroke.committed
-      const origin = startStep ? present : past[past.length - 1]
+      const origin = startStep ? present : past[past.length - 1].doc
       if (startStep) {
-        past = [...past, present]
+        past = [...past, { doc: present, selection }]
         if (past.length > MAX_HISTORY) past = past.slice(past.length - MAX_HISTORY)
         future = []
         if (stroke) stroke = { committed: true }
@@ -232,7 +238,7 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
         adjustHsl(out, sp.w, sp.h, dh, ds, dv, clip)
         present = replaceCell(present, spriteId, layerId, f, out)
       }
-      return { past, present, future, stroke }
+      return { past, present, selection, future, stroke }
     }
 
     case 'PAINT_LINE': {
@@ -401,23 +407,37 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
 
     case 'UNDO': {
       if (!state.past.length) return state
+      const snap = state.past[state.past.length - 1]
       return {
         past: state.past.slice(0, -1),
-        present: state.past[state.past.length - 1],
-        future: [state.present, ...state.future],
+        present: snap.doc,
+        selection: snap.selection,
+        future: [{ doc: state.present, selection: state.selection }, ...state.future],
         stroke: null,
       }
     }
 
     case 'REDO': {
       if (!state.future.length) return state
+      const snap = state.future[0]
       return {
-        past: [...state.past, state.present],
-        present: state.future[0],
+        past: [...state.past, { doc: state.present, selection: state.selection }],
+        present: snap.doc,
+        selection: snap.selection,
         future: state.future.slice(1),
         stroke: null,
       }
     }
+
+    case 'SET_SELECTION': {
+      let { past, present, selection } = state
+      past = [...past, { doc: present, selection }]
+      if (past.length > MAX_HISTORY) past = past.slice(past.length - MAX_HISTORY)
+      return { past, present, selection: action.selection, future: [], stroke: state.stroke }
+    }
+
+    case 'UPDATE_SELECTION':
+      return { ...state, selection: action.selection }
 
     default:
       return state

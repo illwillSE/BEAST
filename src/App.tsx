@@ -65,7 +65,6 @@ export default function App() {
   // Select/move/clipboard state. `selection` is a rect on the active layer's
   // current frame; `floating` is pixels lifted out of the layer by a move or
   // paste, rendered on top until something commits them (see commitFloating).
-  const [selection, setSelection] = useState<Selection | null>(null)
   const [floating, setFloating] = useState<Floating | null>(null)
   const [clipboard, setClipboard] = useState<Clipboard | null>(null)
   // Pending crop window from the Crop tool — { x, y, w, h, target } — stays
@@ -128,6 +127,8 @@ export default function App() {
 
   const [state, dispatch] = useReducer(historyReducer, undefined, () => initHistory(createDocument()))
   const doc = state.present
+  const selection = state.selection
+  const setSelection = (sel: Selection | null) => dispatch({ type: 'SET_SELECTION', selection: sel })
   // Tracks the doc reference as of the last save/export/load, so New Project
   // can skip its confirm prompt when there's nothing unsaved to lose.
   const savedDocRef = useRef(doc)
@@ -273,7 +274,7 @@ export default function App() {
     dispatch({ type: 'PASTE_REGION', ...floating.target, x: floating.x, y: floating.y, w: floating.w, h: floating.h, data: floating.data })
     dispatch({ type: 'STROKE_END' })
     setFloating(null)
-    setSelection(null)
+    dispatch({ type: 'UPDATE_SELECTION', selection: null })
   }
 
   const copySelection = () => {
@@ -295,7 +296,7 @@ export default function App() {
     const x = Math.max(0, Math.floor((activeSprite.w - clipboard.w) / 2))
     const y = Math.max(0, Math.floor((activeSprite.h - clipboard.h) / 2))
     setFloating({ x, y, w: clipboard.w, h: clipboard.h, data: clipboard.data.slice(), target })
-    setSelection({ x, y, w: clipboard.w, h: clipboard.h })
+    dispatch({ type: 'UPDATE_SELECTION', selection: { x, y, w: clipboard.w, h: clipboard.h } })
     selectTool('move')
   }
 
@@ -322,7 +323,7 @@ export default function App() {
   // Backspace/Delete: fill the selection with the background color. A
   // floating move/paste has no committed pixels to fill yet, so just drop it.
   const clearSelectionToBg = () => {
-    if (floating) { dispatch({ type: 'STROKE_END' }); setFloating(null); setSelection(null); return }
+    if (floating) { dispatch({ type: 'STROKE_END' }); setFloating(null); dispatch({ type: 'UPDATE_SELECTION', selection: null }); return }
     if (!selection) return
     dispatch({ type: 'FILL_REGION', ...target, x: selection.x, y: selection.y, w: selection.w, h: selection.h, rgba: hexToRgba(bgColor), mask: selection.mask })
   }
@@ -382,7 +383,7 @@ export default function App() {
   // sprite, so discard rather than commit.
   useEffect(() => {
     commitFloating()
-    setSelection(null)
+    dispatch({ type: 'UPDATE_SELECTION', selection: null })
     cancelCrop()
     setContinuousLine(null)
   }, [activeSprite.id, safeLayerId, safeFrame, activeSprite.w, activeSprite.h])

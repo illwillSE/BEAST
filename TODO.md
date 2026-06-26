@@ -4,23 +4,21 @@ Deferred / planned work — open items only. See [README.md](./README.md) for wh
 implemented; this file tracks what isn't, organized by area.
 
 ## Core data models
-- [ ] (optional) Per-sprite undo — scope history per sprite so undo/redo only
-      affects the active sprite, not the whole project. Currently global.
 
 ## Canvas
-- [ ] Bug: making a rect selection with the select tool, then switching to
+- [x] Bug: making a rect selection with the select tool, then switching to
       the crop tool while that selection is still active, behaves weird
       (crop tool likely isn't expecting a pre-existing `selection` to seed
       `cropPending` from — needs repro + fix in `tools/registry.ts` /
       `PixelCanvas.tsx`).
-- [ ] Bug: Shift-dragging to add to an existing selection hides the original
+- [x] Bug: Shift-dragging to add to an existing selection hides the original
       selection's marquee while dragging — only the new in-progress rect's
       marquee preview shows, so it's unclear what's already selected until
       release. The select tool's `onDrag` only sets a `{ kind: 'marquee' }`
       preview for the rect being drawn (`tools/registry.ts`); the existing
       `selection`'s outline should stay visible (or be unioned into the live
       preview) for the duration of the drag.
-- [ ] Deselecting (Cmd/Ctrl+D, Escape, or starting a new selection) isn't
+- [x] Deselecting (Cmd/Ctrl+D, Escape, or starting a new selection) isn't
       undoable — `selection` is plain React state in `App.tsx`, not routed
       through the history reducer, so Ctrl+Z can't bring back a cleared
       selection. Would need either folding selection into the undo-tracked
