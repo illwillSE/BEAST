@@ -64,8 +64,6 @@ implemented; this file tracks what isn't, organized by area.
 ## Persistence
 - [ ] Cell-hash is cyrb53 (non-crypto) — fine for in-project dedup, but revisit
       if collisions ever matter.
-- [ ] No "save before discard" guard on Open: replacing the current project has
-      no confirmation dialog. (New Project does prompt; Open does not.)
 
 ## Import
 - [ ] (maybe) Open an animated GIF — one frame per GIF frame. Needs a GIF

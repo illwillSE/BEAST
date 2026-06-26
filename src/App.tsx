@@ -579,6 +579,8 @@ export default function App() {
   }
 
   const handleOpen = async (file: File) => {
+    const dirty = doc !== savedDocRef.current
+    if (dirty && !window.confirm('Discard the current project and open this file? Unsaved changes will be lost.')) return
     try {
       const loaded = await projectFromZipFile(file)
       dispatch({ type: 'REPLACE', doc: loaded })
