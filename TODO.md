@@ -13,6 +13,13 @@ implemented; this file tracks what isn't, organized by area.
       (crop tool likely isn't expecting a pre-existing `selection` to seed
       `cropPending` from — needs repro + fix in `tools/registry.ts` /
       `PixelCanvas.tsx`).
+- [ ] Bug: Shift-dragging to add to an existing selection hides the original
+      selection's marquee while dragging — only the new in-progress rect's
+      marquee preview shows, so it's unclear what's already selected until
+      release. The select tool's `onDrag` only sets a `{ kind: 'marquee' }`
+      preview for the rect being drawn (`tools/registry.ts`); the existing
+      `selection`'s outline should stay visible (or be unioned into the live
+      preview) for the duration of the drag.
 - [ ] A clear canvas button: clears all pixels and removes all layers (full
       reset, not just the active layer). Decide where it should live in the UI
       — candidates discussed were the LayersPanel header row (if scoped to the
