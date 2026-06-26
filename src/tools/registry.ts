@@ -283,42 +283,20 @@ function resizeRect(orig: Rect, handle: Handle, x: number, y: number): Rect {
   return normalizeRect(x0, y0, x1, y1)
 }
 
-// Like resizeRect, but for the Stretch tool: when lockAspect is true, clamps
-// the dragged rect to preserve orig.w / orig.h. Corner handles shrink
-// whichever axis overshoots the ratio (anchored at the opposite corner);
-// edge handles scale the other axis proportionally, anchored at the rect's
-// own center (matching how most image editors treat a locked-aspect edge drag).
-function resizeRectStretch(orig: Rect, handle: Handle, x: number, y: number, lockAspect: boolean): Rect {
-  const free = resizeRect(orig, handle, x, y)
-  if (!lockAspect) return free
+// Like resizeRect, but for the Stretch tool: when fromCenter is true the rect's
+// center stays fixed and both sides expand/contract symmetrically (like holding
+// Alt in most image editors).
+function resizeRectStretch(orig: Rect, handle: Handle, x: number, y: number, fromCenter: boolean): Rect {
+  if (!fromCenter) return resizeRect(orig, handle, x, y)
   const dir = HANDLE_DIRS[handle]
-  const ratio = orig.w / orig.h
   const left = orig.x, right = orig.x + orig.w - 1, top = orig.y, bottom = orig.y + orig.h - 1
-  if (dir.h && dir.v) {
-    // Corner: keep the axis with the larger relative change, derive the other
-    // from the ratio, anchored at the opposite (untouched) corner.
-    if (free.w / free.h > ratio) {
-      const w = Math.max(1, Math.round(free.h * ratio))
-      const x0 = dir.h === 'r' ? left : right - w + 1
-      const x1 = dir.h === 'r' ? x0 + w - 1 : right
-      return normalizeRect(x0, free.y, x1, free.y + free.h - 1)
-    }
-    const h = Math.max(1, Math.round(free.w / ratio))
-    const y0 = dir.v === 'b' ? top : bottom - h + 1
-    const y1 = dir.v === 'b' ? y0 + h - 1 : bottom
-    return normalizeRect(free.x, y0, free.x + free.w - 1, y1)
-  }
-  // Edge: derive the perpendicular axis from the ratio, centered on the rect.
-  if (dir.h) {
-    const h = Math.max(1, Math.round(free.w / ratio))
-    const cy = (top + bottom) / 2
-    const y0 = Math.round(cy - h / 2)
-    return normalizeRect(free.x, y0, free.x + free.w - 1, y0 + h - 1)
-  }
-  const w = Math.max(1, Math.round(free.h * ratio))
   const cx = (left + right) / 2
-  const x0 = Math.round(cx - w / 2)
-  return normalizeRect(x0, free.y, x0 + w - 1, free.y + free.h - 1)
+  const cy = (top + bottom) / 2
+  const x0 = dir.h === 'l' ? x : dir.h === 'r' ? 2 * cx - x : left
+  const x1 = dir.h === 'r' ? x : dir.h === 'l' ? 2 * cx - x : right
+  const y0 = dir.v === 't' ? y : dir.v === 'b' ? 2 * cy - y : top
+  const y1 = dir.v === 'b' ? y : dir.v === 't' ? 2 * cy - y : bottom
+  return normalizeRect(x0, y0, x1, y1)
 }
 
 export const tools: Record<string, Tool<any>> = {
@@ -616,9 +594,9 @@ export const tools: Record<string, Tool<any>> = {
   // selection — lift one with the Move tool first. Each resize drag always
   // resamples from the buffer captured at gesture start (never the previous
   // frame's already-stretched result), so repeated nearest-neighbor passes
-  // within one drag don't compound quality loss. Shift locks the original
-  // aspect ratio. Stays floating (no commit) until the usual Enter/tool
-  // switch/Escape paths commit it, same as Move.
+  // within one drag don't compound quality loss. Shift resizes from center
+  // (both sides expand/contract symmetrically). Stays floating (no commit)
+  // until the usual Enter/tool switch/Escape paths commit it, same as Move.
   stretch: {
     key: 't',
     cursor(ctx) {
