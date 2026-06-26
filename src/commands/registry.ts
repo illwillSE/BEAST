@@ -46,7 +46,8 @@ export interface CommandContext extends ShortcutContext {
   removeFrame(): void
   moveFrame(delta: number): void
   // Sprites.
-  addSprite(): void
+  openNewSprite(): void
+  openResizeCanvas(): void
   removeSprite(): void
   // File.
   newProject(): void
@@ -238,8 +239,9 @@ export const commands: Command[] = [
   { id: 'frame-prev', title: 'Previous Frame', category: 'Frames', shortcut: '←', enabled: (c) => c.target.frameIndex > 0, run: (c) => c.stepFrame(-1) },
 
   // Sprites
-  { id: 'sprite-add', title: 'Add Sprite', category: 'Sprites', run: (c) => c.addSprite() },
+  { id: 'sprite-add', title: 'Add Sprite', category: 'Sprites', run: (c) => c.openNewSprite() },
   { id: 'sprite-remove', title: 'Delete Sprite', category: 'Sprites', enabled: (c) => c.spriteCount > 1, run: (c) => c.removeSprite() },
+  { id: 'resize-canvas', title: 'Resize Canvas…', category: 'Sprites', keywords: 'crop stretch scale size width height', run: (c) => c.openResizeCanvas() },
 
   // View
   { id: 'play', title: 'Play / Stop Animation', category: 'View', keywords: 'loop playback', enabled: (c) => c.activeSprite.frameCount > 1, run: (c) => c.togglePlay() },

@@ -2,7 +2,6 @@ import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 import PixelCanvas from './PixelCanvas.jsx'
 import PreviewWindow from './PreviewWindow.jsx'
-import ResizeCanvasDialog from './ResizeCanvasDialog.jsx'
 import { tools } from '../tools/registry.js'
 import BrushSizeButton from './BrushSizeButton.jsx'
 import type { Sprite, CellTarget, BrushShape } from '../document/model.js'
@@ -41,6 +40,7 @@ interface CanvasStageProps {
   eraseToBg: boolean
   showGrid: boolean
   gridSpacing: number
+  onOpenResize: () => void
 }
 
 export interface CanvasStageHandle {
@@ -55,21 +55,11 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, continuousLine, setContinuousLine, filled, brushSize, brushShape, onBrushSize, onBrushShape,
   mirrorV, mirrorH, onTemporaryToolComplete, previewOpen, onClosePreview,
-  playing, onionSkin, eraseToBg, showGrid, gridSpacing,
+  playing, onionSkin, eraseToBg, showGrid, gridSpacing, onOpenResize,
 }, ref) {
   const [scale, setScale] = useState(16)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
-  const [resizeOpen, setResizeOpen] = useState(false)
   const viewportRef = useRef<HTMLDivElement>(null)
-
-  const resizeSprite = (x: number, y: number, w: number, h: number) => {
-    dispatch({ type: 'CROP_SPRITE', spriteId: sprite.id, x, y, w, h })
-    setResizeOpen(false)
-  }
-  const stretchSprite = (w: number, h: number) => {
-    dispatch({ type: 'STRETCH_SPRITE', spriteId: sprite.id, w, h })
-    setResizeOpen(false)
-  }
 
   // Fits the sprite to the viewport, accounting for the viewport's p-6 padding.
   const fitToFrame = () => {
@@ -143,7 +133,7 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
         <span
           title="Double-click to resize canvas"
           className="hover:text-muted cursor-default"
-          onDoubleClick={() => setResizeOpen(true)}
+          onDoubleClick={onOpenResize}
         >
           {sprite.w} × {sprite.h}
         </span>
@@ -176,13 +166,6 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
         onClose={onClosePreview}
       />
 
-      <ResizeCanvasDialog
-        open={resizeOpen}
-        sprite={sprite}
-        onResize={resizeSprite}
-        onStretch={stretchSprite}
-        onClose={() => setResizeOpen(false)}
-      />
     </div>
   )
 })

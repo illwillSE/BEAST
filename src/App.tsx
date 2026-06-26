@@ -7,6 +7,8 @@ import type { CanvasStageHandle } from './components/CanvasStage.jsx'
 import LayersPanel from './components/LayersPanel.jsx'
 import ColorPanel from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
+import NewSpriteDialog from './components/NewSpriteDialog.jsx'
+import ResizeCanvasDialog from './components/ResizeCanvasDialog.jsx'
 import SettingsModal from './components/SettingsModal.jsx'
 import MergeColorsDialog from './components/MergeColorsDialog.jsx'
 import ClassicPalettesDialog from './components/ClassicPalettesDialog.jsx'
@@ -218,6 +220,8 @@ export default function App() {
   const [onionSkin, setOnionSkin] = useState(true)
   const [eraseToBg, setEraseToBg] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [newSpriteOpen, setNewSpriteOpen] = useState(false)
+  const [resizeCanvasOpen, setResizeCanvasOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [gradientOpen, setGradientOpen] = useState(true)
   const [showGrid, setShowGrid] = useState(false)
@@ -632,7 +636,8 @@ export default function App() {
     duplicateFrame: () => { const at = safeFrame + 1; dispatch({ type: 'DUPLICATE_FRAME', spriteId: activeSprite.id, frameIndex: safeFrame }); setFrameIndex(at) },
     removeFrame: () => { if (activeSprite.frameCount > 1) { dispatch({ type: 'REMOVE_FRAME', spriteId: activeSprite.id, frameIndex: safeFrame }); setFrameIndex(Math.min(safeFrame, activeSprite.frameCount - 2)) } },
     moveFrame: (delta) => { const to = safeFrame + delta; if (to >= 0 && to < activeSprite.frameCount) { dispatch({ type: 'MOVE_FRAME', spriteId: activeSprite.id, frameIndex: safeFrame, delta }); setFrameIndex(to) } },
-    addSprite: () => dispatch({ type: 'ADD_SPRITE' }),
+    openNewSprite: () => setNewSpriteOpen(true),
+    openResizeCanvas: () => setResizeCanvasOpen(true),
     removeSprite: () => { if (doc.sprites.length > 1) dispatch({ type: 'REMOVE_SPRITE', spriteId: activeSprite.id }) },
     newProject: handleNewProject,
     saveProject: handleSave,
@@ -685,6 +690,8 @@ export default function App() {
                 dispatch={dispatch}
                 pinned
                 onTogglePin={spriteListFold.togglePin}
+                onOpenNewSprite={() => setNewSpriteOpen(true)}
+                onOpenResize={() => setResizeCanvasOpen(true)}
                 onPeekSelect={undefined}
               />
             ) : (
@@ -699,6 +706,8 @@ export default function App() {
                       dispatch={dispatch}
                       pinned={false}
                       onTogglePin={spriteListFold.togglePin}
+                      onOpenNewSprite={() => setNewSpriteOpen(true)}
+                      onOpenResize={() => setResizeCanvasOpen(true)}
                       onPeekSelect={spriteListFold.closePeek}
                     />
                   </div>
@@ -751,6 +760,7 @@ export default function App() {
               eraseToBg={eraseToBg}
               showGrid={showGrid}
               gridSpacing={gridSpacing}
+              onOpenResize={() => setResizeCanvasOpen(true)}
             />
           </div>
 
@@ -886,6 +896,29 @@ export default function App() {
       </div>
 
       {globalMagnifier && <EyedropperMagnifier {...globalMagnifier} />}
+
+      <NewSpriteDialog
+        open={newSpriteOpen}
+        onCreate={(w, h) => {
+          dispatch({ type: 'ADD_SPRITE', opts: { name: `Sprite ${doc.sprites.length + 1}`, w, h } })
+          setNewSpriteOpen(false)
+        }}
+        onClose={() => setNewSpriteOpen(false)}
+      />
+
+      <ResizeCanvasDialog
+        open={resizeCanvasOpen}
+        sprite={activeSprite}
+        onResize={(x, y, w, h) => {
+          dispatch({ type: 'CROP_SPRITE', spriteId: activeSprite.id, x, y, w, h })
+          setResizeCanvasOpen(false)
+        }}
+        onStretch={(w, h) => {
+          dispatch({ type: 'STRETCH_SPRITE', spriteId: activeSprite.id, w, h })
+          setResizeCanvasOpen(false)
+        }}
+        onClose={() => setResizeCanvasOpen(false)}
+      />
 
       <SettingsModal
         open={settingsOpen}

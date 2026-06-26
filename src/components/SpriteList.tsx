@@ -1,7 +1,5 @@
 import { useState } from 'react'
 import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
-import NewSpriteDialog from './NewSpriteDialog.jsx'
-import ResizeCanvasDialog from './ResizeCanvasDialog.jsx'
 import SpritePreview from './SpritePreview.jsx'
 import PinToggle from './PinToggle.jsx'
 import type { Sprite } from '../document/model.js'
@@ -14,6 +12,8 @@ interface SpriteListProps {
   dispatch: (action: Action) => void
   pinned: boolean
   onTogglePin: () => void
+  onOpenNewSprite: () => void
+  onOpenResize: () => void
   onPeekSelect?: () => void
 }
 
@@ -25,27 +25,12 @@ interface SpriteListProps {
 // resized via the Crop tool (drag a rect on the canvas, tools/registry.js) or
 // by double-clicking a block's W×H label, which opens the Resize dialog
 // (explicit W×H + anchor).
-export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pinned, onTogglePin, onPeekSelect }: SpriteListProps) {
+export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pinned, onTogglePin, onOpenNewSprite, onOpenResize, onPeekSelect }: SpriteListProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
-  const [newSpriteOpen, setNewSpriteOpen] = useState(false)
-  const [resizeOpen, setResizeOpen] = useState(false)
 
   const selectedIndex = sprites.findIndex((s) => s.id === selectedId)
-  const selectedSprite = sprites.find((s) => s.id === selectedId)
 
-  const createSprite = (w: number, h: number) => {
-    dispatch({ type: 'ADD_SPRITE', opts: { name: `Sprite ${sprites.length + 1}`, w, h } })
-    setNewSpriteOpen(false)
-  }
-  const resizeSprite = (x: number, y: number, w: number, h: number) => {
-    dispatch({ type: 'CROP_SPRITE', spriteId: selectedSprite!.id, x, y, w, h })
-    setResizeOpen(false)
-  }
-  const stretchSprite = (w: number, h: number) => {
-    dispatch({ type: 'STRETCH_SPRITE', spriteId: selectedSprite!.id, w, h })
-    setResizeOpen(false)
-  }
   const removeSprite = (spriteId: string) => sprites.length > 1 && dispatch({ type: 'REMOVE_SPRITE', spriteId })
   const moveSprite = (delta: number) => selectedId && dispatch({ type: 'MOVE_SPRITE', spriteId: selectedId, delta })
 
@@ -64,7 +49,7 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pi
           <PinToggle pinned={pinned} onClick={onTogglePin} />
         </div>
         <div className="flex items-center gap-1 text-muted">
-          <button title="New sprite" className="hover:text-ink" onClick={() => setNewSpriteOpen(true)}>
+          <button title="New sprite" className="hover:text-ink" onClick={onOpenNewSprite}>
             <Plus size={15} />
           </button>
           <button
@@ -131,7 +116,7 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pi
                     onDoubleClick={(e) => {
                       e.stopPropagation()
                       onSelect(s.id)
-                      setResizeOpen(true)
+                      onOpenResize()
                     }}
                   >
                     {s.w}×{s.h} · {s.frameCount}f
@@ -151,20 +136,6 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pi
         })}
       </div>
 
-      <NewSpriteDialog
-        open={newSpriteOpen}
-        onCreate={createSprite}
-        onClose={() => setNewSpriteOpen(false)}
-      />
-      {selectedSprite && (
-        <ResizeCanvasDialog
-          open={resizeOpen}
-          sprite={selectedSprite}
-          onResize={resizeSprite}
-          onStretch={stretchSprite}
-          onClose={() => setResizeOpen(false)}
-        />
-      )}
     </div>
   )
 }
