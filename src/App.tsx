@@ -174,7 +174,7 @@ export default function App() {
   // "Import PNG": decode the file and add it as a new sprite (single layer,
   // single frame) sized to the image. Capped at the same max size as the New
   // Sprite / Resize dialogs.
-  const MAX_SPRITE_SIZE = 256
+  const MAX_SPRITE_SIZE = 1024
   const importSpritePng = async (file: File) => {
     try {
       const bitmap = await createImageBitmap(file)
