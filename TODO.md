@@ -93,10 +93,6 @@ implemented; this file tracks what isn't, organized by area.
 
 ## Export
 
-## Infra
-- [ ] Deploy: gh-pages, Vite `base: '/BEAST/'`. (`base` is set in
-      `vite.config.js`; `npm run deploy` script is wired (`vite build && gh-pages -d dist`)
-      but hasn't been run yet — no `gh-pages` branch on the remote.)
 
 ## Performance
 - [ ] `compositeFrame` re-composites the whole frame on every paint dispatch
