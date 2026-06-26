@@ -445,14 +445,15 @@ export default function App() {
   // selection clipboard, Backspace/Delete to fill the selection with the
   // background color, Escape to commit a floating move/paste (and cancel a
   // pending crop or continuous line) and deselect, Enter to commit a pending
-  // crop, Left/Right to step frames, and a letter per tool (see each tool's `key`
-  // in tools/registry.js).
+  // crop, Left/Right to step frames, Shift+Space to toggle the Real Preview
+  // window, and a letter per tool (see each tool's `key` in tools/registry.js).
   const shortcutCtx: ShortcutContext = {
     dispatch, setTool: selectTool, setTemporaryTool: selectTemporaryTool,
     tool, filled, setVariant: setToolVariant, peekVariants, brushSize, setBrushSize,
     copySelection, cutSelection, pasteClipboard, commitFloating, setSelection, selectAll, deselect, invertSelection,
     clearSelectionToBg, commitCrop, cancelCrop, cancelContinuousLine: () => setContinuousLine(null), swapColors, stepFrame, nudgeLayer,
     openCommandPalette: () => setCommandPaletteOpen(true),
+    togglePreview: () => setPreviewOpen((o) => !o),
   }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

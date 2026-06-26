@@ -4,7 +4,6 @@ Deferred / planned work — open items only. See [README.md](./README.md) for wh
 implemented; this file tracks what isn't, organized by area.
 
 ## Core data models
-- [x] Content-addressed storage for binary pixel data (BLAST sample-cache pattern).
 - [ ] (optional) Per-sprite undo — scope history per sprite so undo/redo only
       affects the active sprite, not the whole project. Currently global.
 
@@ -14,8 +13,6 @@ implemented; this file tracks what isn't, organized by area.
       (crop tool likely isn't expecting a pre-existing `selection` to seed
       `cropPending` from — needs repro + fix in `tools/registry.ts` /
       `PixelCanvas.tsx`).
-- [x] Sane max canvas size cap for performance. (MAX_SIZE = 256, enforced in
-      NewSpriteDialog and ResizeCanvasDialog.)
 - [ ] A clear canvas button: clears all pixels and removes all layers (full
       reset, not just the active layer). Decide where it should live in the UI
       — candidates discussed were the LayersPanel header row (if scoped to the
@@ -26,12 +23,6 @@ implemented; this file tracks what isn't, organized by area.
       Note: a `clear-canvas` command exists in the palette but only clears the
       active cell (current layer + frame), not all layers.
 
-## Real Preview
-- [ ] No keyboard shortcut to toggle it — only the header button. The shortcut
-      registry's `ctx` doesn't carry arbitrary UI setters yet
-      (`shortcuts/registry.ts`); add if it becomes annoying to reach via mouse.
-- [ ] shift+space Real Preview shortcut?
-
 ## Tools (v1 registry)
 - [ ] Outline tool doesn't support right-click erase (unlike pencil/fill/line/rect/ellipse) —
       deliberately scoped to fg-color only per the initial request.
@@ -41,12 +32,6 @@ implemented; this file tracks what isn't, organized by area.
       set) and an emoji picker/insert.
 - [ ] "Pixel perfect" diagonal-stroke thinning at width>1 (Aseprite-style —
       avoids chunky corners where a thick diagonal stroke overlaps itself).
-- [x] Transform tools: flip horizontal / flip vertical (whole layer or
-      selection content) — command palette "Flip Horizontal" / "Flip Vertical".
-- [x] Move tool wrap-around shift: dragging with no selection shifts the
-      whole layer with torus wrap-around; arrow keys nudge 1px, Shift+arrow 10px.
-- [x] Rotate selection 90° CW / CCW — command palette "Rotate Selection 90°…"
-      (selection only; arbitrary-angle needs resampling, still deferred).
 - [ ] Gradient angle/direction lock: Shift-constrain the drag to 0/45/90°
       increments, same idea as the rect/ellipse square-circle Shift constraint.
 - [ ] Gradient dithering option — smooth fg→bg steps can band visibly at small
@@ -75,8 +60,6 @@ implemented; this file tracks what isn't, organized by area.
 ## Animation
 
 ## Command palette
-- [x] Make it possible to write rgb/hex colors in command palette (`rgb #ff0000`,
-      `hex #ff0000`, 3/6/8-digit hex — parameterized `param:rgb` command).
 - [ ] Parameterized commands are intentionally excluded from v1 — the palette
       only runs one-shot actions. Commands that need a value or a dialog (Set
       FPS, Set Layer Opacity, Set Layer Blend Mode, Set Color, Rename
@@ -93,8 +76,6 @@ implemented; this file tracks what isn't, organized by area.
       no confirmation dialog. (New Project does prompt; Open does not.)
 
 ## Import
-- [x] Open a PNG as a new sprite — `importSpritePng()` in App.tsx decodes via
-      `createImageBitmap`, reads pixels into a cell, capped at MAX_SPRITE_SIZE.
 - [ ] (maybe) Open an animated GIF — one frame per GIF frame. Needs a GIF
       decoder; coalesce disposal/transparency. Bigger lift than PNG.
 

@@ -19,6 +19,7 @@
 //     brushSize, setBrushSize, copySelection,
 //     cutSelection, pasteClipboard, commitFloating, setSelection, selectAll, deselect, invertSelection,
 //     clearSelectionToBg, commitCrop, cancelCrop, cancelContinuousLine, swapColors, stepFrame,
+//     togglePreview,
 //   }
 //
 // brushSize/setBrushSize are global now (one value for every brush-size tool,
@@ -55,6 +56,7 @@ export interface ShortcutContext {
   stepFrame: (delta: number) => void
   nudgeLayer: (dx: number, dy: number) => void
   openCommandPalette: () => void
+  togglePreview: () => void
 }
 
 interface Shortcut {
@@ -111,6 +113,7 @@ export const shortcuts: Shortcut[] = [
   { key: 'arrowup',    shift: true, run: (ctx) => { if (ctx.tool === 'move') ctx.nudgeLayer(0, -10) } },
   { key: 'arrowdown',  shift: true, run: (ctx) => { if (ctx.tool === 'move') ctx.nudgeLayer(0, 10) } },
   { key: 'p', mod: true, run: (ctx) => ctx.openCommandPalette() },
+  { key: ' ', shift: true, run: (ctx) => ctx.togglePreview() },
   ...toolShortcuts,
 ]
 

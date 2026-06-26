@@ -13,15 +13,17 @@ undo/redo behind every edit.
 - **Document model** — layered + framed pixel sprites, many sprites per project, each with
   its own layers and frames.
 - **History-backed undo/redo** over the whole document.
-- **Canvas** — size presets (16×16, 32×32, 64×64, 128×128) or custom W×H at creation;
-  resize/crop afterward via a draggable Crop tool or an explicit Resize Canvas dialog
-  (9-point anchor picker), both undoable.
+- **Canvas** — size presets (16×16, 32×32, 64×64, 128×128) or custom W×H at creation (capped
+  at 256×256); resize/crop afterward via a draggable Crop tool or an explicit Resize Canvas
+  dialog (9-point anchor picker), both undoable.
 - **Real Preview** — a free-floating window showing the active sprite/frame at literal 1:1
   scale, independent of canvas zoom; click it to scroll/center the main canvas on that pixel.
 - **Tools** — Pencil, Eraser, Fill, Gradient fill (linear or radial), Eyedropper, Line,
   Rectangle, Ellipse (outline or filled), Color Select (click to select all pixels of a
-  color across the layer), rectangular Select with Move/Cut/Copy/Paste, Crop, and
-  vertical/horizontal mirror (symmetry) toggles layered on top of any paint tool.
+  color across the layer), rectangular Select with Move/Cut/Copy/Paste/Rotate 90°, Crop, and
+  vertical/horizontal mirror (symmetry) toggles layered on top of any paint tool. Move tool
+  drags shift the whole layer with torus wrap-around (arrow keys nudge 1px, Shift+arrow
+  10px). Flip Horizontal/Flip Vertical (whole layer or selection) via the command palette.
 - **Color** — a free RGBA picker (HSV square, hue/alpha sliders, editable
   hex/RGBA fields) with a foldable gradient section to save space when docked, plus a
   swatch palette you can add mixed colors to; Hue/Saturation/Brightness adjustment with
@@ -36,6 +38,8 @@ undo/redo behind every edit.
 - **Persistence** — save/load a project as a `.zip` (manifest + content-addressed pixel
   blobs), plus autosave to the browser (localStorage + IndexedDB) with orphan blob GC and
   restore-on-load.
+- **Import** — open a PNG as a new sprite (decoded via `createImageBitmap`, capped at the
+  max sprite size).
 - **Foldable chrome** — side/bottom panels (Sprites, Layers, Color, Frames) can be unpinned
   to an edge tab and peeked open as an overlay instead of taking permanent layout space.
 
