@@ -271,6 +271,7 @@ export default function App() {
   const commitFloating = () => {
     if (!floating) return
     dispatch({ type: 'PASTE_REGION', ...floating.target, x: floating.x, y: floating.y, w: floating.w, h: floating.h, data: floating.data })
+    dispatch({ type: 'STROKE_END' })
     setFloating(null)
     setSelection(null)
   }
@@ -282,7 +283,7 @@ export default function App() {
   }
 
   const cutSelection = () => {
-    if (floating) { setClipboard({ w: floating.w, h: floating.h, data: floating.data.slice() }); setFloating(null); return }
+    if (floating) { setClipboard({ w: floating.w, h: floating.h, data: floating.data.slice() }); dispatch({ type: 'STROKE_END' }); setFloating(null); return }
     if (!selection) return
     setClipboard({ w: selection.w, h: selection.h, data: copyRegion(getActiveCell(), activeSprite.w, activeSprite.h, selection.x, selection.y, selection.w, selection.h, selection.mask) })
     dispatch({ type: 'CLEAR_REGION', ...target, x: selection.x, y: selection.y, w: selection.w, h: selection.h, mask: selection.mask })
@@ -321,7 +322,7 @@ export default function App() {
   // Backspace/Delete: fill the selection with the background color. A
   // floating move/paste has no committed pixels to fill yet, so just drop it.
   const clearSelectionToBg = () => {
-    if (floating) { setFloating(null); setSelection(null); return }
+    if (floating) { dispatch({ type: 'STROKE_END' }); setFloating(null); setSelection(null); return }
     if (!selection) return
     dispatch({ type: 'FILL_REGION', ...target, x: selection.x, y: selection.y, w: selection.w, h: selection.h, rgba: hexToRgba(bgColor), mask: selection.mask })
   }

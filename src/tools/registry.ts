@@ -584,6 +584,7 @@ export const tools: Record<string, Tool<any>> = {
       const sel = ctx.selection
       if (sel && selectionContains(sel, ctx.x, ctx.y)) {
         const data = copyRegion(ctx.getRawCell(), ctx.w, ctx.h, sel.x, sel.y, sel.w, sel.h, sel.mask)
+        ctx.dispatch({ type: 'STROKE_BEGIN' })
         ctx.dispatch({ type: 'CLEAR_REGION', ...ctx.target, x: sel.x, y: sel.y, w: sel.w, h: sel.h, mask: sel.mask })
         ctx.setFloating({ x: sel.x, y: sel.y, w: sel.w, h: sel.h, data, target: ctx.target, mask: sel.mask })
         return { mode: 'float', dx: ctx.x - sel.x, dy: ctx.y - sel.y }
@@ -621,7 +622,7 @@ export const tools: Record<string, Tool<any>> = {
   stretch: {
     key: 't',
     cursor(ctx) {
-      const f = ctx.floating
+      const f = ctx.floating ?? (ctx.selection ? ctx.selection : null)
       if (!f) return 'crosshair'
       const handle = cropHandleAt(ctx, f)
       if (handle) return HANDLE_CURSORS[handle]
@@ -629,7 +630,18 @@ export const tools: Record<string, Tool<any>> = {
       return 'default'
     },
     onStart(ctx) {
-      const f = ctx.floating
+      // If there's a selection but no floating yet, lift the pixels first (same
+      // as Move does on first drag), then fall through to handle/move detection
+      // using the known rect so the drag starts in the same gesture.
+      let f = ctx.floating
+      if (!f && ctx.selection) {
+        const sel = ctx.selection
+        const data = copyRegion(ctx.getRawCell(), ctx.w, ctx.h, sel.x, sel.y, sel.w, sel.h, sel.mask)
+        ctx.dispatch({ type: 'STROKE_BEGIN' })
+        ctx.dispatch({ type: 'CLEAR_REGION', ...ctx.target, x: sel.x, y: sel.y, w: sel.w, h: sel.h, mask: sel.mask })
+        f = { x: sel.x, y: sel.y, w: sel.w, h: sel.h, data, target: ctx.target, mask: sel.mask }
+        ctx.setFloating(f)
+      }
       if (!f) return
       const handle = cropHandleAt(ctx, f)
       if (handle) return { mode: 'resize', handle, orig: { x: f.x, y: f.y, w: f.w, h: f.h }, origData: f.data, origMask: f.mask }
