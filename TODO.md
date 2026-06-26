@@ -25,7 +25,7 @@ implemented; this file tracks what isn't, organized by area.
       set) and an emoji picker/insert.
 - [ ] "Pixel perfect" diagonal-stroke thinning at width>1 (Aseprite-style —
       avoids chunky corners where a thick diagonal stroke overlaps itself).
-- [ ] Gradient angle/direction lock: Shift-constrain the drag to 0/45/90°
+- [x] Gradient angle/direction lock: Shift-constrain the drag to 0/45/90°
       increments, same idea as the rect/ellipse square-circle Shift constraint.
 - [ ] Gradient dithering option — smooth fg→bg steps can band visibly at small
       pixel-art sizes; an ordered-dither mode would break up the bands.

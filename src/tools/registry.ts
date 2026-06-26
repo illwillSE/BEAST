@@ -197,6 +197,20 @@ function constrainSquare(x0: number, y0: number, x1: number, y1: number): [numbe
   return [x0 + Math.sign(dx || 1) * size, y0 + Math.sign(dy || 1) * size]
 }
 
+// Snap endpoint to nearest 45° angle from (x0,y0) — used by gradient Shift-lock.
+function constrainAngle(x0: number, y0: number, x1: number, y1: number): [number, number] {
+  const dx = x1 - x0
+  const dy = y1 - y0
+  const mag = Math.max(Math.abs(dx), Math.abs(dy))
+  const angle = Math.atan2(dy, dx)
+  const snapped = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4)
+  const cx = Math.cos(snapped)
+  const cy = Math.sin(snapped)
+  if (Math.abs(cy) < 0.01) return [x0 + Math.sign(dx || 1) * mag, y0]
+  if (Math.abs(cx) < 0.01) return [x0, y0 + Math.sign(dy || 1) * mag]
+  return [x0 + Math.round(mag * Math.sign(cx)), y0 + Math.round(mag * Math.sign(cy))]
+}
+
 function normalizeRect(x0: number, y0: number, x1: number, y1: number): Rect {
   return {
     x: Math.min(x0, x1),
@@ -323,21 +337,23 @@ export const tools: Record<string, Tool<any>> = {
       return { x0: ctx.x, y0: ctx.y }
     },
     onDrag(ctx, _prev, start) {
+      const [x1, y1] = ctx.shiftKey ? constrainAngle(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       const region = gradientFillPreview(
-        ctx.getRawCell(), ctx.w, ctx.h, start.x0, start.y0, ctx.x, ctx.y,
+        ctx.getRawCell(), ctx.w, ctx.h, start.x0, start.y0, x1, y1,
         hexToRgba(ctx.fgColor), hexToRgba(ctx.bgColor), ctx.filled,
       )
       ctx.setPreview({
         kind: 'gradient',
         points: region.map(({ x, y }): Point => [x, y]),
         colors: region.map((p) => p.rgba),
-        x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y,
+        x0: start.x0, y0: start.y0, x1, y1,
       })
     },
     onEnd(ctx, start) {
+      const [x1, y1] = ctx.shiftKey ? constrainAngle(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       commitBracketed(ctx, {
         type: 'GRADIENT_FILL', ...ctx.target,
-        x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y,
+        x0: start.x0, y0: start.y0, x1, y1,
         rgba0: hexToRgba(ctx.fgColor), rgba1: hexToRgba(ctx.bgColor), radial: ctx.filled,
       })
       ctx.setPreview(null)
@@ -365,9 +381,10 @@ export const tools: Record<string, Tool<any>> = {
       if (!ctx.filled) return { x0: ctx.x, y0: ctx.y }
       const anchor = ctx.continuousLine
       if (anchor) {
+        const [x1, y1] = ctx.shiftKey ? constrainAngle(anchor.x, anchor.y, ctx.x, ctx.y) : [ctx.x, ctx.y]
         commitBracketed(ctx, {
           type: 'PAINT_LINE', ...ctx.target,
-          x0: anchor.x, y0: anchor.y, x1: ctx.x, y1: ctx.y,
+          x0: anchor.x, y0: anchor.y, x1, y1,
           rgba: paintColor(ctx), size: ctx.brushSize, shape: ctx.brushShape,
         })
       }
@@ -377,17 +394,20 @@ export const tools: Record<string, Tool<any>> = {
     },
     onMove(ctx) {
       if (!ctx.filled || !ctx.continuousLine) return
-      const pts = stampPoints(linePoints(ctx.continuousLine.x, ctx.continuousLine.y, ctx.x, ctx.y), ctx.brushSize, ctx.brushShape)
+      const [x1, y1] = ctx.shiftKey ? constrainAngle(ctx.continuousLine.x, ctx.continuousLine.y, ctx.x, ctx.y) : [ctx.x, ctx.y]
+      const pts = stampPoints(linePoints(ctx.continuousLine.x, ctx.continuousLine.y, x1, y1), ctx.brushSize, ctx.brushShape)
       ctx.setPreview(shapePreview(ctx, pts))
     },
     onDrag(ctx, _prev, start) {
-      const pts = stampPoints(linePoints(start.x0, start.y0, ctx.x, ctx.y), ctx.brushSize, ctx.brushShape)
+      const [x1, y1] = ctx.shiftKey ? constrainAngle(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
+      const pts = stampPoints(linePoints(start.x0, start.y0, x1, y1), ctx.brushSize, ctx.brushShape)
       ctx.setPreview(shapePreview(ctx, pts))
     },
     onEnd(ctx, start) {
+      const [x1, y1] = ctx.shiftKey ? constrainAngle(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
       commitBracketed(ctx, {
         type: 'PAINT_LINE', ...ctx.target,
-        x0: start.x0, y0: start.y0, x1: ctx.x, y1: ctx.y,
+        x0: start.x0, y0: start.y0, x1, y1,
         rgba: paintColor(ctx), size: ctx.brushSize, shape: ctx.brushShape,
       })
       ctx.setPreview(null)
