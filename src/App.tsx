@@ -322,8 +322,10 @@ export default function App() {
   // invertSelectionMask) rather than another plain Rect.
   const invertSelection = () => {
     commitFloating()
-    if (!selection) { setSelection({ x: 0, y: 0, w: activeSprite.w, h: activeSprite.h }); return }
-    setSelection(invertSelectionMask(selection, activeSprite.w, activeSprite.h))
+    const inverted = selection
+      ? invertSelectionMask(selection, activeSprite.w, activeSprite.h)
+      : { x: 0, y: 0, w: activeSprite.w, h: activeSprite.h }
+    dispatch({ type: 'INVERT_SELECTION', selection: inverted })
   }
 
   // Backspace/Delete: fill the selection with the background color. A

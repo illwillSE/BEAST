@@ -138,6 +138,7 @@ export type Action =
   | { type: 'SORT_PALETTE'; key: PaletteSortKey }
   | { type: 'REVERSE_PALETTE' }
   | { type: 'SET_SELECTION'; selection: Selection | null }
+  | { type: 'INVERT_SELECTION'; selection: Selection | null }
   | { type: 'UPDATE_SELECTION'; selection: Selection | null }
   | { type: 'UNDO' }
   | { type: 'REDO' }
@@ -198,6 +199,7 @@ const ACTION_LABELS: Partial<Record<Action['type'], string>> = {
   REVERSE_PALETTE:       'Reverse palette',
   RENAME_PROJECT:        'Rename project',
   SET_SELECTION:         'Selection',
+  INVERT_SELECTION:      'Invert selection',
 }
 
 // Apply an in-place edit to one cell as part of an undo step. The first edit of
@@ -490,6 +492,13 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
     case 'SET_SELECTION': {
       let { past, present, selection } = state
       past = [...past, { doc: present, selection, label: ACTION_LABELS.SET_SELECTION! }]
+      if (past.length > MAX_HISTORY) past = past.slice(past.length - MAX_HISTORY)
+      return { past, present, selection: action.selection, future: [], stroke: state.stroke, undoRedoTick: state.undoRedoTick }
+    }
+
+    case 'INVERT_SELECTION': {
+      let { past, present, selection } = state
+      past = [...past, { doc: present, selection, label: ACTION_LABELS.INVERT_SELECTION! }]
       if (past.length > MAX_HISTORY) past = past.slice(past.length - MAX_HISTORY)
       return { past, present, selection: action.selection, future: [], stroke: state.stroke, undoRedoTick: state.undoRedoTick }
     }

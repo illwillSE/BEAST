@@ -911,7 +911,14 @@ export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: n
   for (const { x, y, rgba } of mirroredFill(points, x0, y0, w, h, mirror)) {
     if (clip && !selectionContains(clip, x, y)) continue
     const o = (y * w + x) * 4
-    cell[o] = rgba[0]; cell[o + 1] = rgba[1]; cell[o + 2] = rgba[2]; cell[o + 3] = rgba[3]
+    const sA = rgba[3] / 255
+    const dA = cell[o + 3] / 255
+    const outA = sA + dA * (1 - sA)
+    if (outA === 0) { cell[o] = 0; cell[o + 1] = 0; cell[o + 2] = 0; cell[o + 3] = 0; continue }
+    cell[o]     = Math.round((rgba[0] * sA + cell[o]     * dA * (1 - sA)) / outA)
+    cell[o + 1] = Math.round((rgba[1] * sA + cell[o + 1] * dA * (1 - sA)) / outA)
+    cell[o + 2] = Math.round((rgba[2] * sA + cell[o + 2] * dA * (1 - sA)) / outA)
+    cell[o + 3] = Math.round(outA * 255)
   }
 }
 
