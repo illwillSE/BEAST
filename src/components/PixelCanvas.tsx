@@ -292,14 +292,10 @@ export default function PixelCanvas({
     }
   }, [mirrorV, mirrorH, hoverCell, playing, tool, brushSize, brushShape, preview, w, h, scale, showGrid, gridSpacing])
 
-  // Selection marquee, on its own canvas with CSS mix-blend-mode: difference
-  // so the dashed outline is always the true inverse of whatever's beneath
-  // it (sprite pixels, onion ghosts...), instead of a fixed accent color
-  // that can vanish against similarly-colored content (e.g. amber accent on
-  // yellow pixels). Canvas's own globalCompositeOperation can't do this here
-  // since it only blends within one canvas's own pixels, not against the
-  // other stacked canvas layers below — mix-blend-mode is a CSS compositing
-  // step instead. Animated dash offset gives the classic "marching ants" look.
+  // Selection marquee drawn as classic marching ants: a solid black stroke
+  // underneath animated white dashes on top. The black is visible on light
+  // backgrounds; the white is visible on dark backgrounds — together they
+  // work against any pixel color without relying on blend modes.
   useEffect(() => {
     const ctx = selectionRef.current!.getContext('2d')!
 
@@ -323,10 +319,7 @@ export default function PixelCanvas({
     let rafId: number
     const draw = () => {
       ctx.clearRect(0, 0, w * scale, h * scale)
-      ctx.strokeStyle = '#ffffff'
       ctx.lineWidth = 1
-      ctx.setLineDash([4, 3])
-      ctx.lineDashOffset = -(performance.now() / 30) % 7
       ctx.beginPath()
       for (const outline of outlines) {
         for (const s of outline.top) { ctx.moveTo(s.x0 * scale + 0.5, s.y * scale + 0.5); ctx.lineTo(s.x1 * scale - 0.5, s.y * scale + 0.5) }
@@ -334,6 +327,12 @@ export default function PixelCanvas({
         for (const s of outline.left) { ctx.moveTo(s.x * scale + 0.5, s.y0 * scale + 0.5); ctx.lineTo(s.x * scale + 0.5, s.y1 * scale - 0.5) }
         for (const s of outline.right) { ctx.moveTo(s.x * scale - 0.5, s.y0 * scale + 0.5); ctx.lineTo(s.x * scale - 0.5, s.y1 * scale - 0.5) }
       }
+      ctx.strokeStyle = '#000000'
+      ctx.setLineDash([])
+      ctx.stroke()
+      ctx.strokeStyle = '#ffffff'
+      ctx.setLineDash([4, 4])
+      ctx.lineDashOffset = -(performance.now() / 30) % 8
       ctx.stroke()
       rafId = requestAnimationFrame(draw)
     }
@@ -585,7 +584,6 @@ export default function PixelCanvas({
           width: w * scale,
           height: h * scale,
           pointerEvents: 'none',
-          mixBlendMode: 'difference',
         }}
       />
       {magnifier && <EyedropperMagnifier {...magnifier} />}

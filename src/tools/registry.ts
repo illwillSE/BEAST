@@ -614,7 +614,7 @@ export const tools: Record<string, Tool<any>> = {
   // selection — lift one with the Move tool first. Each resize drag always
   // resamples from the buffer captured at gesture start (never the previous
   // frame's already-stretched result), so repeated nearest-neighbor passes
-  // within one drag don't compound quality loss. Shift resizes from center
+  // within one drag don't compound quality loss. Ctrl+Shift resizes from center
   // (both sides expand/contract symmetrically). Stays floating (no commit)
   // until the usual Enter/tool switch/Escape paths commit it, same as Move.
   stretch: {
@@ -652,7 +652,7 @@ export const tools: Record<string, Tool<any>> = {
         ctx.setFloating((f) => (f ? { ...f, x: ctx.x - drag.dx, y: ctx.y - drag.dy } : f))
         return
       }
-      const rect = resizeRectStretch(drag.orig, drag.handle, ctx.x, ctx.y, ctx.shiftKey)
+      const rect = resizeRectStretch(drag.orig, drag.handle, ctx.x, ctx.y, ctx.shiftKey && ctx.modKey)
       ctx.setFloating((f) => f && {
         ...f,
         x: rect.x, y: rect.y, w: rect.w, h: rect.h,
