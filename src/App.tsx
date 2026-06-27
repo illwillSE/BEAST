@@ -830,7 +830,7 @@ export default function App() {
           )}
         </div>
 
-        <aside className="bg-panel border-l border-divider flex flex-col shrink-0 overflow-y-auto">
+        <aside className="bg-panel border-l border-divider flex flex-col shrink-0 overflow-y-auto w-64">
           {sidebarPinned ? (
             <LayersPanel
               layers={activeSprite.layers}
@@ -849,7 +849,7 @@ export default function App() {
             <div ref={layersPeek.ref} className="relative shrink-0">
               <FoldTab edge="right" label="Layers" fill={false} active={layersPeek.peeking} onClick={layersPeek.toggle} />
               {layersPeek.peeking && (
-                <div className="absolute top-0 right-0 z-20 shadow-2xl">
+                <div className="absolute top-0 right-0 z-20 shadow-2xl w-64">
                   <LayersPanel
                     layers={activeSprite.layers}
                     selectedId={safeLayerId}
@@ -892,7 +892,7 @@ export default function App() {
             <div ref={colorPeek.ref} className="relative shrink-0">
               <FoldTab edge="right" label="Color" fill={false} active={colorPeek.peeking} onClick={colorPeek.toggle} />
               {colorPeek.peeking && (
-                <div className="absolute top-0 right-0 z-20 shadow-2xl">
+                <div className="absolute top-0 right-0 z-20 shadow-2xl w-64">
                   <ColorPanel
                     fgColor={fgColor}
                     bgColor={bgColor}

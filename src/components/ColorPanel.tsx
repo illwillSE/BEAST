@@ -185,7 +185,7 @@ export default function ColorPanel({
   }
 
   return (
-    <div className="flex flex-col w-64 bg-panel">
+    <div className="flex flex-col w-full bg-panel">
       <div className="flex items-center justify-between px-3 h-9 border-b border-divider">
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] uppercase tracking-wide text-faint font-semibold">Color</span>
