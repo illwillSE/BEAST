@@ -6,7 +6,7 @@
 // Pressing a tool's key while that tool is already active cycles its
 // `variants` (if any) instead of re-selecting it — e.g. R/O toggle rect and
 // ellipse between Outline and Filled, briefly popping out ToolRail's variant
-// flyout (peekVariants) so the new selection is visible. `[`/`]` step the
+// flyout (peekVariants) so the new selection is visible. `,`/`.` step the
 // global brush size down/up while a brush-size tool is active
 // (pencil/eraser/line/rect/ellipse).
 //
@@ -23,7 +23,7 @@
 //   }
 //
 // brushSize/setBrushSize are global now (one value for every brush-size tool,
-// not per-tool) — `[`/`]` step it by 1, clamped to [1, 20], only when the
+// not per-tool) — `,`/`.` step it by 1, clamped to [1, 20], only when the
 // active tool has `hasBrushSize` (see src/tools/registry.js).
 
 import { tools } from '../tools/registry.js'
@@ -102,8 +102,8 @@ export const shortcuts: Shortcut[] = [
   { key: 'escape', run: (ctx) => { ctx.commitFloating(); ctx.setSelection(null); ctx.cancelCrop(); ctx.cancelContinuousLine() } },
   { key: 'i', shift: true, run: (ctx) => ctx.setTemporaryTool('eyedropper') },
   { key: 'x', run: (ctx) => ctx.swapColors() },
-  { key: '[', run: (ctx) => stepBrushSize(ctx, -1) },
-  { key: ']', run: (ctx) => stepBrushSize(ctx, 1) },
+  { key: ',', run: (ctx) => stepBrushSize(ctx, -1) },
+  { key: '.', run: (ctx) => stepBrushSize(ctx, 1) },
   { key: 'arrowleft',  run: (ctx) => ctx.tool === 'move' ? ctx.nudgeLayer(-1, 0) : ctx.stepFrame(-1) },
   { key: 'arrowright', run: (ctx) => ctx.tool === 'move' ? ctx.nudgeLayer(1, 0) : ctx.stepFrame(1) },
   { key: 'arrowup',    run: (ctx) => { if (ctx.tool === 'move') ctx.nudgeLayer(0, -1) } },
