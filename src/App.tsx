@@ -280,7 +280,7 @@ export default function App() {
     dispatch({ type: 'PASTE_REGION', ...floating.target, x: floating.x, y: floating.y, w: floating.w, h: floating.h, data: floating.data })
     dispatch({ type: 'STROKE_END' })
     setFloating(null)
-    dispatch({ type: 'UPDATE_SELECTION', selection: null })
+    dispatch({ type: 'UPDATE_SELECTION', selection: { x: floating.x, y: floating.y, w: floating.w, h: floating.h, ...(floating.mask && { mask: floating.mask }) } })
   }
 
   const copySelection = () => {
