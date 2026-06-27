@@ -873,7 +873,9 @@ export function outlineObject(cell: Cell, w: number, h: number, x: number, y: nu
 // (x1,y1) setting the radius. Shared by gradientFill (mutates the cell) and
 // gradientFillPreview (read-only, for the gradient tool's live drag preview).
 function gradientPoints(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA, radial: boolean): { x: number; y: number; rgba: RGBA }[] {
-  const region = floodMask(cell, w, h, x0, y0)
+  const seedX = Math.max(0, Math.min(w - 1, x0))
+  const seedY = Math.max(0, Math.min(h - 1, y0))
+  const region = floodMask(cell, w, h, seedX, seedY)
   if (!region) return []
   const [r0, g0, b0, a0] = rgba0
   const [r1, g1, b1, a1] = rgba1

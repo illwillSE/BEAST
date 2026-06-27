@@ -1,7 +1,7 @@
 import { flushSync } from 'react-dom'
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
-import PixelCanvas from './PixelCanvas.jsx'
+import PixelCanvas, { type PixelCanvasHandle } from './PixelCanvas.jsx'
 import PreviewWindow from './PreviewWindow.jsx'
 import { tools } from '../tools/registry.js'
 import BrushSizeButton from './BrushSizeButton.jsx'
@@ -61,6 +61,13 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
   const [scale, setScale] = useState(16)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
+  const pixelCanvasRef = useRef<PixelCanvasHandle>(null)
+
+  const handleViewportDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!tools[tool]?.rawStart) return
+    if (e.target !== e.currentTarget) return
+    pixelCanvasRef.current?.startRawGesture(e.clientX, e.clientY, e.pointerId, e.button === 2, e.ctrlKey || e.metaKey)
+  }
 
   // Fits the sprite to the viewport, accounting for the viewport's p-6 padding.
   const fitToFrame = () => {
@@ -110,9 +117,10 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-bg">
       {/* canvas viewport */}
-      <div ref={viewportRef} className="flex-1 grid place-items-center overflow-auto p-6">
+      <div ref={viewportRef} className="flex-1 grid place-items-center overflow-auto p-6" onPointerDown={handleViewportDown}>
         <div className="beast-checker rounded shadow-2xl border border-edge">
           <PixelCanvas
+            ref={pixelCanvasRef}
             sprite={sprite}
             frameIndex={target.frameIndex}
             target={target}

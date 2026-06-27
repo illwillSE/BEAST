@@ -5,7 +5,7 @@ implemented; this file tracks what isn't, organized by area.
 
 
 # Unsorted
-Start and stop canvas tools like line, rect, gradient fill, outside of the canvas. also stop
+outline should work on selection (but inside selection)
 
 ## Core data models
 

@@ -130,6 +130,7 @@ export interface ToolContext {
 export interface Tool<D = unknown> {
   cursor?: string | ((ctx: ToolContext) => string)
   key?: string
+  rawStart?: true
   variants?: [string, boolean][]
   hasBrushSize?: true
   onStart?(ctx: ToolContext): D | boolean | void
@@ -331,6 +332,7 @@ export const tools: Record<string, Tool<any>> = {
   // start point, with drag length setting the radius.
   gradient: {
     key: 'n',
+    rawStart: true,
     variants: [['Linear', false], ['Radial', true]],
     cursor: 'crosshair',
     onStart(ctx) {
@@ -374,6 +376,7 @@ export const tools: Record<string, Tool<any>> = {
   // or switching away from the tool/variant (see App's continuousLine effects).
   line: {
     key: 'l',
+    rawStart: true,
     hasBrushSize: true,
     variants: [['Single', false], ['Continuous', true]],
     cursor: 'crosshair',
@@ -490,6 +493,7 @@ export const tools: Record<string, Tool<any>> = {
   // move/paste first, since a selection only makes sense for one at a time.
   select: {
     key: 'm',
+    rawStart: true,
     cursor: 'crosshair',
     onStart(ctx) {
       ctx.commitFloating()

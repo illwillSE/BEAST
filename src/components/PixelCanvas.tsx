@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { compositeFrame, hexToRgba, rgbaToHex, pasteRegion, shapeOffsets, selectionOutline, mirroredFill } from '../document/model.js'
 import { getTool, tools } from '../tools/registry.js'
 import { getColor } from '../theme/colors.js'
@@ -103,6 +103,10 @@ interface PixelCanvasProps {
 const ONION_PREV_ALPHA = 0.4
 const ONION_NEXT_ALPHA = 0.25
 
+export interface PixelCanvasHandle {
+  startRawGesture(clientX: number, clientY: number, pointerId: number, erasing: boolean, modKey: boolean): void
+}
+
 // Interactive pixel canvas, driven by the document model + tool registry. It
 // renders the active sprite frame (composited across visible layers) into a
 // native-resolution <canvas> scaled up with image-rendering:pixelated, owns the
@@ -112,12 +116,12 @@ const ONION_NEXT_ALPHA = 0.25
 // shape previews and the floating move/paste buffer; the selection marquee is
 // drawn separately, at CSS-pixel (not pixel-art) resolution, so its dashed
 // outline stays a crisp thin line instead of scaling up into blocky pixels.
-export default function PixelCanvas({
+const PixelCanvas = forwardRef<PixelCanvasHandle, PixelCanvasProps>(function PixelCanvas({
   sprite, frameIndex, target, dispatch, scale, fgColor, bgColor, tool, onFgColor, onHover,
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, continuousLine, setContinuousLine, filled, brushSize, brushShape,
   mirrorV, mirrorH, onTemporaryToolComplete, playing, onionSkin, eraseToBg, showGrid, gridSpacing,
-}: PixelCanvasProps) {
+}: PixelCanvasProps, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const onionRef = useRef<HTMLCanvasElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
@@ -454,10 +458,26 @@ export default function PixelCanvas({
     if (!continuousLine) setPreview(null)
   }, [continuousLine])
 
+  useImperativeHandle(ref, () => ({
+    startRawGesture(clientX, clientY, pointerId, erasing, modKey) {
+      if (!activeTool?.rawStart || playing) return
+      const { x, y } = cellFromClient(clientX, clientY)
+      erasingRef.current = erasing
+      modRef.current = modKey
+      const dragState = activeTool.onStart?.(ctxFor(x, y))
+      if (dragState) {
+        draggingRef.current = true
+        dragStateRef.current = dragState
+        lastRef.current = { x, y }
+        canvasRef.current!.setPointerCapture(pointerId)
+      }
+    },
+  }))
+
   const handleDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!activeTool || playing) return
     const { x, y } = cellFromEvent(e)
-    if (!inBounds(x, y)) return
+    if (!inBounds(x, y) && !activeTool.rawStart) return
     // Right-click paints with the erase color for the whole gesture, instead
     // of swapping tools — so rect/ellipse/line/fill keep their own shape
     // logic and just resolve to a different color (see ctx.erasing).
@@ -589,4 +609,6 @@ export default function PixelCanvas({
       {magnifier && <EyedropperMagnifier {...magnifier} />}
     </div>
   )
-}
+})
+
+export default PixelCanvas
