@@ -387,6 +387,18 @@ export default function App() {
     if (tool !== 'line' || !filled.line) setContinuousLine(null)
   }, [tool, filled.line])
 
+  // Outline tool with a selection: apply immediately on tool switch, no click needed.
+  useEffect(() => {
+    if (tool !== 'outline' || !selection) return
+    dispatch({ type: 'STROKE_BEGIN' })
+    dispatch({
+      type: 'OUTLINE', ...target, x: 0, y: 0,
+      rgba: hexToRgba(fgColor), size: brushSize, shape: brushShape, fat: filled.outline ?? false,
+      clip: selection, ...(mirrorV || mirrorH ? { mirror: { v: mirrorV, h: mirrorH } } : {}),
+    })
+    dispatch({ type: 'STROKE_END' })
+  }, [tool, filled.outline])
+
   // Layer switch: commit floating but preserve the selection (same coordinates,
   // different layer — user likely wants to paint the same region there).
   useEffect(() => {

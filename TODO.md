@@ -6,6 +6,9 @@ implemented; this file tracks what isn't, organized by area.
 
 # Unsorted
 outline should work on selection (but inside selection)
+adding a layer (after layer 1) widens the panel by a couple of pxiels
+shrink/grow selection
+save selection to layer menu, maybe add a tab (Layers / Selections)
 
 ## Core data models
 

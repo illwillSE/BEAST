@@ -852,14 +852,54 @@ function objectBorderPoints(mask: Uint8Array, w: number, h: number, fat: boolean
   return out
 }
 
+// The opaque edge pixels of a (clipped) object mask that have at least one
+// neighbor outside the mask — i.e. the inner border. Used when a selection is
+// active so the outline is painted inside the selection boundary rather than
+// in the transparent space outside the object (which may be outside the
+// selection and therefore clipped away entirely).
+function innerBorderPoints(mask: Uint8Array, w: number, h: number, fat: boolean): Point[] {
+  const dirs = fat ? [...ORTHOGONAL_DIRS, ...DIAGONAL_DIRS] : ORTHOGONAL_DIRS
+  const seen = new Set<number>()
+  const out: Point[] = []
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!mask[y * w + x]) continue
+      let isEdge = false
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx, ny = y + dy
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h || !mask[ny * w + nx]) { isEdge = true; break }
+      }
+      if (!isEdge) continue
+      const k = y * w + x
+      if (seen.has(k)) continue
+      seen.add(k)
+      out.push([x, y])
+    }
+  }
+  return out
+}
+
 // Draws a `size`/`shape` brush stroke (see stampPoints) in `rgba` around the
 // 8-connected object touching (x,y) — the outline tool. `fat` is the
 // Fat/Fine border variant (see objectBorderPoints); `mirror` reflects across
-// the active symmetry axes, same as floodFill.
+// the active symmetry axes, same as floodFill. When `clip` is active the
+// selection shape itself is outlined (click point ignored): its inner border
+// pixels are painted so the stroke always lands inside the selection.
 export function outlineObject(cell: Cell, w: number, h: number, x: number, y: number, rgba: RGBA, size: number, shape: BrushShape, fat: boolean, mirror?: Mirror, clip?: Selection) {
-  const mask = floodObjectMask(cell, w, h, x, y)
-  if (!mask) return
-  const border = objectBorderPoints(mask, w, h, fat)
+  let border: Point[]
+  if (clip) {
+    const selMask = new Uint8Array(w * h)
+    for (let py = clip.y; py < clip.y + clip.h; py++) {
+      for (let px = clip.x; px < clip.x + clip.w; px++) {
+        if (selectionContains(clip, px, py)) selMask[py * w + px] = 1
+      }
+    }
+    border = innerBorderPoints(selMask, w, h, fat)
+  } else {
+    const mask = floodObjectMask(cell, w, h, x, y)
+    if (!mask) return
+    border = objectBorderPoints(mask, w, h, fat)
+  }
   if (!border.length) return
   const pts: FillPixel[] = border.map(([px, py]) => ({ x: px, y: py, rgba }))
   const resolved = mirroredFill(pts, x, y, w, h, mirror)

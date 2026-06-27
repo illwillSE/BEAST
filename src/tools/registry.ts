@@ -474,12 +474,12 @@ export const tools: Record<string, Tool<any>> = {
   outline: {
     hasBrushSize: true,
     variants: [['Fine', false], ['Fat', true]],
-    // Dashed-square cursor on opaque pixels (you can outline this),
-    // not-allowed on transparent (nothing to outline here).
+    // With a selection the click point doesn't matter — show ready cursor
+    // everywhere. Without one, only opaque pixels are valid targets.
     cursor(ctx) {
+      if (ctx.selection) return OUTLINE_HIT_CURSOR
       const cell = ctx.getRawCell()
-      const hit = cell[(ctx.y * ctx.w + ctx.x) * 4 + 3] > 0
-      return hit ? OUTLINE_HIT_CURSOR : 'not-allowed'
+      return cell[(ctx.y * ctx.w + ctx.x) * 4 + 3] > 0 ? OUTLINE_HIT_CURSOR : 'not-allowed'
     },
     onStart(ctx) {
       commitBracketed(ctx, {
