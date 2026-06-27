@@ -16,6 +16,7 @@ import AdjustHslDialog from './components/AdjustHslDialog.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
 import FoldTab from './components/FoldTab.jsx'
 import EyedropperMagnifier from './components/EyedropperMagnifier.jsx'
+import { UndoToast } from './components/UndoToast.jsx'
 import useFoldable from './hooks/useFoldable.js'
 import usePeek from './hooks/usePeek.js'
 import { useGlobalEyedropper } from './hooks/useGlobalEyedropper.js'
@@ -898,6 +899,7 @@ export default function App() {
       </div>
 
       {globalMagnifier && <EyedropperMagnifier {...globalMagnifier} />}
+      <UndoToast tick={state.undoRedoTick} />
 
       <NewSpriteDialog
         open={newSpriteOpen}
