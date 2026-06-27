@@ -385,14 +385,21 @@ export default function App() {
     if (tool !== 'line' || !filled.line) setContinuousLine(null)
   }, [tool, filled.line])
 
-  // Switching the paint target mid-crop would apply the crop to the wrong
-  // sprite, so discard rather than commit.
+  // Layer switch: commit floating but preserve the selection (same coordinates,
+  // different layer — user likely wants to paint the same region there).
+  useEffect(() => {
+    commitFloating()
+    setContinuousLine(null)
+  }, [safeLayerId])
+
+  // Sprite / frame / canvas-size change: commit floating, drop the selection and
+  // crop (coordinates no longer mean the same thing or the document changed).
   useEffect(() => {
     commitFloating()
     dispatch({ type: 'UPDATE_SELECTION', selection: null })
     cancelCrop()
     setContinuousLine(null)
-  }, [activeSprite.id, safeLayerId, safeFrame, activeSprite.w, activeSprite.h])
+  }, [activeSprite.id, safeFrame, activeSprite.w, activeSprite.h])
 
   // Follow a layer add/duplicate with selection. Guarded by spriteId so
   // switching sprites (which also changes the layer id set) doesn't hijack
