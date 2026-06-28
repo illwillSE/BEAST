@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Undo2, Redo2, FolderOpen, Save, ImageUp, Download, Settings, ScanEye, FilePlus } from 'lucide-react'
+import { Undo2, Redo2, FolderOpen, Save, ImageUp, Download, Settings, ScanEye, FilePlus, BookOpen } from 'lucide-react'
 
 interface HeaderProps {
   projectName: string
@@ -93,6 +93,12 @@ export default function Header({ projectName, onRenameProject, onNewProject, onS
       >
         <Save size={15} /> Save
       </button>
+      <a
+        href="./docs.html"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm bg-surface hover:bg-surface-hover text-ink-soft"
+      >
+        <BookOpen size={15} /> Docs
+      </a>
       <input ref={pngFileRef} type="file" accept="image/png" className="hidden" onChange={pickPng} />
       <button
         onClick={() => pngFileRef.current?.click()}
