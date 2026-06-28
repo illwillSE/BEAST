@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ForwardRefExoticComponent, RefAttributes } from 'react'
 import { forwardRef } from 'react'
 import {
-  BookOpen, ChevronLeft, ChevronRight, Command, CornerDownRight, Eraser, ExternalLink, Layers2, Minus, PaintBucket, Pencil, Pipette, Search,
+  BookOpen, BoxSelect, ChevronLeft, ChevronRight, Circle, Command, CornerDownRight, Crop, Eraser, ExternalLink, FlipHorizontal, FlipVertical, Keyboard, Layers2, Maximize2, Minus, Move, PaintBucket, Pencil, Pipette, Search, Square, Wand2,
 } from 'lucide-react'
 import { type LucideProps } from 'lucide-react'
 import { linePoints, shapeOffsets, stampPoints } from '../document/model.js'
@@ -53,12 +53,21 @@ GradientLinear.displayName = 'GradientLinear'
 const chapters: ChapterLink[] = [
   { id: 'brush', title: 'Brush', summary: 'Freehand painting, size, shape, and erase behavior.', icon: Pencil },
   { id: 'eraser', title: 'Eraser', summary: 'Continuous stroke erasing with the same size and shape controls as the brush.', icon: Eraser },
+  { id: 'mirror', title: 'Mirror', summary: 'Reflect paint actions across vertical and horizontal symmetry axes.', icon: FlipHorizontal },
   { id: 'line', title: 'Line', summary: 'Single and continuous line workflows with angle locking.', icon: Minus },
+  { id: 'rectangle', title: 'Rectangle', summary: 'Drag rectangular shapes as outlines or filled blocks.', icon: Square },
+  { id: 'ellipse', title: 'Ellipse', summary: 'Drag ellipses or circles as outlines or filled shapes.', icon: Circle },
   { id: 'fill', title: 'Fill', summary: 'One-click flood filling of the connected region under the cursor.', icon: PaintBucket },
   { id: 'gradient', title: 'Gradient Fill', summary: 'Linear and radial fills that blend foreground to background color.', icon: GradientLinear },
   { id: 'colorpicker', title: 'Color Picker', summary: 'Sample a pixel and load it directly into the foreground color.', icon: Pipette },
   { id: 'layers', title: 'Layers', summary: 'Control stack order, visibility, opacity, blending, and focused paint targets.', icon: Layers2 },
+  { id: 'select', title: 'Select', summary: 'Build rectangular selections and combine or subtract them with modifiers.', icon: BoxSelect },
+  { id: 'wand', title: 'Wand', summary: 'Select matching colors as contiguous blobs or global color masks.', icon: Wand2 },
+  { id: 'crop', title: 'Crop', summary: 'Draw, move, and resize a pending crop window before committing it.', icon: Crop },
+  { id: 'move', title: 'Move', summary: 'Lift selections into floating content or shift an entire layer with wrap-around.', icon: Move },
+  { id: 'stretch', title: 'Stretch', summary: 'Rescale a floating selection with drag handles and nearest-neighbor sampling.', icon: Maximize2 },
   { id: 'command-palette', title: 'Command Palette', summary: 'Search, browse, and run editor actions from one keyboard-first overlay.', icon: Command },
+  { id: 'shortcuts', title: 'Keyboard Shortcuts', summary: 'Complete reference for tools, modifiers, selection, view, and transform shortcuts.', icon: Keyboard },
   { id: 'more', title: 'More', summary: 'Reserved for future tool chapters as the editor grows.', icon: BookOpen },
 ]
 
@@ -227,6 +236,9 @@ export default function DocumentationPage() {
                 <IllustrationPanel title="Stroke flow" subtitle="A brush drag paints continuously and is undone as one action.">
                   <BrushStrokeFigure />
                 </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['B', 'Select Brush'], [', / .', 'Adjust brush size'], ['Right-click', 'Paint with erase behavior']]} />
+                </IllustrationPanel>
               </div>
             </div>
           </section>
@@ -262,6 +274,73 @@ export default function DocumentationPage() {
                 <IllustrationPanel title="Continuous line workflow" subtitle="Each click advances the anchor for the next segment.">
                   <ContinuousLineFigure />
                 </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['L', 'Select Line'], ['L again', 'Cycle Single / Continuous'], ['Shift + drag / click', 'Snap to nearest 45°'], ['Escape', 'Exit continuous line anchor']]} />
+                </IllustrationPanel>
+              </div>
+            </div>
+          </section>
+
+          <section id="rectangle" style={{ scrollMarginTop: `${HEADER_OFFSET_PX}px` }} className="rounded-xl border border-divider bg-panel p-5 md:p-6">
+            <ChapterHeader title="Rectangle" description="Rectangle draws box-shaped geometry using the current foreground or erase color, with outline and filled variants sharing the same drag gesture." />
+            <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_1fr]">
+              <div className="space-y-4 text-sm leading-7 text-text">
+                <p>
+                  Drag from one corner to the opposite corner to preview the shape, then release to commit it as one action. The same brush size and brush shape controls affect the thickness of outline rectangles.
+                </p>
+                <p>
+                  Press <span className="text-ink">R</span> to select Rectangle. Press <span className="text-ink">R</span> again while it is active to cycle between <span className="text-ink">Outline</span> and <span className="text-ink">Filled</span>.
+                </p>
+                <p>
+                  Hold <span className="text-ink">Shift</span> during the drag to constrain the shape to a perfect square.
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <InfoCard title="Outline variant" body="Best when you need framed UI boxes, borders, or hard-edged outlines that still respect brush thickness." />
+                  <InfoCard title="Filled variant" body="Best for blocking in flat geometric regions quickly with one drag." />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <IllustrationPanel title="Rectangle variants" subtitle="Outline uses stroke thickness; filled paints the full interior.">
+                  <RectEllipseFigure shape="rect" />
+                </IllustrationPanel>
+                <IllustrationPanel title="Constraint" subtitle="Shift locks the drag to a square.">
+                  <ModifierChip label="Shift" body="Constrain rectangle to a square while dragging." />
+                </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['R', 'Select Rectangle'], ['R again', 'Cycle Outline / Filled'], ['Shift + drag', 'Constrain to square'], [', / .', 'Adjust outline brush size']]} />
+                </IllustrationPanel>
+              </div>
+            </div>
+          </section>
+
+          <section id="ellipse" style={{ scrollMarginTop: `${HEADER_OFFSET_PX}px` }} className="rounded-xl border border-divider bg-panel p-5 md:p-6">
+            <ChapterHeader title="Ellipse" description="Ellipse draws curved geometry inside the dragged bounds, with outline and filled variants using the same corner-to-corner gesture as Rectangle." />
+            <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_1fr]">
+              <div className="space-y-4 text-sm leading-7 text-text">
+                <p>
+                  Drag to define the ellipse bounds, preview the result live, and release to commit. Outline ellipses use the current brush thickness; filled ellipses paint the full enclosed shape.
+                </p>
+                <p>
+                  Press <span className="text-ink">O</span> to select Ellipse. Press <span className="text-ink">O</span> again while it is active to cycle between <span className="text-ink">Outline</span> and <span className="text-ink">Filled</span>.
+                </p>
+                <p>
+                  Hold <span className="text-ink">Shift</span> during the drag to constrain the shape to a circle.
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <InfoCard title="Outline variant" body="Best for rings, rounded borders, and circular silhouettes that need hollow centers." />
+                  <InfoCard title="Filled variant" body="Best for disks, highlights, and rounded geometric masses." />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <IllustrationPanel title="Ellipse variants" subtitle="Outline and filled modes use the same bounds but different interior behavior.">
+                  <RectEllipseFigure shape="ellipse" />
+                </IllustrationPanel>
+                <IllustrationPanel title="Constraint" subtitle="Shift locks the drag to a circle.">
+                  <ModifierChip label="Shift" body="Constrain ellipse to a perfect circle while dragging." />
+                </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['O', 'Select Ellipse'], ['O again', 'Cycle Outline / Filled'], ['Shift + drag', 'Constrain to circle'], [', / .', 'Adjust outline brush size']]} />
+                </IllustrationPanel>
               </div>
             </div>
           </section>
@@ -293,6 +372,51 @@ export default function DocumentationPage() {
                     <BrushStampFigure title="Square 4px" size={4} shape="square" />
                     <BrushStampFigure title="Round 5px" size={5} shape="round" />
                   </div>
+                </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['E', 'Select Eraser'], [', / .', 'Adjust eraser size'], ['Erase to background', 'Uses current background color instead of transparency']]} />
+                </IllustrationPanel>
+              </div>
+            </div>
+          </section>
+
+          <section id="mirror" style={{ scrollMarginTop: `${HEADER_OFFSET_PX}px` }} className="rounded-xl border border-divider bg-panel p-5 md:p-6">
+            <ChapterHeader title="Mirror" description="Mirror is a symmetry toggle layered on top of the active paint tool. It reflects each dispatched paint action across the enabled vertical and horizontal axes." />
+            <div className="mt-6 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="space-y-4 text-sm leading-7 text-text">
+                <p>
+                  Mirror is not its own drawing tool. Instead, it modifies how tools like brush, line, fill, and gradient apply their actions, so one gesture can produce symmetric results automatically.
+                </p>
+                <p>
+                  You can enable <span className="text-ink">vertical</span> mirror, <span className="text-ink">horizontal</span> mirror, or both at once. When both are active, each action can reflect into four quadrants around the sprite’s center axes.
+                </p>
+                <p>
+                  Because mirroring happens at the dispatch level, it affects both continuous strokes and one-shot tools consistently, and mirrored changes still collapse into one undo step when the underlying tool brackets them as a single stroke.
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <InfoCard title="Best use case" body="Character faces, symmetrical props, centered motifs, and any sprite where left-right or top-bottom balance matters." />
+                  <InfoCard title="What to remember" body="Mirror changes how the active tool lands pixels; it does not replace the tool itself or create a separate edit mode history." />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <IllustrationPanel title="Mirror axes" subtitle="Vertical, horizontal, or both can reflect the same gesture.">
+                  <MirrorFigure />
+                </IllustrationPanel>
+                <IllustrationPanel title="How to think about it" subtitle="One gesture, multiple reflected outputs.">
+                  <div className="space-y-2 text-sm text-text">
+                    <div className="rounded border border-edge bg-panel px-3 py-2">
+                      Turn on vertical mirror to reflect left-right.
+                    </div>
+                    <div className="rounded border border-edge bg-panel px-3 py-2">
+                      Turn on horizontal mirror to reflect top-bottom.
+                    </div>
+                    <div className="rounded border border-accent-deep/35 bg-accent-deep/10 px-3 py-2 text-accent-soft">
+                      Turn on both axes to stamp or draw symmetrically into all mirrored quadrants.
+                    </div>
+                  </div>
+                </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this feature.">
+                  <SectionShortcuts rows={[['No direct key', 'Toggle mirror from the tool rail'], ['Cmd/Ctrl + P', 'Open command palette for mirror toggles']]} />
                 </IllustrationPanel>
               </div>
             </div>
@@ -333,6 +457,9 @@ export default function DocumentationPage() {
                     </div>
                   </div>
                 </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['G', 'Select Fill'], ['Right-click', 'Fill with erase behavior']]} />
+                </IllustrationPanel>
               </div>
             </div>
           </section>
@@ -364,6 +491,9 @@ export default function DocumentationPage() {
                 </IllustrationPanel>
                 <IllustrationPanel title="Radial gradient preview" subtitle="Drag length defines the radial spread from the start point.">
                   <GradientFigure radial />
+                </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['N', 'Select Gradient Fill'], ['N again', 'Cycle Linear / Radial'], ['Shift + drag', 'Snap to nearest 45°']]} />
                 </IllustrationPanel>
               </div>
             </div>
@@ -404,6 +534,9 @@ export default function DocumentationPage() {
                     </div>
                   </div>
                 </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['I', 'Select Eyedropper'], ['Shift + I', 'Temporary eyedropper while held']]} />
+                </IllustrationPanel>
               </div>
             </div>
           </section>
@@ -442,6 +575,208 @@ export default function DocumentationPage() {
                       Reorder rows to move painted content above or below other layers in the sprite.
                     </div>
                   </div>
+                </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this feature.">
+                  <SectionShortcuts rows={[['No direct key', 'Layer controls live in the panel UI'], ['Cmd/Ctrl + P', 'Open command palette for layer actions'], ['Shift + click eye', 'Solo one layer']]} />
+                </IllustrationPanel>
+              </div>
+            </div>
+          </section>
+
+          <section id="select" style={{ scrollMarginTop: `${HEADER_OFFSET_PX}px` }} className="rounded-xl border border-divider bg-panel p-5 md:p-6">
+            <ChapterHeader title="Select" description="Select builds rectangular marquees that clip subsequent paint operations and define the region used by move, stretch, copy, cut, and paste flows." />
+            <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_1fr]">
+              <div className="space-y-4 text-sm leading-7 text-text">
+                <p>
+                  Drag to draw a rectangular selection. Starting a fresh selection commits any floating move or paste first, so the editor always has one coherent active selection state.
+                </p>
+                <p>
+                  Hold <span className="text-ink">Shift</span> while creating a new marquee to add it to the current selection. Hold <span className="text-ink">Ctrl/Cmd+Shift</span> to subtract the dragged rectangle instead.
+                </p>
+                <p>
+                  Once active, the selection becomes a mask for normal painting tools and also supplies the region used by clipboard and transform-style operations such as Move and Stretch.
+                </p>
+                <p>
+                  Selections built this way can also be <span className="text-ink">saved</span> and later <span className="text-ink">loaded</span> again through the editor’s command flow, which is useful when you need to revisit the same masked region after other edits.
+                </p>
+                <p>
+                  After a selection exists, the editor can also <span className="text-ink">grow</span> or <span className="text-ink">shrink</span> it, which is useful for expanding coverage before a fill or tightening a mask before cleanup.
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <InfoCard title="Best use case" body="Isolating a rectangular area for recoloring, moving, deleting, or transforming without touching surrounding pixels." />
+                  <InfoCard title="Modifier logic" body="No modifier replaces the selection, Shift adds, and Ctrl/Cmd+Shift subtracts from the current selection." />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <IllustrationPanel title="Selection modes" subtitle="The marquee can replace, add, or subtract depending on modifiers.">
+                  <SelectFigure />
+                </IllustrationPanel>
+                <IllustrationPanel title="Selection role" subtitle="Selections are not just visual outlines; they constrain later edits.">
+                  <div className="space-y-2 text-sm text-text">
+                    <div className="rounded border border-edge bg-panel px-3 py-2">
+                      Paint tools only affect pixels inside the active selection.
+                    </div>
+                    <div className="rounded border border-edge bg-panel px-3 py-2">
+                      Move and Stretch use the selection as the source region to lift.
+                    </div>
+                    <div className="rounded border border-accent-deep/35 bg-accent-deep/10 px-3 py-2 text-accent-soft">
+                      Starting a new selection flushes any floating content first.
+                    </div>
+                  </div>
+                </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['M', 'Select rectangular marquee'], ['Shift + drag', 'Add to selection'], ['Cmd/Ctrl + Shift + drag', 'Subtract from selection'], ['Cmd/Ctrl + A / D', 'Select all / Deselect']]} />
+                </IllustrationPanel>
+              </div>
+            </div>
+          </section>
+
+          <section id="wand" style={{ scrollMarginTop: `${HEADER_OFFSET_PX}px` }} className="rounded-xl border border-divider bg-panel p-5 md:p-6">
+            <ChapterHeader title="Wand" description="Wand selects by color rather than by dragged geometry. It turns matching pixels into a selection mask so later tools can operate only on those color regions." />
+            <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_1fr]">
+              <div className="space-y-4 text-sm leading-7 text-text">
+                <p>
+                  Click a pixel and the Wand selects every matching pixel according to the active variant. <span className="text-ink">Contiguous</span> selects only the connected blob around the click. <span className="text-ink">Global</span> selects every matching pixel on the layer.
+                </p>
+                <p>
+                  Like rectangular Select, Wand also supports <span className="text-ink">Shift</span> to add and <span className="text-ink">Ctrl/Cmd+Shift</span> to subtract, making it practical to build complex masks from several color regions.
+                </p>
+                <p>
+                  The resulting selection works with ordinary paint tools, so Wand is a fast way to recolor all flats of one color without manually tracing them.
+                </p>
+                <p>
+                  Like any other selection, a Wand-built mask can be <span className="text-ink">saved</span> and <span className="text-ink">loaded</span> later, so a useful color-based region can be reused after switching tools or making unrelated edits.
+                </p>
+                <p>
+                  That color-based mask can also be <span className="text-ink">grown</span> or <span className="text-ink">shrunk</span> afterward, which helps when you want a recolor or transform to slightly expand beyond the exact matched pixels.
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <InfoCard title="Contiguous variant" body="Use when you only want the clicked blob and not every repeated color elsewhere in the sprite." />
+                  <InfoCard title="Global variant" body="Use when the same flat color should be selected everywhere on the active layer in one action." />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <IllustrationPanel title="Contiguous vs global" subtitle="Same clicked color, different selection scope.">
+                  <WandFigure />
+                </IllustrationPanel>
+                <IllustrationPanel title="Typical workflow" subtitle="Select a color family, then paint or transform only those pixels.">
+                  <div className="space-y-2 text-sm text-text">
+                    <div className="rounded border border-edge bg-panel px-3 py-2">
+                      Click a flat color with Wand to build a mask from matching pixels.
+                    </div>
+                    <div className="rounded border border-edge bg-panel px-3 py-2">
+                      Switch to Brush, Fill, or Gradient to recolor only the selected color region.
+                    </div>
+                    <div className="rounded border border-accent-deep/35 bg-accent-deep/10 px-3 py-2 text-accent-soft">
+                      Use Global when the same color appears in several disconnected parts of the sprite.
+                    </div>
+                  </div>
+                </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['W', 'Select Wand'], ['W again', 'Cycle Contiguous / Global'], ['Shift + click', 'Add to selection'], ['Cmd/Ctrl + Shift + click', 'Subtract from selection']]} />
+                </IllustrationPanel>
+              </div>
+            </div>
+          </section>
+
+          <section id="crop" style={{ scrollMarginTop: `${HEADER_OFFSET_PX}px` }} className="rounded-xl border border-divider bg-panel p-5 md:p-6">
+            <ChapterHeader title="Crop" description="Crop creates a pending crop window rather than applying immediately. You can draw it, move it, and resize it before committing the canvas change." />
+            <div className="mt-6 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="space-y-4 text-sm leading-7 text-text">
+                <p>
+                  Press <span className="text-ink">C</span> to select Crop, then drag a rectangle. Releasing does not crop right away; it creates a pending crop window that stays editable.
+                </p>
+                <p>
+                  Once the crop window exists, dragging inside it moves it, and dragging an edge or corner handle resizes it. Dragging outside it starts a new crop window instead.
+                </p>
+                <p>
+                  Press <span className="text-ink">Enter</span> to commit the crop, or <span className="text-ink">Escape</span> to cancel it. Dragging beyond the current sprite bounds extends the canvas with transparent space.
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <InfoCard title="Best use case" body="Trimming unused space, reframing artwork, or extending the canvas around existing pixels." />
+                  <InfoCard title="What to remember" body="Crop is a pending editable box first, not an immediate destructive action on mouse release." />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <IllustrationPanel title="Pending crop window" subtitle="Draw first, then move or resize before committing.">
+                  <CropFigure />
+                </IllustrationPanel>
+                <IllustrationPanel title="Commit flow" subtitle="Crop is applied only when you confirm it.">
+                  <ModifierChip label="Enter / Escape" body="Enter commits the pending crop window; Escape cancels it." />
+                </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['C', 'Select Crop'], ['Enter', 'Commit pending crop'], ['Escape', 'Cancel pending crop']]} />
+                </IllustrationPanel>
+              </div>
+            </div>
+          </section>
+
+          <section id="move" style={{ scrollMarginTop: `${HEADER_OFFSET_PX}px` }} className="rounded-xl border border-divider bg-panel p-5 md:p-6">
+            <ChapterHeader title="Move" description="Move shifts pixels in two different ways: it can lift a selection into floating content for repositioning, or it can shift the entire active layer with wrap-around when no selection is active." />
+            <div className="mt-6 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="space-y-4 text-sm leading-7 text-text">
+                <p>
+                  Press <span className="text-ink">V</span> to select Move. If you drag inside an active selection, the tool lifts that region into a floating buffer, clears the source pixels, and lets you reposition the floating content before committing it.
+                </p>
+                <p>
+                  If there is no active selection, dragging shifts the whole active layer with wrap-around behavior. That shift is bracketed as one undo step even if it takes several pointer moves.
+                </p>
+                <p>
+                  While Move is active, the arrow keys nudge the active layer by <span className="text-ink">1px</span>, and <span className="text-ink">Shift + arrow</span> nudges by <span className="text-ink">10px</span>. Floating content is committed with <span className="text-ink">Enter</span> or cleared/cancelled through the normal Escape path.
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <InfoCard title="Selection move" body="Use when you want to lift part of the artwork, reposition it, and keep it floating until the placement is right." />
+                  <InfoCard title="Layer shift" body="Use when you want to slide the entire active layer around the sprite bounds without selecting a region first." />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <IllustrationPanel title="Lift and move" subtitle="A selection becomes floating content on first drag.">
+                  <MoveFigure />
+                </IllustrationPanel>
+                <IllustrationPanel title="Keyboard nudging" subtitle="Move has its own arrow-key behavior.">
+                  <SectionShortcuts rows={[['V', 'Select Move'], ['Arrow keys', 'Nudge layer 1px'], ['Shift + Arrow keys', 'Nudge layer 10px'], ['Enter', 'Commit floating selection'], ['Escape', 'Commit floating and clear selection / cancel related pending state']]} />
+                </IllustrationPanel>
+              </div>
+            </div>
+          </section>
+
+          <section id="stretch" style={{ scrollMarginTop: `${HEADER_OFFSET_PX}px` }} className="rounded-xl border border-divider bg-panel p-5 md:p-6">
+            <ChapterHeader title="Stretch" description="Stretch rescales a floating selection with drag handles. It uses nearest-neighbor sampling and keeps the result floating until the usual commit path applies it back to the layer." />
+            <div className="mt-6 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="space-y-4 text-sm leading-7 text-text">
+                <p>
+                  Stretch only becomes active when there is a floating selection, or when there is a normal selection that can be lifted into a floating buffer at the start of the gesture. Without that source region, the tool is inert.
+                </p>
+                <p>
+                  Drag a bounding-box handle to resize the floating content. Dragging inside the floating region moves it instead. The resize always samples from the buffer captured at gesture start, so quality loss does not compound during one drag.
+                </p>
+                <p>
+                  Hold <span className="text-ink">Ctrl/Cmd+Shift</span> while dragging a handle to resize from the center symmetrically. The stretched result stays floating until it is committed by the normal move/paste commit paths.
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <InfoCard title="Best use case" body="Scaling a selected feature or pasted element without resizing the entire canvas." />
+                  <InfoCard title="What to remember" body="Stretch works on floating content, not directly on the base layer, and inside-drag means move rather than resize." />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <IllustrationPanel title="Stretch handles" subtitle="Handles resize; inside drag repositions the floating selection.">
+                  <StretchFigure />
+                </IllustrationPanel>
+                <IllustrationPanel title="Resize logic" subtitle="Nearest-neighbor scaling from the original lifted buffer each drag.">
+                  <div className="space-y-2 text-sm text-text">
+                    <div className="rounded border border-edge bg-panel px-3 py-2">
+                      Lift a selection first if there is no floating region yet.
+                    </div>
+                    <div className="rounded border border-edge bg-panel px-3 py-2">
+                      Drag a corner or edge handle to resize the floating pixels.
+                    </div>
+                    <div className="rounded border border-accent-deep/35 bg-accent-deep/10 px-3 py-2 text-accent-soft">
+                      Hold Ctrl/Cmd+Shift to expand or contract symmetrically from the center.
+                    </div>
+                  </div>
+                </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this tool.">
+                  <SectionShortcuts rows={[['T', 'Select Stretch'], ['Cmd/Ctrl + Shift + drag', 'Resize from center'], ['Enter', 'Commit floating selection'], ['Escape', 'Commit floating and clear selection']]} />
                 </IllustrationPanel>
               </div>
             </div>
@@ -485,7 +820,17 @@ export default function DocumentationPage() {
                     </div>
                   </div>
                 </IllustrationPanel>
+                <IllustrationPanel title="Shortcuts" subtitle="Keys and modifiers tied to this feature.">
+                  <SectionShortcuts rows={[['Cmd/Ctrl + P', 'Open command palette'], ['Arrow keys', 'Move selection'], ['Enter', 'Run highlighted command'], ['Right / Left / Escape', 'Open submenu / back out / close']]} />
+                </IllustrationPanel>
               </div>
+            </div>
+          </section>
+
+          <section id="shortcuts" style={{ scrollMarginTop: `${HEADER_OFFSET_PX}px` }} className="rounded-xl border border-divider bg-panel p-5 md:p-6">
+            <ChapterHeader title="Keyboard Shortcuts" description="Complete shortcut reference for the current editor. These entries match the live shortcut registry and cover tool selection, brush sizing, selection control, transforms, and view actions." />
+            <div className="mt-6 grid gap-5">
+              <ShortcutGrid />
             </div>
           </section>
 
@@ -793,6 +1138,333 @@ function LayersFigure() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function MirrorFigure() {
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      <div className="rounded-lg border border-edge bg-panel p-3">
+        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-muted">
+          <FlipHorizontal size={13} />
+          Vertical mirror
+        </div>
+        <div className="mt-3 flex justify-center">
+          <ColorGrid
+            width={10}
+            height={8}
+            cells={(x, y) => (x === 2 || x === 7) && (y === 2 || y === 5) ? '#f59e0b' : 'var(--color-well)'}
+          />
+        </div>
+      </div>
+      <div className="rounded-lg border border-edge bg-panel p-3">
+        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-muted">
+          <FlipVertical size={13} />
+          Both axes
+        </div>
+        <div className="mt-3 flex justify-center">
+          <ColorGrid
+            width={10}
+            height={8}
+            cells={(x, y) => ((x === 2 || x === 7) && (y === 2 || y === 5)) || ((x === 2 || x === 7) && (y === 1 || y === 6)) ? '#f59e0b' : 'var(--color-well)'}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SelectFigure() {
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      <SelectionModeCard title="Replace" border="border-accent-deep/50" fill="bg-accent-deep/20" />
+      <SelectionModeCard title="Add" border="border-on/50" fill="bg-on/15" overlap />
+      <SelectionModeCard title="Subtract" border="border-danger/50" fill="bg-danger/10" cutout />
+    </div>
+  )
+}
+
+function SelectionModeCard({ title, border, fill, overlap, cutout }: { title: string; border: string; fill: string; overlap?: boolean; cutout?: boolean }) {
+  return (
+    <div className="rounded-lg border border-edge bg-panel p-3">
+      <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted">{title}</div>
+      <div className="mt-3 flex justify-center">
+        <div className="relative h-20 w-20 rounded border border-edge bg-well">
+          <div className={`absolute left-2 top-2 h-10 w-10 border-2 border-dashed ${border} ${fill}`} />
+          <div className={`absolute ${overlap ? 'left-7 top-7' : 'left-5 top-5'} h-10 w-10 border-2 border-dashed ${border} ${fill}`} />
+          {cutout && <div className="absolute left-7 top-7 h-10 w-10 bg-well/90" />}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function WandFigure() {
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      <div className="rounded-lg border border-edge bg-panel p-3">
+        <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted">Contiguous</div>
+        <div className="mt-3 flex justify-center">
+          <ColorGrid
+            width={10}
+            height={8}
+            cells={(x, y) => {
+              const selected = x >= 1 && x <= 3 && y >= 2 && y <= 5
+              const other = x >= 6 && x <= 8 && y >= 2 && y <= 5
+              if (selected) return '#f59e0b'
+              if (other) return '#334155'
+              return 'var(--color-well)'
+            }}
+            accentPoints={[[2, 3]]}
+          />
+        </div>
+      </div>
+      <div className="rounded-lg border border-edge bg-panel p-3">
+        <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted">Global</div>
+        <div className="mt-3 flex justify-center">
+          <ColorGrid
+            width={10}
+            height={8}
+            cells={(x, y) => {
+              const blobA = x >= 1 && x <= 3 && y >= 2 && y <= 5
+              const blobB = x >= 6 && x <= 8 && y >= 2 && y <= 5
+              if (blobA || blobB) return '#f59e0b'
+              return 'var(--color-well)'
+            }}
+            accentPoints={[[2, 3], [7, 4]]}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StretchFigure() {
+  return (
+    <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-center">
+      <div className="flex justify-center">
+        <div className="relative rounded border border-edge bg-well p-3">
+          <ColorGrid
+            width={10}
+            height={8}
+            cells={(x, y) => (x >= 2 && x <= 6 && y >= 2 && y <= 4 ? '#0ea5e9' : 'var(--color-well)')}
+          />
+          <div className="pointer-events-none absolute left-[26px] top-[24px] h-[42px] w-[60px] border border-dashed border-accent-bright" />
+          <div className="pointer-events-none absolute left-[23px] top-[21px] h-2 w-2 bg-accent-bright" />
+          <div className="pointer-events-none absolute right-[23px] top-[21px] h-2 w-2 bg-accent-bright" />
+          <div className="pointer-events-none absolute left-[23px] bottom-[21px] h-2 w-2 bg-accent-bright" />
+          <div className="pointer-events-none absolute right-[23px] bottom-[21px] h-2 w-2 bg-accent-bright" />
+        </div>
+      </div>
+      <div className="space-y-2 text-sm text-text">
+        <div className="rounded border border-edge bg-panel px-3 py-2">
+          Corner and edge handles resize the floating pixels.
+        </div>
+        <div className="rounded border border-edge bg-panel px-3 py-2">
+          Dragging inside the box moves the floating region instead.
+        </div>
+        <div className="rounded border border-accent-deep/35 bg-accent-deep/10 px-3 py-2 text-accent-soft">
+          Ctrl/Cmd+Shift resizes symmetrically from the center.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RectEllipseFigure({ shape }: { shape: 'rect' | 'ellipse' }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      <div className="rounded-lg border border-edge bg-panel p-3">
+        <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted">Outline</div>
+        <div className="mt-3 flex justify-center">
+          <div className="relative h-20 w-20 rounded border border-edge bg-well">
+            <div className={
+              'absolute inset-3 border-2 border-accent-bright ' +
+              (shape === 'ellipse' ? 'rounded-full' : '')
+            } />
+          </div>
+        </div>
+      </div>
+      <div className="rounded-lg border border-edge bg-panel p-3">
+        <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted">Filled</div>
+        <div className="mt-3 flex justify-center">
+          <div className="relative h-20 w-20 rounded border border-edge bg-well">
+            <div className={
+              'absolute inset-3 bg-accent-deep ' +
+              (shape === 'ellipse' ? 'rounded-full' : '')
+            } />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CropFigure() {
+  return (
+    <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-center">
+      <div className="flex justify-center">
+        <div className="relative rounded border border-edge bg-well p-3">
+          <ColorGrid
+            width={10}
+            height={8}
+            cells={(x, y) => (x >= 2 && x <= 7 && y >= 2 && y <= 5 ? '#0ea5e9' : 'var(--color-well)')}
+          />
+          <div className="pointer-events-none absolute left-[30px] top-[22px] h-[48px] w-[54px] border border-dashed border-accent-bright" />
+        </div>
+      </div>
+      <div className="space-y-2 text-sm text-text">
+        <div className="rounded border border-edge bg-panel px-3 py-2">Drag to draw the pending crop window.</div>
+        <div className="rounded border border-edge bg-panel px-3 py-2">Move or resize the box before committing it.</div>
+        <div className="rounded border border-accent-deep/35 bg-accent-deep/10 px-3 py-2 text-accent-soft">Enter commits the crop; Escape cancels it.</div>
+      </div>
+    </div>
+  )
+}
+
+function MoveFigure() {
+  return (
+    <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-center">
+      <div className="flex justify-center">
+        <div className="relative rounded border border-edge bg-well p-3">
+          <ColorGrid
+            width={10}
+            height={8}
+            cells={(x, y) => (x >= 2 && x <= 4 && y >= 2 && y <= 4 ? '#f59e0b' : x >= 5 && x <= 7 && y >= 3 && y <= 5 ? '#0ea5e9' : 'var(--color-well)')}
+          />
+          <div className="pointer-events-none absolute left-[25px] top-[20px] h-[36px] w-[36px] border border-dashed border-accent-bright" />
+          <div className="pointer-events-none absolute left-[46px] top-[35px] text-accent-bright">→</div>
+        </div>
+      </div>
+      <div className="space-y-2 text-sm text-text">
+        <div className="rounded border border-edge bg-panel px-3 py-2">Drag inside a selection to lift it into floating content.</div>
+        <div className="rounded border border-edge bg-panel px-3 py-2">Drag again to reposition the floating region before committing.</div>
+        <div className="rounded border border-accent-deep/35 bg-accent-deep/10 px-3 py-2 text-accent-soft">With no selection, Move shifts the whole layer instead.</div>
+      </div>
+    </div>
+  )
+}
+
+function ModifierChip({ label, body }: { label: string; body: string }) {
+  return (
+    <div className="rounded-lg border border-edge bg-panel p-3">
+      <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted">{label}</div>
+      <div className="mt-2 text-sm leading-6 text-text">{body}</div>
+    </div>
+  )
+}
+
+function SectionShortcuts({ rows }: { rows: [string, string][] }) {
+  return (
+    <div className="rounded-lg border border-edge bg-panel p-3">
+      <div className="space-y-2">
+        {rows.map(([key, desc]) => (
+          <div key={key + desc} className="flex items-start justify-between gap-3 text-sm">
+            <span className="rounded border border-edge bg-well px-2 py-0.5 text-xs text-ink-soft">{key}</span>
+            <span className="flex-1 text-right leading-5 text-text">{desc}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ShortcutGroup({ title, rows }: { title: string; rows: [string, string][] }) {
+  return (
+    <div className="rounded-lg border border-edge bg-panel p-3">
+      <div className="text-xs font-medium uppercase tracking-[0.12em] text-muted">{title}</div>
+      <div className="mt-3 space-y-2">
+        {rows.map(([key, desc]) => (
+          <div key={key + desc} className="flex items-start justify-between gap-3 text-sm">
+            <span className="rounded border border-edge bg-well px-2 py-0.5 text-xs text-ink-soft">{key}</span>
+            <span className="flex-1 text-right text-text">{desc}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ShortcutGrid() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <ShortcutGroup
+        title="Tools"
+        rows={[
+          ['B', 'Brush'],
+          ['E', 'Eraser'],
+          ['G', 'Fill'],
+          ['N', 'Gradient Fill; press again to cycle Linear / Radial'],
+          ['I', 'Eyedropper'],
+          ['Shift + I', 'Temporary eyedropper while held'],
+          ['L', 'Line; press again to cycle Single / Continuous'],
+          ['R', 'Rectangle; press again to cycle Outline / Filled'],
+          ['O', 'Ellipse; press again to cycle Outline / Filled'],
+          ['M', 'Select'],
+          ['W', 'Select by Color; press again to cycle Contiguous / Global'],
+          ['C', 'Crop'],
+          ['V', 'Move'],
+          ['T', 'Stretch'],
+        ]}
+      />
+      <ShortcutGroup
+        title="Brush Size"
+        rows={[
+          [',', 'Decrease brush size'],
+          ['.', 'Increase brush size'],
+        ]}
+      />
+      <ShortcutGroup
+        title="Edit"
+        rows={[
+          ['Cmd/Ctrl + Z', 'Undo'],
+          ['Cmd/Ctrl + Shift + Z', 'Redo'],
+          ['Cmd/Ctrl + Y', 'Redo alternate'],
+          ['Cmd/Ctrl + C', 'Copy selection'],
+          ['Cmd/Ctrl + X', 'Cut selection'],
+          ['Cmd/Ctrl + V', 'Paste'],
+          ['X', 'Swap foreground / background'],
+        ]}
+      />
+      <ShortcutGroup
+        title="Selection"
+        rows={[
+          ['Cmd/Ctrl + A', 'Select all'],
+          ['Cmd/Ctrl + D', 'Deselect'],
+          ['Cmd/Ctrl + Shift + I', 'Invert selection'],
+          ['Backspace / Delete', 'Clear selection to background'],
+          ['Enter', 'Commit floating selection or crop'],
+          ['Escape', 'Commit floating, clear selection, cancel crop, cancel continuous line'],
+          ['Shift + click', 'Add to selection (selection tools)'],
+          ['Cmd/Ctrl + Shift + click', 'Subtract from selection (selection tools)'],
+        ]}
+      />
+      <ShortcutGroup
+        title="Canvas / Layer"
+        rows={[
+          ['Arrow Left / Right', 'Step frame when Move is not active'],
+          ['Arrow keys (Move)', 'Nudge layer 1px'],
+          ['Shift + Arrow keys (Move)', 'Nudge layer 10px'],
+        ]}
+      />
+      <ShortcutGroup
+        title="Shape Modifiers"
+        rows={[
+          ['Shift + Rectangle drag', 'Constrain to square'],
+          ['Shift + Ellipse drag', 'Constrain to circle'],
+          ['Shift + Line drag', 'Snap to nearest 45°'],
+          ['Shift + Gradient drag', 'Snap to nearest 45°'],
+          ['Cmd/Ctrl + Shift + Stretch drag', 'Resize from center'],
+        ]}
+      />
+      <ShortcutGroup
+        title="View"
+        rows={[
+          ['Cmd/Ctrl + P', 'Open command palette'],
+          ['Shift + Space', 'Toggle preview window'],
+        ]}
+      />
     </div>
   )
 }
