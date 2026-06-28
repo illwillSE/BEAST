@@ -20,7 +20,7 @@ import { UndoToast } from './components/UndoToast.jsx'
 import useFoldable from './hooks/useFoldable.js'
 import usePeek from './hooks/usePeek.js'
 import { useGlobalEyedropper } from './hooks/useGlobalEyedropper.js'
-import { createBlankDocument, createDocument, copyRegion, rgbaToHex, hexToRgba, invertSelectionMask, compositeFrame } from './document/model.js'
+import { createBlankDocument, createDocument, copyRegion, rgbaToHex, hexToRgba, invertSelectionMask, growSelection, shrinkSelection, compositeFrame } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
@@ -327,6 +327,9 @@ export default function App() {
       : { x: 0, y: 0, w: activeSprite.w, h: activeSprite.h }
     dispatch({ type: 'INVERT_SELECTION', selection: inverted })
   }
+
+  const growSel = () => { if (selection) setSelection(growSelection(selection, activeSprite.w, activeSprite.h)) }
+  const shrinkSel = () => { if (selection) setSelection(shrinkSelection(selection, activeSprite.w, activeSprite.h)) }
 
   // Backspace/Delete: fill the selection with the background color. A
   // floating move/paste has no committed pixels to fill yet, so just drop it.
@@ -643,6 +646,8 @@ export default function App() {
     hasSavedSelection: !!savedSelection,
     saveSelection: () => { if (selection) setSavedSelection(selection) },
     loadSavedSelection: () => { if (savedSelection) setSelection(savedSelection) },
+    growSelection: growSel,
+    shrinkSelection: shrinkSel,
     palette,
     setFgColor,
     fillSelectionToFg,

@@ -26,6 +26,8 @@ export interface CommandContext extends ShortcutContext {
   hasSavedSelection: boolean
   saveSelection(): void
   loadSavedSelection(): void
+  growSelection(): void
+  shrinkSelection(): void
   palette: string[]
   setFgColor(hex: string): void
   fillSelectionToFg(): void
@@ -185,6 +187,8 @@ export const commands: Command[] = [
   { id: 'select-all', title: 'Select All', category: 'Selection', shortcut: mod('A'), run: (c) => c.selectAll() },
   { id: 'deselect', title: 'Deselect', category: 'Selection', shortcut: mod('D'), enabled: (c) => c.hasSelection, run: (c) => c.deselect() },
   { id: 'invert-selection', title: 'Invert Selection', category: 'Selection', shortcut: modShift('I'), run: (c) => c.invertSelection() },
+  { id: 'grow-selection', title: 'Grow Selection', category: 'Selection', keywords: 'expand dilate', enabled: (c) => c.hasSelection, run: (c) => c.growSelection() },
+  { id: 'shrink-selection', title: 'Shrink Selection', category: 'Selection', keywords: 'contract erode', enabled: (c) => c.hasSelection, run: (c) => c.shrinkSelection() },
   { id: 'copy', title: 'Copy Selection', category: 'Selection', shortcut: mod('C'), enabled: (c) => c.hasSelection, run: (c) => c.copySelection() },
   { id: 'cut', title: 'Cut Selection', category: 'Selection', shortcut: mod('X'), enabled: (c) => c.hasSelection, run: (c) => c.cutSelection() },
   { id: 'paste', title: 'Paste', category: 'Selection', shortcut: mod('V'), enabled: (c) => c.hasClipboard, run: (c) => c.pasteClipboard() },

@@ -1048,6 +1048,74 @@ export function invertSelectionMask(sel: Selection, canvasW: number, canvasH: nu
   return any ? { x: 0, y: 0, w: canvasW, h: canvasH, mask } : null
 }
 
+// Canvas-sized Uint8Array → tightest Selection (null if empty, no mask if fully filled).
+function _bufToSelection(buf: Uint8Array, w: number, h: number): Selection | null {
+  let x0 = w, y0 = h, x1 = -1, y1 = -1
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      if (buf[y * w + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y }
+  if (x1 < 0) return null
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1
+  const mask = new Uint8Array(bw * bh)
+  let full = true
+  for (let ly = 0; ly < bh; ly++)
+    for (let lx = 0; lx < bw; lx++) {
+      const v = buf[(y0 + ly) * w + x0 + lx]
+      mask[ly * bw + lx] = v
+      if (!v) full = false
+    }
+  return full ? { x: x0, y: y0, w: bw, h: bh } : { x: x0, y: y0, w: bw, h: bh, mask }
+}
+
+// Expand the selection outward by 1 pixel (4-connected morphological dilation).
+// Plain rectangles are handled without allocating a mask.
+export function growSelection(sel: Selection, canvasW: number, canvasH: number): Selection {
+  if (!sel.mask) {
+    const nx = Math.max(0, sel.x - 1), ny = Math.max(0, sel.y - 1)
+    const nx2 = Math.min(canvasW, sel.x + sel.w + 1), ny2 = Math.min(canvasH, sel.y + sel.h + 1)
+    return { x: nx, y: ny, w: nx2 - nx, h: ny2 - ny }
+  }
+  const buf = new Uint8Array(canvasW * canvasH)
+  for (let ly = 0; ly < sel.h; ly++)
+    for (let lx = 0; lx < sel.w; lx++)
+      if (sel.mask[ly * sel.w + lx]) buf[(ly + sel.y) * canvasW + lx + sel.x] = 1
+  const next = new Uint8Array(canvasW * canvasH)
+  for (let y = 0; y < canvasH; y++)
+    for (let x = 0; x < canvasW; x++)
+      if (buf[y * canvasW + x]) {
+        next[y * canvasW + x] = 1
+        if (x > 0) next[y * canvasW + x - 1] = 1
+        if (x < canvasW - 1) next[y * canvasW + x + 1] = 1
+        if (y > 0) next[(y - 1) * canvasW + x] = 1
+        if (y < canvasH - 1) next[(y + 1) * canvasW + x] = 1
+      }
+  return _bufToSelection(next, canvasW, canvasH)!
+}
+
+// Contract the selection inward by 1 pixel (4-connected morphological erosion).
+// Canvas-edge pixels are always eroded (their out-of-bounds neighbors count as unselected).
+// Returns null if the selection collapses entirely.
+export function shrinkSelection(sel: Selection, canvasW: number, canvasH: number): Selection | null {
+  if (!sel.mask) {
+    const nx = sel.x + 1, ny = sel.y + 1
+    const nx2 = sel.x + sel.w - 1, ny2 = sel.y + sel.h - 1
+    return nx2 > nx && ny2 > ny ? { x: nx, y: ny, w: nx2 - nx, h: ny2 - ny } : null
+  }
+  const buf = new Uint8Array(canvasW * canvasH)
+  for (let ly = 0; ly < sel.h; ly++)
+    for (let lx = 0; lx < sel.w; lx++)
+      if (sel.mask[ly * sel.w + lx]) {
+        const gx = lx + sel.x, gy = ly + sel.y
+        if (
+          gx > 0 && selectionContains(sel, gx - 1, gy) &&
+          gx < canvasW - 1 && selectionContains(sel, gx + 1, gy) &&
+          gy > 0 && selectionContains(sel, gx, gy - 1) &&
+          gy < canvasH - 1 && selectionContains(sel, gx, gy + 1)
+        ) buf[gy * canvasW + gx] = 1
+      }
+  return _bufToSelection(buf, canvasW, canvasH)
+}
+
 // The marching-ants outline of a selection, as merged horizontal/vertical
 // runs (one run per contiguous edge instead of one per pixel, so a plain
 // rectangular selection comes back as exactly 4 segments like before).
