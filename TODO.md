@@ -6,7 +6,7 @@ implemented; this file tracks what isn't, organized by area.
 
 # Unsorted
 
-shrink/grow selection
+
 save selection to layer menu, maybe add a tab (Layers / Selections)
 
 ## Core data models
@@ -29,11 +29,11 @@ save selection to layer menu, maybe add a tab (Layers / Selections)
       implemented for now.
 - [ ] Type tool — render text onto the canvas (font select, maybe a predefined
       set) and an emoji picker/insert.
-- [ ] "Pixel perfect" diagonal-stroke thinning at width>1 (Aseprite-style —
+- [x] "Pixel perfect" diagonal-stroke thinning at width>1 (Aseprite-style —
       avoids chunky corners where a thick diagonal stroke overlaps itself).
 - [ ] Gradient dithering option — smooth fg→bg steps can band visibly at small
       pixel-art sizes; an ordered-dither mode would break up the bands.
-- [ ] Multi-stop gradient (3+ colors, not just fg→bg) — bigger lift, needs a
+- [x] Multi-stop gradient (3+ colors, not just fg→bg) — bigger lift, needs a
       color-stop editing UI in `ColorPanel.tsx`, not just a toggle.
 
 ## Color

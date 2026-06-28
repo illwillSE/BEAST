@@ -45,7 +45,7 @@ import {
   hexToRgba, linePoints, rectPoints, ellipsePoints, copyRegion, stampPoints, gradientFillPreview, selectionContains, selectByColor,
   unionSelections, subtractSelection, stretchCell, stretchMask,
 } from '../document/model.js'
-import type { BrushShape, Cell, CellTarget, Point, RGBA, Selection } from '../document/model.js'
+import type { BrushShape, Cell, CellTarget, GradientStop, Point, RGBA, Selection } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
 
 export type { Selection } from '../document/model.js'
@@ -121,6 +121,7 @@ export interface ToolContext {
   setCropPending: Dispatch<SetStateAction<CropPending | null>>
   continuousLine: Coord | null
   setContinuousLine: Dispatch<SetStateAction<Coord | null>>
+  gradientStops: GradientStop[]
 }
 
 // One painting tool. `D` is the per-tool "drag state" onStart returns and the
@@ -340,9 +341,9 @@ export const tools: Record<string, Tool<any>> = {
     },
     onDrag(ctx, _prev, start) {
       const [x1, y1] = ctx.shiftKey ? constrainAngle(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
+      const stops = ctx.gradientStops.map((s) => ({ t: s.t, rgba: hexToRgba(s.hex) }))
       const region = gradientFillPreview(
-        ctx.getRawCell(), ctx.w, ctx.h, start.x0, start.y0, x1, y1,
-        hexToRgba(ctx.fgColor), hexToRgba(ctx.bgColor), ctx.filled,
+        ctx.getRawCell(), ctx.w, ctx.h, start.x0, start.y0, x1, y1, stops, ctx.filled,
       )
       ctx.setPreview({
         kind: 'gradient',
@@ -353,10 +354,11 @@ export const tools: Record<string, Tool<any>> = {
     },
     onEnd(ctx, start) {
       const [x1, y1] = ctx.shiftKey ? constrainAngle(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
+      const stops = ctx.gradientStops.map((s) => ({ t: s.t, rgba: hexToRgba(s.hex) }))
       commitBracketed(ctx, {
         type: 'GRADIENT_FILL', ...ctx.target,
         x0: start.x0, y0: start.y0, x1, y1,
-        rgba0: hexToRgba(ctx.fgColor), rgba1: hexToRgba(ctx.bgColor), radial: ctx.filled,
+        stops, radial: ctx.filled,
       })
       ctx.setPreview(null)
     },

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, ChevronDown, ChevronRight, ArrowLeftRight, Trash2, ImagePlus, FolderInput } from 'lucide-react'
+import { Plus, Minus, ChevronDown, ChevronRight, ArrowLeftRight, Trash2, ImagePlus, FolderInput } from 'lucide-react'
 import PinToggle from './PinToggle.jsx'
 import { hexToRgba, rgbaToHex, rgbToHsv, hsvToRgb } from '../document/model.js'
+import type { GradientStop } from '../document/model.js'
 import { useEyedropperSampler } from '../hooks/eyedropperSamplers.js'
 
 // Color: a managed swatch palette + a free RGBA picker (HSV square, hue/alpha
@@ -53,6 +54,8 @@ interface ColorPanelProps {
   onPeekSelect?: () => void
   gradientOpen: boolean
   onToggleGradient: () => void
+  gradientStops: GradientStop[]
+  onGradientStops: (stops: GradientStop[]) => void
 }
 
 // The picker/palette below always edits one "active" slot — fg or bg,
@@ -62,11 +65,22 @@ interface ColorPanelProps {
 export default function ColorPanel({
   fgColor, bgColor, onFgColor, onBgColor, onSwap, palette, onAddSwatch, onRemoveSwatch, onEditSwatch,
   onReorderSwatch, onImportImage, onImportProjectPalette, pinned, onTogglePin, onPeekSelect,
-  gradientOpen, onToggleGradient,
+  gradientOpen, onToggleGradient, gradientStops, onGradientStops,
 }: ColorPanelProps) {
   const [activeSlot, setActiveSlot] = useState<'fg' | 'bg'>('fg')
-  const color = activeSlot === 'fg' ? fgColor : bgColor
-  const onColor = activeSlot === 'fg' ? onFgColor : onBgColor
+  // null = editing fg/bg slot; number = editing that stop index
+  const [selectedStop, setSelectedStop] = useState<number | null>(null)
+
+  const color = selectedStop !== null
+    ? gradientStops[selectedStop]?.hex ?? fgColor
+    : activeSlot === 'fg' ? fgColor : bgColor
+
+  const onColor = selectedStop !== null
+    ? (hex: string) => {
+        const next = gradientStops.map((s, i) => i === selectedStop ? { ...s, hex } : s)
+        onGradientStops(next)
+      }
+    : activeSlot === 'fg' ? onFgColor : onBgColor
   const [hsva, setHsva] = useState(() => hexToHsva(color))
   const lastEmitted = useRef(color)
 
@@ -184,6 +198,77 @@ export default function ColorPanel({
     if (file) onPick(file)
   }
 
+  // ── gradient stop editor ────────────────────────────────────────────────
+  const stopBarRef = useRef<HTMLDivElement>(null)
+  const stopDragRef = useRef<number | null>(null)
+
+  // CSS gradient preview string from the stops array.
+  const gradientCss = `linear-gradient(to right, ${
+    [...gradientStops].sort((a, b) => a.t - b.t).map((s) => `${s.hex} ${s.t * 100}%`).join(', ')
+  })`
+
+  // Interpolate a hex color at position t across the current stops.
+  const interpStops = (t: number): string => {
+    const sorted = [...gradientStops].sort((a, b) => a.t - b.t)
+    if (t <= sorted[0].t) return sorted[0].hex
+    const last = sorted[sorted.length - 1]
+    if (t >= last.t) return last.hex
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (t <= sorted[i + 1].t) {
+        const lt = (t - sorted[i].t) / (sorted[i + 1].t - sorted[i].t)
+        const [r0, g0, b0, a0] = hexToRgba(sorted[i].hex)
+        const [r1, g1, b1, a1] = hexToRgba(sorted[i + 1].hex)
+        return rgbaToHex([
+          Math.round(r0 + (r1 - r0) * lt), Math.round(g0 + (g1 - g0) * lt),
+          Math.round(b0 + (b1 - b0) * lt), Math.round(a0 + (a1 - a0) * lt),
+        ])
+      }
+    }
+    return last.hex
+  }
+
+  // Click on the bar background (not on a handle) → insert a new stop.
+  const handleBarClick = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!stopBarRef.current) return
+    const { x } = fractionAt(stopBarRef.current, e.clientX, e.clientY)
+    // Ignore if very close to an existing stop handle (handle's own pointerdown fires first)
+    const hitStop = gradientStops.findIndex((s) => Math.abs(s.t - x) < 0.04)
+    if (hitStop !== -1) return
+    const newStop: GradientStop = { t: x, hex: interpStops(x) }
+    const next = [...gradientStops, newStop].sort((a, b) => a.t - b.t)
+    onGradientStops(next)
+    setSelectedStop(next.findIndex((s) => s.t === x && s.hex === newStop.hex))
+  }
+
+  // Pointer down on a stop handle → select it; start drag if it's a middle stop.
+  const handleStopPointerDown = (idx: number, e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation()
+    setSelectedStop(idx)
+    if (idx === 0 || idx === gradientStops.length - 1) return
+    stopDragRef.current = idx
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const handleStopPointerMove = (idx: number, e: React.PointerEvent<HTMLDivElement>) => {
+    if (stopDragRef.current !== idx || !stopBarRef.current) return
+    const { x } = fractionAt(stopBarRef.current, e.clientX, e.clientY)
+    const sorted = [...gradientStops].sort((a, b) => a.t - b.t)
+    const sortedIdx = sorted.findIndex((s) => s === gradientStops[idx])
+    const lo = sortedIdx > 0 ? sorted[sortedIdx - 1].t + 0.001 : 0.001
+    const hi = sortedIdx < sorted.length - 1 ? sorted[sortedIdx + 1].t - 0.001 : 0.999
+    const newT = Math.min(hi, Math.max(lo, x))
+    onGradientStops(gradientStops.map((s, i) => i === idx ? { ...s, t: newT } : s))
+  }
+
+  const handleStopPointerUp = () => { stopDragRef.current = null }
+
+  const deleteSelectedStop = () => {
+    if (selectedStop === null || selectedStop === 0 || selectedStop === gradientStops.length - 1) return
+    const next = gradientStops.filter((_, i) => i !== selectedStop)
+    onGradientStops(next)
+    setSelectedStop(null)
+  }
+
   return (
     <div className="flex flex-col w-full bg-panel">
       <div className="flex items-center justify-between px-3 h-9 border-b border-divider">
@@ -215,6 +300,39 @@ export default function ColorPanel({
 
         {gradientOpen && (
           <>
+            {/* stop bar */}
+            <div className="flex items-center gap-1.5">
+              <div
+                ref={stopBarRef}
+                className="relative flex-1 h-5 rounded border border-edge cursor-crosshair touch-none beast-checker"
+                onPointerDown={handleBarClick}
+              >
+                <div className="absolute inset-0 rounded" style={{ background: gradientCss }} />
+                {gradientStops.map((stop, i) => (
+                  <div
+                    key={i}
+                    className={
+                      'absolute top-1/2 -translate-y-1/2 w-3 h-3 -ml-1.5 rounded-full border-2 shadow touch-none ' +
+                      (selectedStop === i ? 'border-accent-bright z-10' : 'border-white z-0') +
+                      (i !== 0 && i !== gradientStops.length - 1 ? ' cursor-ew-resize' : ' cursor-pointer')
+                    }
+                    style={{ left: `${stop.t * 100}%`, background: stop.hex }}
+                    onPointerDown={(e) => handleStopPointerDown(i, e)}
+                    onPointerMove={(e) => handleStopPointerMove(i, e)}
+                    onPointerUp={handleStopPointerUp}
+                  />
+                ))}
+              </div>
+              <button
+                className="text-muted hover:text-ink disabled:opacity-30 shrink-0"
+                disabled={selectedStop === null || selectedStop === 0 || selectedStop === gradientStops.length - 1}
+                onClick={deleteSelectedStop}
+                title="Delete selected stop"
+              >
+                <Minus size={13} />
+              </button>
+            </div>
+
             {/* saturation/value square */}
             <div
               ref={svRef}
@@ -279,21 +397,21 @@ export default function ColorPanel({
           </button>
           <div className="relative w-9 h-9 shrink-0">
             <button
-              onClick={() => setActiveSlot('bg')}
+              onClick={() => { setActiveSlot('bg'); setSelectedStop(null) }}
               title="Background color"
               className={
                 'absolute right-0 bottom-0 w-6 h-6 rounded border beast-checker beast-checker-sm shadow ' +
-                (activeSlot === 'bg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
+                (selectedStop === null && activeSlot === 'bg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
               }
             >
               <div className="w-full h-full rounded" style={{ background: bgColor }} />
             </button>
             <button
-              onClick={() => setActiveSlot('fg')}
+              onClick={() => { setActiveSlot('fg'); setSelectedStop(null) }}
               title="Foreground color"
               className={
                 'absolute left-0 top-0 z-10 w-6 h-6 rounded border beast-checker beast-checker-sm shadow ' +
-                (activeSlot === 'fg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
+                (selectedStop === null && activeSlot === 'fg' ? 'border-accent-bright ring-2 ring-accent-deep/60' : 'border-edge-2')
               }
             >
               <div className="w-full h-full rounded" style={{ background: fgColor }} />

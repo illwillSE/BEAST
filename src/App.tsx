@@ -21,6 +21,7 @@ import useFoldable from './hooks/useFoldable.js'
 import usePeek from './hooks/usePeek.js'
 import { useGlobalEyedropper } from './hooks/useGlobalEyedropper.js'
 import { createBlankDocument, createDocument, copyRegion, rgbaToHex, hexToRgba, invertSelectionMask, growSelection, shrinkSelection, compositeFrame } from './document/model.js'
+import type { GradientStop } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
@@ -62,6 +63,18 @@ export default function App() {
   const [temporaryToolReturn, setTemporaryToolReturn] = useState<string | null>(null)
   const [fgColor, setFgColor] = useState('#fbbf24')
   const [bgColor, setBgColor] = useState('#ffffff00')
+  const [gradientStops, setGradientStops] = useState<GradientStop[]>([
+    { t: 0, hex: '#fbbf24' },
+    { t: 1, hex: '#ffffff00' },
+  ])
+  // Keep the first/last stops in sync with fgColor/bgColor when those change
+  // from outside the stop editor (eyedropper, palette click, swap).
+  useEffect(() => {
+    setGradientStops((s) => s.map((st, i) => i === 0 ? { ...st, hex: fgColor } : st))
+  }, [fgColor])
+  useEffect(() => {
+    setGradientStops((s) => s.map((st, i) => i === s.length - 1 ? { ...st, hex: bgColor } : st))
+  }, [bgColor])
   const swapColors = () => {
     setFgColor(bgColor)
     setBgColor(fgColor)
@@ -764,6 +777,7 @@ export default function App() {
               fgColor={fgColor}
               bgColor={bgColor}
               onFgColor={setFgColor}
+              gradientStops={gradientStops}
               sprite={activeSprite}
               target={target}
               dispatch={dispatch}
@@ -894,6 +908,12 @@ export default function App() {
               onPeekSelect={undefined}
               gradientOpen={gradientOpen}
               onToggleGradient={() => setGradientOpen((v) => !v)}
+              gradientStops={gradientStops}
+              onGradientStops={(stops) => {
+                setGradientStops(stops)
+                setFgColor(stops[0].hex)
+                setBgColor(stops[stops.length - 1].hex)
+              }}
             />
           ) : (
             <div ref={colorPeek.ref} className="relative shrink-0">
@@ -918,6 +938,12 @@ export default function App() {
                     onPeekSelect={colorPeek.close}
                     gradientOpen={gradientOpen}
                     onToggleGradient={() => setGradientOpen((v) => !v)}
+                    gradientStops={gradientStops}
+                    onGradientStops={(stops) => {
+                      setGradientStops(stops)
+                      setFgColor(stops[0].hex)
+                      setBgColor(stops[stops.length - 1].hex)
+                    }}
                   />
                 </div>
               )}

@@ -4,7 +4,7 @@ import { getTool, tools } from '../tools/registry.js'
 import { getColor } from '../theme/colors.js'
 import { getLastPointer } from '../hooks/lastPointer.js'
 import EyedropperMagnifier, { MAG_RADIUS } from './EyedropperMagnifier.jsx'
-import type { Sprite, CellTarget, RGBA, BrushShape, Selection } from '../document/model.js'
+import type { Sprite, CellTarget, RGBA, BrushShape, GradientStop, Selection } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
 import type { Rect, Floating, CropPending, Coord, Preview, ToolContext } from '../tools/registry.js'
 
@@ -95,6 +95,7 @@ interface PixelCanvasProps {
   eraseToBg: boolean
   showGrid: boolean
   gridSpacing: number
+  gradientStops: GradientStop[]
 }
 
 // Onion-skin ghosts are recolored to a flat tint (so direction reads at a
@@ -117,7 +118,7 @@ export interface PixelCanvasHandle {
 // drawn separately, at CSS-pixel (not pixel-art) resolution, so its dashed
 // outline stays a crisp thin line instead of scaling up into blocky pixels.
 const PixelCanvas = forwardRef<PixelCanvasHandle, PixelCanvasProps>(function PixelCanvas({
-  sprite, frameIndex, target, dispatch, scale, fgColor, bgColor, tool, onFgColor, onHover,
+  sprite, frameIndex, target, dispatch, scale, fgColor, bgColor, tool, onFgColor, onHover, gradientStops,
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, continuousLine, setContinuousLine, filled, brushSize, brushShape,
   mirrorV, mirrorH, onTemporaryToolComplete, playing, onionSkin, eraseToBg, showGrid, gridSpacing,
@@ -448,7 +449,7 @@ const PixelCanvas = forwardRef<PixelCanvasHandle, PixelCanvasProps>(function Pix
     x, y, target, fgColor, bgColor, eraseToBg, dispatch: mirroredDispatch, setFgColor: onFgColor, sampleColor,
     w, h, scale, filled, brushSize, brushShape, setPreview, shiftKey: shiftRef.current, modKey: modRef.current, erasing: erasingRef.current,
     selection, setSelection, floating, setFloating, commitFloating, getRawCell,
-    cropPending, setCropPending, continuousLine, setContinuousLine,
+    cropPending, setCropPending, continuousLine, setContinuousLine, gradientStops,
   })
 
   // The continuous-line anchor is cancelled (Escape, tool switch) from

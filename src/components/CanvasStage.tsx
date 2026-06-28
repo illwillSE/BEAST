@@ -5,7 +5,7 @@ import PixelCanvas, { type PixelCanvasHandle } from './PixelCanvas.jsx'
 import PreviewWindow from './PreviewWindow.jsx'
 import { tools } from '../tools/registry.js'
 import BrushSizeButton from './BrushSizeButton.jsx'
-import type { Sprite, CellTarget, BrushShape } from '../document/model.js'
+import type { Sprite, CellTarget, BrushShape, GradientStop } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
 import type { Selection, Floating, CropPending, Coord } from '../tools/registry.js'
 
@@ -14,6 +14,7 @@ interface CanvasStageProps {
   fgColor: string
   bgColor: string
   onFgColor: (hex: string) => void
+  gradientStops: GradientStop[]
   sprite: Sprite
   target: CellTarget
   dispatch: (action: Action) => void
@@ -52,7 +53,7 @@ export interface CanvasStageHandle {
 // active sprite; zoom is local. The pencil draws (see PixelCanvas) and the
 // checkerboard shows through transparent pixels.
 const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function CanvasStage({
-  tool, fgColor, bgColor, onFgColor, sprite, target, dispatch,
+  tool, fgColor, bgColor, onFgColor, gradientStops, sprite, target, dispatch,
   selection, setSelection, floating, setFloating, commitFloating,
   cropPending, setCropPending, continuousLine, setContinuousLine, filled, brushSize, brushShape, onBrushSize, onBrushShape,
   mirrorV, mirrorH, onTemporaryToolComplete, previewOpen, onClosePreview,
@@ -129,6 +130,7 @@ const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(function Can
             fgColor={fgColor}
             bgColor={bgColor}
             onFgColor={onFgColor}
+            gradientStops={gradientStops}
             tool={tool}
             onHover={setPos}
             selection={selection}

@@ -8,6 +8,8 @@
 export type Cell = Uint8ClampedArray
 // One RGBA color, 0–255 per channel.
 export type RGBA = readonly [number, number, number, number]
+// A single color stop for multi-stop gradients. t ∈ [0, 1].
+export type GradientStop = { t: number; hex: string }
 // An [x, y] integer cell coordinate.
 export type Point = [number, number]
 // A brush stamp shape — square/round fill the whole footprint, the line
@@ -654,13 +656,29 @@ export function shapeOffsets(size: number, shape: BrushShape): Point[] {
 
 // Expand each point into a brush stamp centered (or even-size biased) on it,
 // deduped — the brush-width primitive shared by strokes/lines/outlines.
-export function stampPoints(points: Point[], size: number, shape: BrushShape = 'square'): Point[] {
+// pixelPerfect: when true (strokes/lines only), on diagonal steps the two
+// anti-diagonal corner offsets are suppressed so the stroke band stays N pixels
+// wide instead of N+1. Requires consecutive points to be path-adjacent (i.e.
+// from linePoints), so it must NOT be used with row-major scan results like
+// rectPoints/ellipsePoints.
+export function stampPoints(points: Point[], size: number, shape: BrushShape = 'square', pixelPerfect = false): Point[] {
   if (size <= 1) return points
   const offsets = shapeOffsets(size, shape)
   const seen = new Set<string>()
   const out: Point[] = []
-  for (const [x, y] of points) {
+  for (let i = 0; i < points.length; i++) {
+    const [x, y] = points[i]
+    let sx = 0, sy = 0
+    if (pixelPerfect && shape === 'square' && i > 0) {
+      const [px, py] = points[i - 1]
+      sx = Math.sign(x - px)
+      sy = Math.sign(y - py)
+    }
+    const isDiag = sx !== 0 && sy !== 0
     for (const [dx, dy] of offsets) {
+      // Suppress the two anti-diagonal corner offsets: those where one axis
+      // is with the step and the other is against it (product < 0).
+      if (isDiag && dx * sx * dy * sy < 0) continue
       const px = x + dx, py = y + dy
       const key = `${px},${py}`
       if (seen.has(key)) continue
@@ -672,7 +690,7 @@ export function stampPoints(points: Point[], size: number, shape: BrushShape = '
 }
 
 export function paintLine(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba: RGBA, size: number, shape: BrushShape = 'square', clip?: Selection) {
-  paintPoints(cell, w, h, stampPoints(linePoints(x0, y0, x1, y1), size, shape), rgba, clip)
+  paintPoints(cell, w, h, stampPoints(linePoints(x0, y0, x1, y1), size, shape, true), rgba, clip)
 }
 
 // Compute the 4-connected region matching the RGBA at (x,y), without mutating.
@@ -907,18 +925,37 @@ export function outlineObject(cell: Cell, w: number, h: number, x: number, y: nu
   paintPoints(cell, w, h, stamped, rgba, clip)
 }
 
+// Piecewise-linear interpolation across N sorted stops (sorted by t).
+function interpolateStops(sorted: { t: number; rgba: RGBA }[], t: number): RGBA {
+  if (t <= sorted[0].t) return sorted[0].rgba
+  const last = sorted[sorted.length - 1]
+  if (t >= last.t) return last.rgba
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (t <= sorted[i + 1].t) {
+      const lt = (t - sorted[i].t) / (sorted[i + 1].t - sorted[i].t)
+      const [r0, g0, b0, a0] = sorted[i].rgba
+      const [r1, g1, b1, a1] = sorted[i + 1].rgba
+      return [
+        Math.round(r0 + (r1 - r0) * lt),
+        Math.round(g0 + (g1 - g0) * lt),
+        Math.round(b0 + (b1 - b0) * lt),
+        Math.round(a0 + (a1 - a0) * lt),
+      ]
+    }
+  }
+  return last.rgba
+}
+
 // Per-pixel result of a gradient fill over the flood-connected region from
-// (x0,y0), fading from `rgba0` to `rgba1`. Linear fades along the
-// (x0,y0)→(x1,y1) vector; radial fades by distance from (x0,y0), with
-// (x1,y1) setting the radius. Shared by gradientFill (mutates the cell) and
-// gradientFillPreview (read-only, for the gradient tool's live drag preview).
-function gradientPoints(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA, radial: boolean): { x: number; y: number; rgba: RGBA }[] {
+// (x0,y0). Linear fades along the (x0,y0)→(x1,y1) vector; radial fades by
+// distance from (x0,y0), with (x1,y1) setting the radius. Shared by
+// gradientFill (mutates the cell) and gradientFillPreview (read-only preview).
+function gradientPoints(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, stops: { t: number; rgba: RGBA }[], radial: boolean): { x: number; y: number; rgba: RGBA }[] {
   const seedX = Math.max(0, Math.min(w - 1, x0))
   const seedY = Math.max(0, Math.min(h - 1, y0))
   const region = floodMask(cell, w, h, seedX, seedY)
   if (!region) return []
-  const [r0, g0, b0, a0] = rgba0
-  const [r1, g1, b1, a1] = rgba1
+  const sorted = [...stops].sort((a, b) => a.t - b.t)
   const dx = x1 - x0, dy = y1 - y0
   const lenSq = dx * dx + dy * dy || 1
   const radius = Math.sqrt(lenSq)
@@ -930,15 +967,7 @@ function gradientPoints(cell: Cell, w: number, h: number, x0: number, y0: number
       const t = radial
         ? Math.max(0, Math.min(1, Math.hypot(x - x0, y - y0) / radius))
         : Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / lenSq))
-      out.push({
-        x, y,
-        rgba: [
-          Math.round(r0 + (r1 - r0) * t),
-          Math.round(g0 + (g1 - g0) * t),
-          Math.round(b0 + (b1 - b0) * t),
-          Math.round(a0 + (a1 - a0) * t),
-        ],
-      })
+      out.push({ x, y, rgba: interpolateStops(sorted, t) })
     }
   }
   return out
@@ -946,8 +975,8 @@ function gradientPoints(cell: Cell, w: number, h: number, x0: number, y0: number
 
 // Mutates the cell in place. `mirror` reflects the gradient across the active
 // symmetry axes — see mirroredFill.
-export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA, radial: boolean, mirror?: Mirror, clip?: Selection) {
-  const points = gradientPoints(cell, w, h, x0, y0, x1, y1, rgba0, rgba1, radial)
+export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, stops: { t: number; rgba: RGBA }[], radial: boolean, mirror?: Mirror, clip?: Selection) {
+  const points = gradientPoints(cell, w, h, x0, y0, x1, y1, stops, radial)
   for (const { x, y, rgba } of mirroredFill(points, x0, y0, w, h, mirror)) {
     if (clip && !selectionContains(clip, x, y)) continue
     const o = (y * w + x) * 4
@@ -962,8 +991,8 @@ export function gradientFill(cell: Cell, w: number, h: number, x0: number, y0: n
   }
 }
 
-export function gradientFillPreview(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, rgba0: RGBA, rgba1: RGBA, radial: boolean) {
-  return gradientPoints(cell, w, h, x0, y0, x1, y1, rgba0, rgba1, radial)
+export function gradientFillPreview(cell: Cell, w: number, h: number, x0: number, y0: number, x1: number, y1: number, stops: { t: number; rgba: RGBA }[], radial: boolean) {
+  return gradientPoints(cell, w, h, x0, y0, x1, y1, stops, radial)
 }
 
 // ── region ops (move / cut / copy / paste) ──────────────────────────────────

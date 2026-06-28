@@ -97,7 +97,7 @@ export type Action =
   | (CellTarget & { type: 'OUTLINE'; x: number; y: number; rgba: RGBA; size: number; shape: BrushShape; fat: boolean; mirror?: Mirror; clip?: Selection })
   | (CellTarget & { type: 'PAINT_RECT'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape; clip?: Selection })
   | (CellTarget & { type: 'PAINT_ELLIPSE'; x0: number; y0: number; x1: number; y1: number; filled: boolean; rgba: RGBA; size: number; shape: BrushShape; clip?: Selection })
-  | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; rgba0: RGBA; rgba1: RGBA; radial: boolean; mirror?: Mirror; clip?: Selection })
+  | (CellTarget & { type: 'GRADIENT_FILL'; x0: number; y0: number; x1: number; y1: number; stops: { t: number; rgba: RGBA }[]; radial: boolean; mirror?: Mirror; clip?: Selection })
   | (CellTarget & { type: 'FLIP_H'; clip?: Selection })
   | (CellTarget & { type: 'FLIP_V'; clip?: Selection })
   | (CellTarget & { type: 'SHIFT_LAYER'; dx: number; dy: number })
@@ -329,8 +329,8 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
     }
 
     case 'GRADIENT_FILL': {
-      const { x0, y0, x1, y1, rgba0, rgba1, radial, mirror, clip } = action
-      return editCell(state, action, (cell, sp) => gradientFill(cell, sp.w, sp.h, x0, y0, x1, y1, rgba0, rgba1, radial, mirror, clip), ACTION_LABELS.GRADIENT_FILL!)
+      const { x0, y0, x1, y1, stops, radial, mirror, clip } = action
+      return editCell(state, action, (cell, sp) => gradientFill(cell, sp.w, sp.h, x0, y0, x1, y1, stops, radial, mirror, clip), ACTION_LABELS.GRADIENT_FILL!)
     }
 
     case 'FLIP_H':
