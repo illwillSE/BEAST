@@ -400,13 +400,15 @@ const PixelCanvas = forwardRef<PixelCanvasHandle, PixelCanvasProps>(function Pix
     if (inBounds(x, y)) setMagnifier({ clientX: pos.clientX, clientY: pos.clientY, pixels: sampleRegion(x, y) })
   }, [tool])
 
-  // Tracks live Shift state (rect/ellipse square-circle constraint) on the
-  // window rather than per-pointer-event, so toggling Shift mid-drag updates
-  // the preview even without moving the mouse.
+  // Tracks live Shift and Ctrl/Cmd state on the window rather than per-pointer-event,
+  // so toggling either modifier mid-drag updates the preview without moving the mouse.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Shift') return
-      shiftRef.current = e.type === 'keydown'
+      const isShift = e.key === 'Shift'
+      const isMod = e.key === 'Control' || e.key === 'Meta'
+      if (!isShift && !isMod) return
+      if (isShift) shiftRef.current = e.type === 'keydown'
+      if (isMod) modRef.current = e.type === 'keydown'
       if (draggingRef.current && lastRef.current) {
         activeTool?.onDrag?.(ctxFor(lastRef.current.x, lastRef.current.y), lastRef.current, dragStateRef.current)
       }

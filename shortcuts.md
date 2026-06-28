@@ -73,7 +73,9 @@ Applies only when the active tool uses brush size: Pencil, Eraser, Line, Rectang
 | `Shift` | Ellipse | Constrain to circle |
 | `Shift` | Line | Snap to nearest 45° angle |
 | `Shift` | Gradient | Snap to nearest 45° angle |
-| `Cmd/Ctrl+Shift` | Stretch | Resize from center |
+| `Shift` | Stretch | Lock aspect ratio |
+| `Cmd/Ctrl` | Stretch | Resize from center |
+| `Cmd/Ctrl+Shift` | Stretch | Resize from center + lock aspect ratio |
 
 ## View
 

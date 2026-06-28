@@ -299,20 +299,60 @@ function resizeRect(orig: Rect, handle: Handle, x: number, y: number): Rect {
   return normalizeRect(x0, y0, x1, y1)
 }
 
-// Like resizeRect, but for the Stretch tool: when fromCenter is true the rect's
-// center stays fixed and both sides expand/contract symmetrically (like holding
-// Alt in most image editors).
-function resizeRectStretch(orig: Rect, handle: Handle, x: number, y: number, fromCenter: boolean): Rect {
-  if (!fromCenter) return resizeRect(orig, handle, x, y)
+// Like resizeRect, but for the Stretch tool.
+// fromCenter: center stays fixed, both sides expand/contract symmetrically.
+// proportional: aspect ratio is locked to orig.w/orig.h.
+// Both flags can combine.
+function resizeRectStretch(orig: Rect, handle: Handle, x: number, y: number, fromCenter: boolean, proportional: boolean): Rect {
+  let r: Rect
+  if (fromCenter) {
+    const dir = HANDLE_DIRS[handle]
+    const left = orig.x, right = orig.x + orig.w - 1, top = orig.y, bottom = orig.y + orig.h - 1
+    const cx = (left + right) / 2, cy = (top + bottom) / 2
+    const x0 = dir.h === 'l' ? x : dir.h === 'r' ? 2 * cx - x : left
+    const x1 = dir.h === 'r' ? x : dir.h === 'l' ? 2 * cx - x : right
+    const y0 = dir.v === 't' ? y : dir.v === 'b' ? 2 * cy - y : top
+    const y1 = dir.v === 'b' ? y : dir.v === 't' ? 2 * cy - y : bottom
+    r = normalizeRect(x0, y0, x1, y1)
+  } else {
+    r = resizeRect(orig, handle, x, y)
+  }
+
+  if (!proportional) return r
+
+  const ratio = orig.w / orig.h
   const dir = HANDLE_DIRS[handle]
-  const left = orig.x, right = orig.x + orig.w - 1, top = orig.y, bottom = orig.y + orig.h - 1
-  const cx = (left + right) / 2
-  const cy = (top + bottom) / 2
-  const x0 = dir.h === 'l' ? x : dir.h === 'r' ? 2 * cx - x : left
-  const x1 = dir.h === 'r' ? x : dir.h === 'l' ? 2 * cx - x : right
-  const y0 = dir.v === 't' ? y : dir.v === 'b' ? 2 * cy - y : top
-  const y1 = dir.v === 'b' ? y : dir.v === 't' ? 2 * cy - y : bottom
-  return normalizeRect(x0, y0, x1, y1)
+
+  if (fromCenter) {
+    // Keep original center, expand uniformly with max scale factor
+    const s = Math.max(r.w / orig.w, r.h / orig.h)
+    const newW = Math.max(1, Math.round(orig.w * s))
+    const newH = Math.max(1, Math.round(orig.h * s))
+    const cx = orig.x + (orig.w - 1) / 2, cy = orig.y + (orig.h - 1) / 2
+    return { x: Math.round(cx - (newW - 1) / 2), y: Math.round(cy - (newH - 1) / 2), w: newW, h: newH }
+  }
+
+  if (dir.h && dir.v) {
+    // Corner: larger scale factor wins; anchor at the opposite corner of r
+    const s = Math.max(r.w / orig.w, r.h / orig.h)
+    const newW = Math.max(1, Math.round(orig.w * s))
+    const newH = Math.max(1, Math.round(orig.h * s))
+    const ax = dir.h === 'l' ? r.x + r.w - 1 : r.x
+    const ay = dir.v === 't' ? r.y + r.h - 1 : r.y
+    const nx = dir.h === 'l' ? ax - newW + 1 : ax
+    const ny = dir.v === 't' ? ay - newH + 1 : ay
+    return { x: nx, y: ny, w: newW, h: newH }
+  } else if (dir.h) {
+    // Side (e/w): width drives, height derived from ratio, centered on orig center y
+    const newH = Math.max(1, Math.round(r.w / ratio))
+    const cy = orig.y + (orig.h - 1) / 2
+    return { x: r.x, y: Math.round(cy - (newH - 1) / 2), w: r.w, h: newH }
+  } else {
+    // Side (n/s): height drives, width derived from ratio, centered on orig center x
+    const newW = Math.max(1, Math.round(r.h * ratio))
+    const cx = orig.x + (orig.w - 1) / 2
+    return { x: Math.round(cx - (newW - 1) / 2), y: r.y, w: newW, h: r.h }
+  }
 }
 
 export const tools: Record<string, Tool<any>> = {
@@ -620,8 +660,8 @@ export const tools: Record<string, Tool<any>> = {
   // selection — lift one with the Move tool first. Each resize drag always
   // resamples from the buffer captured at gesture start (never the previous
   // frame's already-stretched result), so repeated nearest-neighbor passes
-  // within one drag don't compound quality loss. Ctrl+Shift resizes from center
-  // (both sides expand/contract symmetrically). Stays floating (no commit)
+  // within one drag don't compound quality loss. Shift locks the aspect ratio;
+  // Ctrl/Cmd resizes from center; both flags combine. Stays floating (no commit)
   // until the usual Enter/tool switch/Escape paths commit it, same as Move.
   stretch: {
     key: 't',
@@ -658,7 +698,7 @@ export const tools: Record<string, Tool<any>> = {
         ctx.setFloating((f) => (f ? { ...f, x: ctx.x - drag.dx, y: ctx.y - drag.dy } : f))
         return
       }
-      const rect = resizeRectStretch(drag.orig, drag.handle, ctx.x, ctx.y, ctx.shiftKey && ctx.modKey)
+      const rect = resizeRectStretch(drag.orig, drag.handle, ctx.x, ctx.y, ctx.modKey, ctx.shiftKey)
       ctx.setFloating((f) => f && {
         ...f,
         x: rect.x, y: rect.y, w: rect.w, h: rect.h,
