@@ -58,6 +58,7 @@ function pickFile(accept: string): Promise<File | null> {
 // autosaves to the browser and can be saved/loaded as a .zip.
 export default function App() {
   const [tool, setTool] = useState('pencil')
+  const [outlineSeq, setOutlineSeq] = useState(0)
   const [temporaryToolReturn, setTemporaryToolReturn] = useState<string | null>(null)
   const [fgColor, setFgColor] = useState('#fbbf24')
   const [bgColor, setBgColor] = useState('#ffffff00')
@@ -400,7 +401,7 @@ export default function App() {
       clip: selection, ...(mirrorV || mirrorH ? { mirror: { v: mirrorV, h: mirrorH } } : {}),
     })
     dispatch({ type: 'STROKE_END' })
-  }, [tool, filled.outline])
+  }, [tool, filled.outline, outlineSeq])
 
   // Layer switch: commit floating but preserve the selection (same coordinates,
   // different layer — user likely wants to paint the same region there).
@@ -689,6 +690,7 @@ export default function App() {
     toggleGrid: () => setShowGrid((v) => !v),
     setGridSpacing: (n) => setGridSpacingState(n),
     openSettings: () => setSettingsOpen(true),
+    triggerOutline: () => setOutlineSeq(s => s + 1),
   }
 
   return (

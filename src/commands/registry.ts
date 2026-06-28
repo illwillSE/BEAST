@@ -24,6 +24,7 @@ export interface CommandContext extends ShortcutContext {
   hasSelection: boolean
   hasClipboard: boolean
   hasSavedSelection: boolean
+  triggerOutline(): void
   saveSelection(): void
   loadSavedSelection(): void
   growSelection(): void
@@ -138,7 +139,7 @@ const toolCommands: Command[] = Object.keys(TOOL_LABELS).flatMap((id) => {
       title: `${label}: ${vlabel}`,
       category: 'Tools',
       keywords: 'tool variant fill outline mode' + alias,
-      run: (ctx) => { ctx.setTool(id); ctx.setVariant(id, value) },
+      run: (ctx) => { ctx.setTool(id); ctx.setVariant(id, value); if (id === 'outline') ctx.triggerOutline() },
     }))
     const group: Command = {
       id: `tool:${id}`,
