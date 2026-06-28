@@ -74,9 +74,23 @@ export default function CommandPalette({ open, onClose, ctx }: CommandPalettePro
     onClose()
   }
 
+  // An item is selectable unless its command is disabled in the current context.
+  const isEnabled = (cmd: Command) => {
+    const isParam = !!cmd.param && cmd.id === paramMatch?.cmd.id
+    return isParam ? paramCommandEnabled(cmd, paramMatch!.arg, ctx) : commandEnabled(cmd, ctx)
+  }
+  // Step from `from` in `dir` (±1), wrapping, landing on the next enabled item.
+  const nextEnabled = (from: number, dir: number) => {
+    for (let i = 1; i <= items.length; i++) {
+      const idx = (from + dir * i + items.length * i) % items.length
+      if (isEnabled(items[idx])) return idx
+    }
+    return from
+  }
+
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); if (items.length) setActive((a) => (a + 1) % items.length) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); if (items.length) setActive((a) => (a - 1 + items.length) % items.length) }
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (items.length) setActive((a) => nextEnabled(a, 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); if (items.length) setActive((a) => nextEnabled(a, -1)) }
     else if (e.key === 'ArrowRight') { const cmd = items[active]; if (cmd?.submenu) { e.preventDefault(); openSubmenu(cmd) } }
     else if (e.key === 'ArrowLeft') { if (submenu && !searching) { e.preventDefault(); back() } }
     else if (e.key === 'Enter') { e.preventDefault(); const cmd = items[active]; if (cmd) activate(cmd) }
