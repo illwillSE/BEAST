@@ -157,18 +157,22 @@ interface RailButtonProps {
   onClick: () => void
   activeClass?: string
   filled?: boolean
+  disabled?: boolean
 }
 
 // A single rail icon — used standalone and as the trigger for a Flyout.
-function RailButton({ title, Icon, active, onClick, activeClass = 'bg-accent-deep/20 border-accent-deep text-accent-bright', filled }: RailButtonProps) {
+function RailButton({ title, Icon, active, onClick, activeClass = 'bg-accent-deep/20 border-accent-deep text-accent-bright', filled, disabled }: RailButtonProps) {
   return (
     <button
       title={title}
       onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className={
         'grid place-items-center w-8 h-8 rounded border ' +
-        (active ? activeClass : 'border-transparent text-muted hover:text-ink hover:bg-surface-hover')
+        (disabled
+          ? 'border-transparent text-muted/40 opacity-40 cursor-not-allowed'
+          : active ? activeClass : 'border-transparent text-muted hover:text-ink hover:bg-surface-hover')
       }
     >
       <Icon size={16} fill={filled ? 'currentColor' : 'none'} />
@@ -229,11 +233,12 @@ interface ToolRailProps {
   mirrorH: boolean
   onMirrorV: () => void
   onMirrorH: () => void
+  hasSelection: boolean
 }
 
 const PEEK_DURATION_MS = 1500
 
-export default function ToolRail({ active, onPick, filled, onFilled, peek, mirrorV, mirrorH, onMirrorV, onMirrorH }: ToolRailProps): ReactNode {
+export default function ToolRail({ active, onPick, filled, onFilled, peek, mirrorV, mirrorH, onMirrorV, onMirrorH, hasSelection }: ToolRailProps): ReactNode {
   // Which tool's flyout (if any) is popped out. Picking an item from a flyout
   // collapses it; clicking the rail icon again pops it back out.
   const [openGroup, setOpenGroup] = useState<string | null>(null)
@@ -317,12 +322,14 @@ export default function ToolRail({ active, onPick, filled, onFilled, peek, mirro
         }
 
         const plainKey = tools[t.id].key
+        const isDisabled = t.id === 'stretch' && !hasSelection
         return (
           <div key={t.id} className="relative">
             <RailButton
-              title={plainKey ? `${t.label} (${plainKey.toUpperCase()})` : t.label}
+              title={isDisabled ? `${t.label} — requires a selection` : plainKey ? `${t.label} (${plainKey.toUpperCase()})` : t.label}
               Icon={t.Icon}
               active={active === t.id}
+              disabled={isDisabled}
               onClick={() => { onPick(t.id); setOpenGroup(null) }}
             />
           </div>

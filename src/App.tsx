@@ -258,17 +258,21 @@ export default function App() {
   const safeLayerId = activeSprite.layers.some((l) => l.id === layerId) ? layerId : topLayer(activeSprite).id
   const safeFrame = frameIndex < activeSprite.frameCount ? frameIndex : 0
 
-  // Remembers each sprite's last-selected layer/frame so switching back to it
-  // restores where you left off, instead of always resetting to the top
-  // layer / frame 1. Keyed by sprite id; a ref since it's read/written
-  // alongside selection changes but never needs to trigger a render itself.
-  const spriteSelectionRef = useRef<Record<string, { layerId: string; frameIndex: number }>>({})
+  // Remembers each sprite's last-selected layer/frame/selection so switching
+  // back to it restores where you left off. Keyed by sprite id; a ref since
+  // it's read/written alongside selection changes but never triggers renders.
+  const spriteSelectionRef = useRef<Record<string, { layerId: string; frameIndex: number; selection: typeof selection }>>({})
+  // Carries the saved selection for the incoming sprite across the render
+  // boundary into the sprite-switch effect, which dispatches UPDATE_SELECTION.
+  // undefined = no sprite switch pending (frame/size change only → clear to null).
+  const pendingSpriteSelectionRef = useRef<typeof selection | undefined>(undefined)
 
   const selectSprite = (id: string) => {
     if (id === spriteId) return
-    spriteSelectionRef.current[spriteId] = { layerId: safeLayerId, frameIndex: safeFrame }
+    spriteSelectionRef.current[spriteId] = { layerId: safeLayerId, frameIndex: safeFrame, selection }
     const sp = doc.sprites.find((s) => s.id === id)!
     const remembered = spriteSelectionRef.current[id]
+    pendingSpriteSelectionRef.current = remembered?.selection ?? null
     setSpriteId(id)
     setLayerId(remembered?.layerId ?? topLayer(sp).id)
     setFrameIndex(remembered?.frameIndex ?? 0)
@@ -425,9 +429,13 @@ export default function App() {
 
   // Sprite / frame / canvas-size change: commit floating, drop the selection and
   // crop (coordinates no longer mean the same thing or the document changed).
+  // For sprite switches, restore the sprite's previously-remembered selection
+  // instead of always clearing to null — so switching away and back preserves it.
   useEffect(() => {
     commitFloating()
-    dispatch({ type: 'UPDATE_SELECTION', selection: null })
+    const pending = pendingSpriteSelectionRef.current
+    pendingSpriteSelectionRef.current = undefined
+    dispatch({ type: 'UPDATE_SELECTION', selection: pending !== undefined ? pending : null })
     cancelCrop()
     setContinuousLine(null)
   }, [activeSprite.id, safeFrame, activeSprite.w, activeSprite.h])
@@ -529,11 +537,14 @@ export default function App() {
   }, [])
 
   // Debounced autosave on every document change (once restore has run).
+  // Skip while a floating selection is active: the doc is in an intermediate
+  // state (selection pixels cleared from the layer) and saving it would lose
+  // those pixels if the page is reloaded before the float is committed.
   useEffect(() => {
-    if (!ready) return
+    if (!ready || floating !== null) return
     const t = setTimeout(() => saveAutosave(doc), 800)
     return () => clearTimeout(t)
-  }, [doc, ready])
+  }, [doc, floating, ready])
 
   const handleSave = async () => {
     const filename = (doc.name.trim() || 'beast-project').replace(/[\\/:*?"<>|]+/g, '_')
@@ -769,6 +780,7 @@ export default function App() {
               mirrorH={mirrorH}
               onMirrorV={() => setMirrorV((v) => !v)}
               onMirrorH={() => setMirrorH((v) => !v)}
+              hasSelection={!!selection || !!floating}
             />
 
             <CanvasStage
