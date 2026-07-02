@@ -199,6 +199,13 @@ function constrainSquare(x0: number, y0: number, x1: number, y1: number): [numbe
   return [x0 + Math.sign(dx || 1) * size, y0 + Math.sign(dy || 1) * size]
 }
 
+// Ctrl/Cmd-constrain rect/ellipse to draw from center: mirrors the start
+// point to the opposite side of (x1,y1), so the shape grows symmetrically
+// around the point where the drag began instead of using it as a corner.
+function constrainCenter(x0: number, y0: number, x1: number, y1: number): [number, number] {
+  return [2 * x0 - x1, 2 * y0 - y1]
+}
+
 // Snap endpoint to nearest 45° angle from (x0,y0) — used by gradient Shift-lock.
 function constrainAngle(x0: number, y0: number, x1: number, y1: number): [number, number] {
   const dx = x1 - x0
@@ -469,14 +476,16 @@ export const tools: Record<string, Tool<any>> = {
     },
     onDrag(ctx, _prev, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
-      const pts = rectPoints(start.x0, start.y0, x1, y1, ctx.filled)
+      const [x0, y0] = ctx.modKey ? constrainCenter(start.x0, start.y0, x1, y1) : [start.x0, start.y0]
+      const pts = rectPoints(x0, y0, x1, y1, ctx.filled)
       ctx.setPreview(shapePreview(ctx, ctx.filled ? pts : stampPoints(pts, ctx.brushSize, ctx.brushShape)))
     },
     onEnd(ctx, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
+      const [x0, y0] = ctx.modKey ? constrainCenter(start.x0, start.y0, x1, y1) : [start.x0, start.y0]
       commitBracketed(ctx, {
         type: 'PAINT_RECT', ...ctx.target,
-        x0: start.x0, y0: start.y0, x1, y1, filled: ctx.filled,
+        x0, y0, x1, y1, filled: ctx.filled,
         rgba: paintColor(ctx), size: ctx.brushSize, shape: ctx.brushShape,
       })
       ctx.setPreview(null)
@@ -493,14 +502,16 @@ export const tools: Record<string, Tool<any>> = {
     },
     onDrag(ctx, _prev, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
-      const pts = ellipsePoints(start.x0, start.y0, x1, y1, ctx.filled)
+      const [x0, y0] = ctx.modKey ? constrainCenter(start.x0, start.y0, x1, y1) : [start.x0, start.y0]
+      const pts = ellipsePoints(x0, y0, x1, y1, ctx.filled)
       ctx.setPreview(shapePreview(ctx, ctx.filled ? pts : stampPoints(pts, ctx.brushSize, ctx.brushShape)))
     },
     onEnd(ctx, start) {
       const [x1, y1] = ctx.shiftKey ? constrainSquare(start.x0, start.y0, ctx.x, ctx.y) : [ctx.x, ctx.y]
+      const [x0, y0] = ctx.modKey ? constrainCenter(start.x0, start.y0, x1, y1) : [start.x0, start.y0]
       commitBracketed(ctx, {
         type: 'PAINT_ELLIPSE', ...ctx.target,
-        x0: start.x0, y0: start.y0, x1, y1, filled: ctx.filled,
+        x0, y0, x1, y1, filled: ctx.filled,
         rgba: paintColor(ctx), size: ctx.brushSize, shape: ctx.brushShape,
       })
       ctx.setPreview(null)
