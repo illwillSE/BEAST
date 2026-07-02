@@ -1,10 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { compositeFrame, hexToRgba, rgbaToHex, pasteRegion, shapeOffsets, selectionOutline, mirroredFill } from '../document/model.js'
+import { compositeFrame, hexToRgba, rgbaToHex, pasteRegion, shapeOffsets, selectionOutline, mirroredFill, paintPixel } from '../document/model.js'
 import { getTool, tools } from '../tools/registry.js'
 import { getColor } from '../theme/colors.js'
 import { getLastPointer } from '../hooks/lastPointer.js'
 import EyedropperMagnifier, { MAG_RADIUS } from './EyedropperMagnifier.jsx'
-import type { Sprite, CellTarget, RGBA, BrushShape, GradientStop, Selection } from '../document/model.js'
+import type { Sprite, CellTarget, RGBA, BrushShape, GradientStop, Selection, Cell } from '../document/model.js'
 import type { Action } from '../document/reducer.js'
 import type { Rect, Floating, CropPending, Coord, Preview, ToolContext } from '../tools/registry.js'
 
@@ -27,6 +27,28 @@ function mirrorTransforms(w: number, h: number, mirrorV: boolean, mirrorH: boole
   if (mirrorH) transforms.push((x, y) => [x, h - 1 - y])
   if (mirrorV && mirrorH) transforms.push((x, y) => [w - 1 - x, h - 1 - y])
   return transforms
+}
+
+// Bakes an in-progress paint/erase/gradient preview onto a clone of the
+// active layer's cell, so the main composite (and any layers above the
+// active one) render it in its real z-order instead of it floating on an
+// overlay above every layer. Mirrors the same points mirroredDispatch will
+// actually paint on commit.
+function applyPreviewToCell(cell: Cell, w: number, h: number, preview: Preview, mirrorV: boolean, mirrorH: boolean): Cell {
+  const patched = cell.slice() as Cell
+  const transforms = mirrorTransforms(w, h, mirrorV, mirrorH)
+  if (preview.kind === 'pixels') {
+    const rgba = hexToRgba(preview.color)
+    for (const [x, y] of preview.points) for (const t of transforms) { const [mx, my] = t(x, y); paintPixel(patched, w, h, mx, my, rgba) }
+  } else if (preview.kind === 'erase') {
+    for (const [x, y] of preview.points) for (const t of transforms) { const [mx, my] = t(x, y); paintPixel(patched, w, h, mx, my, [0, 0, 0, 0]) }
+  } else if (preview.kind === 'gradient') {
+    const region = preview.points.map(([x, y], i) => ({ x, y, rgba: preview.colors[i] }))
+    for (const { x, y, rgba } of mirroredFill(region, preview.x0, preview.y0, w, h, { v: mirrorV, h: mirrorH })) {
+      paintPixel(patched, w, h, x, y, rgba)
+    }
+  }
+  return patched
 }
 
 function flipAction(action: Action, w: number, h: number, axes: { v?: boolean; h?: boolean }): Action {
@@ -142,15 +164,30 @@ const PixelCanvas = forwardRef<PixelCanvasHandle, PixelCanvasProps>(function Pix
   const { w, h } = sprite
   const activeTool = getTool(tool)
 
-  // Re-composite and blit whenever the sprite content or frame changes.
+  // Re-composite and blit whenever the sprite content or frame changes. A
+  // live paint/erase/gradient preview is baked into a clone of the active
+  // layer's cell first (see applyPreviewToCell) so it composites in that
+  // layer's actual z-order — otherwise it would render on top of every
+  // layer, including ones stacked above the one being painted.
   useEffect(() => {
     const ctx = canvasRef.current!.getContext('2d')!
     if (!imageRef.current || imageRef.current.width !== w || imageRef.current.height !== h) {
       imageRef.current = ctx.createImageData(w, h)
     }
-    compositeFrame(sprite, frameIndex, imageRef.current)
+    const paintsPreview = preview?.kind === 'pixels' || preview?.kind === 'erase' || preview?.kind === 'gradient'
+    const layer = paintsPreview ? sprite.layers.find((l) => l.id === target.layerId) : undefined
+    if (layer) {
+      const patchedCell = applyPreviewToCell(layer.cells[frameIndex], w, h, preview!, mirrorV, mirrorH)
+      const patchedSprite: Sprite = {
+        ...sprite,
+        layers: sprite.layers.map((l) => l.id === layer.id ? { ...l, cells: l.cells.map((c, i) => i === frameIndex ? patchedCell : c) } : l),
+      }
+      compositeFrame(patchedSprite, frameIndex, imageRef.current)
+    } else {
+      compositeFrame(sprite, frameIndex, imageRef.current)
+    }
     ctx.putImageData(imageRef.current, 0, 0)
-  }, [sprite, frameIndex, w, h])
+  }, [sprite, frameIndex, w, h, preview, target.layerId, mirrorV, mirrorH])
 
   // Onion-skin ghosts: the immediately adjacent frames, recolored to a flat
   // tint (previous = onion-prev, next = onion-next, see theme.css) and faded,
@@ -179,8 +216,10 @@ const PixelCanvas = forwardRef<PixelCanvasHandle, PixelCanvasProps>(function Pix
     ctx.putImageData(ghost, 0, 0)
   }, [sprite, frameIndex, onionSkin, playing, w, h])
 
-  // Re-draw the preview overlay: floating buffer and any in-progress shape
-  // preview from the active tool. Pixel-art resolution, scaled with the canvas.
+  // Re-draw the floating buffer (move/paste) overlay. Pixel-art resolution,
+  // scaled with the canvas. Paint/erase/gradient shape previews are baked
+  // directly into the main composite instead (see the recomposite effect
+  // above) so they render in their actual layer's z-order.
   useEffect(() => {
     const ctx = overlayRef.current!.getContext('2d')!
     ctx.clearRect(0, 0, w, h)
@@ -189,39 +228,7 @@ const PixelCanvas = forwardRef<PixelCanvasHandle, PixelCanvasProps>(function Pix
       img.data.set(floating.data)
       ctx.putImageData(img, floating.x, floating.y)
     }
-    // Mirror the live preview the same way mirroredDispatch will mirror the
-    // eventual commit, so dragging a line/shape/gradient shows paint landing
-    // in every active mirror, not just under the cursor.
-    const transforms = mirrorTransforms(w, h, mirrorV, mirrorH)
-    if (preview?.kind === 'pixels') {
-      const [r, g, b, a] = hexToRgba(preview.color)
-      ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`
-      for (const [x, y] of preview.points) for (const t of transforms) { const [mx, my] = t(x, y); ctx.fillRect(mx, my, 1, 1) }
-    }
-    if (preview?.kind === 'erase') {
-      const checkerA = getColor('checker-a')
-      const checkerB = getColor('checker-b')
-      for (const [x, y] of preview.points) {
-        for (const t of transforms) {
-          const [mx, my] = t(x, y)
-          ctx.fillStyle = (mx + my) % 2 === 0 ? checkerA : checkerB
-          ctx.fillRect(mx, my, 1, 1)
-        }
-      }
-    }
-    // Gradient is a flood fill, so its mirror is resolved per-orbit (see
-      // mirroredFill) rather than stamped per transform like the point-list
-      // previews above — otherwise the preview wouldn't match the commit when
-      // the region straddles an axis.
-    if (preview?.kind === 'gradient') {
-      const region = preview.points.map(([x, y], i) => ({ x, y, rgba: preview.colors[i] }))
-      for (const { x, y, rgba } of mirroredFill(region, preview.x0, preview.y0, w, h, { v: mirrorV, h: mirrorH })) {
-        const [r, g, b, a] = rgba
-        ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`
-        ctx.fillRect(x, y, 1, 1)
-      }
-    }
-  }, [floating, preview, w, h, mirrorV, mirrorH])
+  }, [floating, w, h])
 
   // Re-draw the optional pixel-alignment grid, mirror axis guides, and brush
   // cursor outline — all thin lines at CSS-pixel resolution (not the

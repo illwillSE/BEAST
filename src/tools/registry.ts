@@ -156,8 +156,9 @@ function paintColor(ctx: ToolContext): RGBA {
 }
 
 // Shape-preview helper for line/rect/ellipse: mirrors paintColor, but a
-// right-click erase-to-transparent preview can't show its real (invisible)
-// result, so it renders as a checkerboard instead (see PixelCanvas).
+// right-click erase-to-transparent preview has no color to carry — PixelCanvas
+// renders the 'erase' kind by writing real transparent pixels into the
+// previewed layer, so it reveals whatever's underneath instead of a color.
 function shapePreview(ctx: ToolContext, points: Point[]): Preview {
   if (ctx.erasing && !ctx.eraseToBg) return { kind: 'erase', points }
   return { kind: 'pixels', points, color: ctx.erasing ? ctx.bgColor : ctx.fgColor }
