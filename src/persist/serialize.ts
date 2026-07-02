@@ -5,8 +5,8 @@
 // dedupe to a single blob. Reconstruction repopulates cells from the blob set,
 // like BLAST's sample cache.
 
-import { DEFAULT_PALETTE } from '../document/model.js'
-import type { BlendMode, Cell, Doc } from '../document/model.js'
+import { createTilemap, DEFAULT_PALETTE } from '../document/model.js'
+import type { BlendMode, Cell, Doc, Tilemap } from '../document/model.js'
 
 const VERSION = 1
 
@@ -33,6 +33,9 @@ export interface Manifest {
   name?: string
   sprites: ManifestSprite[]
   palette: string[]
+  // Tilemap sandbox arrangement (sprite ids). Absent in pre-tilemap files —
+  // loading defaults to an empty map.
+  tilemap?: Tilemap
 }
 
 // cyrb53 — a fast non-cryptographic hash over the cell bytes. Good enough for
@@ -52,6 +55,20 @@ function hashCell(cell: Cell): string {
 
 function toClamped(raw: Uint8Array | Uint8ClampedArray): Uint8ClampedArray {
   return raw instanceof Uint8ClampedArray ? raw : new Uint8ClampedArray(raw)
+}
+
+// Missing field (pre-tilemap file) → empty default; cell ids that don't match
+// a sprite in the manifest → null; cells array normalized to cols*rows.
+function normalizeTilemap(manifest: Manifest): Tilemap {
+  const tm = manifest.tilemap
+  if (!tm) return createTilemap()
+  const ids = new Set(manifest.sprites.map((sp) => sp.id))
+  const out = createTilemap(tm.cols, tm.rows)
+  for (let i = 0; i < Math.min(out.cells.length, tm.cells.length); i++) {
+    const id = tm.cells[i]
+    out.cells[i] = id && ids.has(id) ? id : null
+  }
+  return out
 }
 
 // doc -> { manifest, blobs: Map<hash, Uint8ClampedArray> }
@@ -76,7 +93,7 @@ export function serializeProject(doc: Doc): { manifest: Manifest; blobs: Map<str
       }),
     })),
   }))
-  return { manifest: { version: VERSION, name: doc.name, sprites, palette: doc.palette }, blobs }
+  return { manifest: { version: VERSION, name: doc.name, sprites, palette: doc.palette, tilemap: doc.tilemap }, blobs }
 }
 
 // { manifest, blobs: Map<hash, Uint8Array|Uint8ClampedArray> } -> doc.
@@ -93,6 +110,7 @@ export function deserializeProject({
   return {
     name: manifest.name ?? 'Untitled Project',
     palette: manifest.palette ?? [...DEFAULT_PALETTE],
+    tilemap: normalizeTilemap(manifest),
     sprites: manifest.sprites.map((sp) => {
       const len = sp.w * sp.h * 4
       const cellFor = (hash: string): Cell => {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Copy, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import SpritePreview from './SpritePreview.jsx'
 import PinToggle from './PinToggle.jsx'
 import type { Sprite } from '../document/model.js'
@@ -122,6 +122,13 @@ export default function SpriteList({ sprites, selectedId, onSelect, dispatch, pi
                     {s.w}×{s.h} · {s.frameCount}f
                   </span>
                 </span>
+              </button>
+              <button
+                title="Duplicate"
+                className="shrink-0 opacity-0 group-hover:opacity-100 text-muted hover:text-ink"
+                onClick={() => dispatch({ type: 'DUPLICATE_SPRITE', spriteId: s.id })}
+              >
+                <Copy size={14} />
               </button>
               <button
                 title="Delete"

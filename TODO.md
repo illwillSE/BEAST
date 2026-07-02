@@ -56,6 +56,13 @@ save selection to layer menu, maybe add a tab (Layers / Selections)
 
 ## Animation
 
+## Tilemap sandbox
+- [ ] The Tilemap window renders frame 0 of each placed sprite only — animating
+      placed tiles during loop playback deliberately deferred.
+- [ ] Tilemap cells render at uniform size (largest sprite in the project);
+      no grid lines are drawn between cells so tile seams stay visible — a
+      toggleable grid overlay could be added if wanted.
+
 ## Command palette
 - [ ] Parameterized commands are intentionally excluded from v1 — the palette
       only runs one-shot actions. Commands that need a value or a dialog (Set
@@ -72,8 +79,17 @@ save selection to layer menu, maybe add a tab (Layers / Selections)
 ## Import
 - [ ] (maybe) Open an animated GIF — one frame per GIF frame. Needs a GIF
       decoder; coalesce disposal/transparency. Bigger lift than PNG.
+- [ ] Tileset slice import ignores remainder pixels right/bottom of the last
+      full tile (the dialog reports the ignored size) — no partial-tile or
+      per-tile offset/margin support.
 
 ## Export
+- [ ] Animated GIF export (all frames) — a kickoff export target, never
+      implemented. Needs a GIF encoder; frames ZIP and sprite sheet cover the
+      all-frames case meanwhile.
+- [ ] Tileset export (all sprites → one PNG grid) is fixed at 1× scale and
+      `ceil(sqrt(n))` columns — scale and column-count options deliberately
+      deferred to keep it zero-config like the other exports.
 
 
 ## Performance

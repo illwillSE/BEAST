@@ -27,11 +27,15 @@ import {
   renameProject,
   addSprite,
   addSpriteFromImage,
+  addSpritesFromImages,
   renameSprite,
+  duplicateSprite,
   removeSprite,
   moveSprite,
   cropSprite,
   stretchSprite,
+  setTilemapCell,
+  resizeTilemap,
   addLayer,
   duplicateLayer,
   removeLayer,
@@ -107,7 +111,9 @@ export type Action =
   | (CellTarget & { type: 'PASTE_REGION'; x: number; y: number; w: number; h: number; data: Cell })
   | { type: 'ADD_SPRITE'; opts?: CreateSpriteOpts }
   | { type: 'ADD_SPRITE_FROM_IMAGE'; name: string; w: number; h: number; cell: Cell }
+  | { type: 'ADD_SPRITES_FROM_IMAGES'; sprites: { name: string; w: number; h: number; cell: Cell }[] }
   | { type: 'RENAME_SPRITE'; spriteId: string; name: string }
+  | { type: 'DUPLICATE_SPRITE'; spriteId: string }
   | { type: 'REMOVE_SPRITE'; spriteId: string }
   | { type: 'MOVE_SPRITE'; spriteId: string; delta: number }
   | { type: 'CROP_SPRITE'; spriteId: string; x: number; y: number; w: number; h: number }
@@ -129,6 +135,8 @@ export type Action =
   | { type: 'REMOVE_FRAME'; spriteId: string; frameIndex: number }
   | { type: 'MOVE_FRAME'; spriteId: string; frameIndex: number; delta: number }
   | { type: 'REORDER_FRAME'; spriteId: string; from: number; to: number }
+  | { type: 'SET_TILEMAP_CELL'; index: number; spriteId: string | null }
+  | { type: 'RESIZE_TILEMAP'; cols: number; rows: number }
   | { type: 'ADD_SWATCH'; hex: string }
   | { type: 'REMOVE_SWATCH'; index: number }
   | { type: 'EDIT_SWATCH'; index: number; hex: string }
@@ -167,7 +175,9 @@ const ACTION_LABELS: Partial<Record<Action['type'], string>> = {
   ADJUST_HSL:            'Adjust HSL',
   ADD_SPRITE:            'Add sprite',
   ADD_SPRITE_FROM_IMAGE: 'Import sprite',
+  ADD_SPRITES_FROM_IMAGES: 'Import tileset',
   RENAME_SPRITE:         'Rename sprite',
+  DUPLICATE_SPRITE:      'Duplicate sprite',
   REMOVE_SPRITE:         'Delete sprite',
   MOVE_SPRITE:           'Reorder sprites',
   CROP_SPRITE:           'Crop canvas',
@@ -189,6 +199,8 @@ const ACTION_LABELS: Partial<Record<Action['type'], string>> = {
   REMOVE_FRAME:          'Delete frame',
   MOVE_FRAME:            'Reorder frames',
   REORDER_FRAME:         'Reorder frames',
+  SET_TILEMAP_CELL:      'Edit tilemap',
+  RESIZE_TILEMAP:        'Resize tilemap',
   ADD_SWATCH:            'Add swatch',
   REMOVE_SWATCH:         'Remove swatch',
   EDIT_SWATCH:           'Edit color',
@@ -371,8 +383,14 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
     case 'ADD_SPRITE_FROM_IMAGE':
       return editDoc(state, (doc) => addSpriteFromImage(doc, action.name, action.w, action.h, action.cell), ACTION_LABELS.ADD_SPRITE_FROM_IMAGE!)
 
+    case 'ADD_SPRITES_FROM_IMAGES':
+      return editDoc(state, (doc) => addSpritesFromImages(doc, action.sprites), ACTION_LABELS.ADD_SPRITES_FROM_IMAGES!)
+
     case 'RENAME_SPRITE':
       return editDoc(state, (doc) => renameSprite(doc, action.spriteId, action.name), ACTION_LABELS.RENAME_SPRITE!)
+
+    case 'DUPLICATE_SPRITE':
+      return editDoc(state, (doc) => duplicateSprite(doc, action.spriteId), ACTION_LABELS.DUPLICATE_SPRITE!)
 
     case 'REMOVE_SPRITE':
       return editDoc(state, (doc) => removeSprite(doc, action.spriteId), ACTION_LABELS.REMOVE_SPRITE!)
@@ -438,6 +456,14 @@ export function historyReducer(state: HistoryState, action: Action): HistoryStat
 
     case 'REORDER_FRAME':
       return editDoc(state, (doc) => reorderFrame(doc, action.spriteId, action.from, action.to), ACTION_LABELS.REORDER_FRAME!)
+
+    // Drag-stamping in the tilemap window is bracketed by STROKE_BEGIN/END so
+    // a whole drag coalesces into one undo step, like a pencil stroke.
+    case 'SET_TILEMAP_CELL':
+      return editDoc(state, (doc) => setTilemapCell(doc, action.index, action.spriteId), ACTION_LABELS.SET_TILEMAP_CELL!)
+
+    case 'RESIZE_TILEMAP':
+      return editDoc(state, (doc) => resizeTilemap(doc, action.cols, action.rows), ACTION_LABELS.RESIZE_TILEMAP!)
 
     case 'ADD_SWATCH':
       return editDoc(state, (doc) => addSwatch(doc, action.hex), ACTION_LABELS.ADD_SWATCH!)

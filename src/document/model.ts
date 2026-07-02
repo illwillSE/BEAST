@@ -36,10 +36,19 @@ export interface Sprite {
   layers: Layer[]
 }
 
+// The tilemap sandbox: a small grid where any sprite can be placed in any
+// cell (by id) to test how tiles combine. Row-major; null = empty cell.
+export interface Tilemap {
+  cols: number
+  rows: number
+  cells: (string | null)[]
+}
+
 export interface Doc {
   name: string
   sprites: Sprite[]
   palette: string[]
+  tilemap: Tilemap
 }
 
 // Seed palette for new/empty documents.
@@ -111,6 +120,13 @@ export function createSprite({
   }
 }
 
+export const TILEMAP_MIN = 1
+export const TILEMAP_MAX = 16
+
+export function createTilemap(cols = 4, rows = 4): Tilemap {
+  return { cols, rows, cells: Array(cols * rows).fill(null) }
+}
+
 export function createDocument(): Doc {
   return {
     name: 'Untitled Project',
@@ -119,6 +135,7 @@ export function createDocument(): Doc {
       createSprite({ name: 'sprite_2', w: 16, h: 16, frameCount: 2, layerNames: ['Layer 1', 'Layer 2'] }),
     ],
     palette: [...DEFAULT_PALETTE],
+    tilemap: createTilemap(),
   }
 }
 
@@ -130,6 +147,7 @@ export function createBlankDocument(): Doc {
     name: 'Untitled Project',
     sprites: [createSprite({ name: 'sprite_1', w: 64, h: 64, frameCount: 1, layerNames: ['Layer 1'] })],
     palette: [...DEFAULT_PALETTE],
+    tilemap: createTilemap(),
   }
 }
 
@@ -156,13 +174,49 @@ export function addSpriteFromImage(doc: Doc, name: string, w: number, h: number,
   return { ...doc, sprites: [...doc.sprites, sprite] }
 }
 
+// Batch variant of addSpriteFromImage — one doc rebuild for a whole sliced
+// tileset, so the import is a single undo step.
+export function addSpritesFromImages(doc: Doc, sprites: { name: string; w: number; h: number; cell: Cell }[]): Doc {
+  const added: Sprite[] = sprites.map(({ name, w, h, cell }) => ({
+    id: uid('sp'),
+    name,
+    w,
+    h,
+    frameCount: 1,
+    layers: [{ id: uid('ly'), name: 'Layer 1', visible: true, opacity: 1, blendMode: 'normal', cells: [cell] }],
+  }))
+  return { ...doc, sprites: [...doc.sprites, ...added] }
+}
+
 export function renameSprite(doc: Doc, spriteId: string, name: string): Doc {
   return { ...doc, sprites: doc.sprites.map((sp) => (sp.id === spriteId ? { ...sp, name } : sp)) }
 }
 
 // No-op if it's the last sprite — a project always keeps at least one.
+// Tilemap cells holding the removed sprite go empty.
 export function removeSprite(doc: Doc, spriteId: string): Doc {
-  return doc.sprites.length <= 1 ? doc : { ...doc, sprites: doc.sprites.filter((sp) => sp.id !== spriteId) }
+  if (doc.sprites.length <= 1) return doc
+  return {
+    ...doc,
+    sprites: doc.sprites.filter((sp) => sp.id !== spriteId),
+    tilemap: { ...doc.tilemap, cells: doc.tilemap.cells.map((id) => (id === spriteId ? null : id)) },
+  }
+}
+
+// Inserts the copy directly after the source sprite.
+export function duplicateSprite(doc: Doc, spriteId: string): Doc {
+  const i = doc.sprites.findIndex((sp) => sp.id === spriteId)
+  if (i === -1) return doc
+  const src = doc.sprites[i]
+  const copy: Sprite = {
+    ...src,
+    id: uid('sp'),
+    name: src.name + ' copy',
+    layers: src.layers.map((ly) => ({ ...ly, id: uid('ly'), cells: ly.cells.map((c) => c.slice()) })),
+  }
+  const sprites = [...doc.sprites]
+  sprites.splice(i + 1, 0, copy)
+  return { ...doc, sprites }
 }
 
 // delta: +1 moves the sprite later in the list, -1 moves it earlier.
@@ -252,6 +306,27 @@ export function stretchSprite(doc: Doc, spriteId: string, newW: number, newH: nu
       cells: l.cells.map((c) => stretchCell(c, sp.w, sp.h, newW, newH)),
     })),
   }))
+}
+
+// ── tilemap sandbox ──────────────────────────────────────────────────────
+export function setTilemapCell(doc: Doc, index: number, spriteId: string | null): Doc {
+  if (index < 0 || index >= doc.tilemap.cells.length || doc.tilemap.cells[index] === spriteId) return doc
+  const cells = [...doc.tilemap.cells]
+  cells[index] = spriteId
+  return { ...doc, tilemap: { ...doc.tilemap, cells } }
+}
+
+// Cells in the surviving top-left region keep their contents.
+export function resizeTilemap(doc: Doc, cols: number, rows: number): Doc {
+  cols = Math.min(TILEMAP_MAX, Math.max(TILEMAP_MIN, Math.round(cols) || TILEMAP_MIN))
+  rows = Math.min(TILEMAP_MAX, Math.max(TILEMAP_MIN, Math.round(rows) || TILEMAP_MIN))
+  const old = doc.tilemap
+  if (cols === old.cols && rows === old.rows) return doc
+  const cells: (string | null)[] = Array(cols * rows).fill(null)
+  for (let y = 0; y < Math.min(rows, old.rows); y++) {
+    for (let x = 0; x < Math.min(cols, old.cols); x++) cells[y * cols + x] = old.cells[y * old.cols + x]
+  }
+  return { ...doc, tilemap: { cols, rows, cells } }
 }
 
 // ── lookups ──────────────────────────────────────────────────────────────

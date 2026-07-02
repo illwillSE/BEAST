@@ -10,6 +10,9 @@ export interface PreviewPrefs {
   w: number
   h: number
   scale: number
+  // 3×3 seamless-tiling repeat mode. Missing in older persisted prefs —
+  // consumers read it defensively (?? false).
+  tile?: boolean
 }
 
 export function loadPreviewPrefs(): PreviewPrefs | null {

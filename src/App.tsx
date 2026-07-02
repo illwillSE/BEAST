@@ -8,6 +8,9 @@ import LayersPanel from './components/LayersPanel.jsx'
 import ColorPanel from './components/ColorPanel.jsx'
 import FramesTimeline from './components/FramesTimeline.jsx'
 import NewSpriteDialog from './components/NewSpriteDialog.jsx'
+import SliceTilesetDialog from './components/SliceTilesetDialog.jsx'
+import type { SliceSource } from './components/SliceTilesetDialog.jsx'
+import TilemapWindow from './components/TilemapWindow.jsx'
 import ResizeCanvasDialog from './components/ResizeCanvasDialog.jsx'
 import SettingsModal from './components/SettingsModal.jsx'
 import MergeColorsDialog from './components/MergeColorsDialog.jsx'
@@ -25,9 +28,11 @@ import type { GradientStop } from './document/model.js'
 import { historyReducer, initHistory } from './document/reducer.js'
 import { saveAutosave, loadAutosave } from './persist/autosave.js'
 import { loadPreviewPrefs } from './persist/previewPrefs.js'
+import { loadTilemapPrefs } from './persist/tilemapPrefs.js'
 import { projectToZipBlob, projectFromZipFile, projectPaletteFromZipFile, downloadBlob } from './persist/zip.js'
 import { exportSpriteFramesAsZip } from './export/framesZip.js'
 import { exportSpriteAsSheet } from './export/spritesheet.js'
+import { exportTilesetPng } from './export/tileset.js'
 import { matchShortcut, isTypingTarget, isInsideDialog } from './shortcuts/registry.js'
 import type { ShortcutContext } from './shortcuts/registry.js'
 import type { CommandContext } from './commands/registry.js'
@@ -125,6 +130,7 @@ export default function App() {
     completeTemporaryTool()
   })
   const [previewOpen, setPreviewOpen] = useState(() => loadPreviewPrefs()?.open ?? false)
+  const [tilemapOpen, setTilemapOpen] = useState(() => loadTilemapPrefs()?.open ?? false)
 
   // Foldable chrome panels — each pinned open by default (today's layout).
   // Unpinning collapses a panel to an edge tab; clicking the tab peeks it
@@ -207,6 +213,33 @@ export default function App() {
       dispatch({ type: 'ADD_SPRITE_FROM_IMAGE', name, w: bitmap.width, h: bitmap.height, cell: Uint8ClampedArray.from(data) })
     } catch (err) {
       console.warn('BEAST PNG import failed', err)
+      window.alert('Could not import that image.')
+    }
+  }
+
+  // "Import Tileset": decode the file like importSpritePng, but hand the
+  // pixels to the slice dialog, which cuts them into one sprite per grid tile.
+  // The source can be a whole tileset sheet, so its cap is looser than a
+  // single sprite's.
+  const MAX_TILESET_SIZE = 2048
+  const [sliceSource, setSliceSource] = useState<SliceSource | null>(null)
+  const importTilesetPng = async (file: File) => {
+    try {
+      const bitmap = await createImageBitmap(file)
+      if (bitmap.width > MAX_TILESET_SIZE || bitmap.height > MAX_TILESET_SIZE) {
+        window.alert(`That image is too large (max ${MAX_TILESET_SIZE}×${MAX_TILESET_SIZE}).`)
+        return
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = bitmap.width
+      canvas.height = bitmap.height
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(bitmap, 0, 0)
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const name = file.name.replace(/\.[^./]+$/, '') || 'tileset'
+      setSliceSource({ name, imageData })
+    } catch (err) {
+      console.warn('BEAST tileset import failed', err)
       window.alert('Could not import that image.')
     }
   }
@@ -628,6 +661,14 @@ export default function App() {
     savedDocRef.current = doc
   }
 
+  // Whole-project export (unlike the per-sprite exports above), so the
+  // filename comes from the project name.
+  const handleExportTileset = async () => {
+    const filename = (doc.name.trim() || 'beast-project').replace(/[\\/:*?"<>|]+/g, '_')
+    downloadBlob(await exportTilesetPng(doc), `${filename}-tileset.png`)
+    savedDocRef.current = doc
+  }
+
   const handleOpen = async (file: File) => {
     const dirty = doc !== savedDocRef.current
     if (dirty && !window.confirm('Discard the current project and open this file? Unsaved changes will be lost.')) return
@@ -692,14 +733,17 @@ export default function App() {
     moveFrame: (delta) => { const to = safeFrame + delta; if (to >= 0 && to < activeSprite.frameCount) { dispatch({ type: 'MOVE_FRAME', spriteId: activeSprite.id, frameIndex: safeFrame, delta }); setFrameIndex(to) } },
     openNewSprite: () => setNewSpriteOpen(true),
     openResizeCanvas: () => setResizeCanvasOpen(true),
+    duplicateSprite: () => dispatch({ type: 'DUPLICATE_SPRITE', spriteId: activeSprite.id }),
     removeSprite: () => { if (doc.sprites.length > 1) dispatch({ type: 'REMOVE_SPRITE', spriteId: activeSprite.id }) },
     newProject: handleNewProject,
     saveProject: handleSave,
     exportPng: handleExportPng,
   exportFramesZip: handleExportFramesZip,
   exportSpriteSheet: handleExportSpriteSheet,
+    exportTileset: handleExportTileset,
     openProject: () => { pickFile('.zip').then((f) => f && handleOpen(f)) },
     importPng: () => { pickFile('image/*').then((f) => f && importSpritePng(f)) },
+    importTileset: () => { pickFile('image/png').then((f) => f && importTilesetPng(f)) },
     importColors: () => { pickFile('image/*').then((f) => f && importImagePalette(f)) },
     importColorsFromCanvas,
     importPalette: () => { pickFile('.zip').then((f) => f && importProjectPalette(f)) },
@@ -710,6 +754,7 @@ export default function App() {
     togglePlay: () => setPlaying((p) => !p),
     toggleOnionSkin: () => setOnionSkin((o) => !o),
     togglePreview: () => setPreviewOpen((o) => !o),
+    toggleTilemap: () => setTilemapOpen((o) => !o),
     toggleGradient: () => setGradientOpen((v) => !v),
     toggleGrid: () => setShowGrid((v) => !v),
     setGridSpacing: (n) => setGridSpacingState(n),
@@ -726,11 +771,15 @@ export default function App() {
         onSave={handleSave}
         onOpen={handleOpen}
         onImportPng={importSpritePng}
+        onImportTileset={importTilesetPng}
         onExportPng={handleExportPng}
         onExportFramesZip={handleExportFramesZip}
         onExportSpriteSheet={handleExportSpriteSheet}
+        onExportTileset={handleExportTileset}
         previewOpen={previewOpen}
         onTogglePreview={() => setPreviewOpen((o) => !o)}
+        tilemapOpen={tilemapOpen}
+        onToggleTilemap={() => setTilemapOpen((o) => !o)}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
@@ -967,6 +1016,15 @@ export default function App() {
       {globalMagnifier && <EyedropperMagnifier {...globalMagnifier} />}
       <UndoToast tick={state.undoRedoTick} />
 
+      <TilemapWindow
+        doc={doc}
+        activeSpriteId={activeSprite.id}
+        onSelectSprite={selectSprite}
+        dispatch={dispatch}
+        open={tilemapOpen}
+        onClose={() => setTilemapOpen(false)}
+      />
+
       <NewSpriteDialog
         open={newSpriteOpen}
         onCreate={(w, h) => {
@@ -974,6 +1032,12 @@ export default function App() {
           setNewSpriteOpen(false)
         }}
         onClose={() => setNewSpriteOpen(false)}
+      />
+
+      <SliceTilesetDialog
+        source={sliceSource}
+        onImport={(sprites) => dispatch({ type: 'ADD_SPRITES_FROM_IMAGES', sprites })}
+        onClose={() => setSliceSource(null)}
       />
 
       <ResizeCanvasDialog

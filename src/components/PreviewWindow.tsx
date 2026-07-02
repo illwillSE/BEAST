@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, ZoomIn, ZoomOut } from 'lucide-react'
+import { Grid3x3, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { compositeFrame } from '../document/model.js'
 import { loadPreviewPrefs, savePreviewPrefs } from '../persist/previewPrefs.js'
 import type { Sprite } from '../document/model.js'
@@ -56,6 +56,9 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
     return clampPos({ x: p?.x ?? fallback.x, y: p?.y ?? fallback.y }, s)
   })
   const [previewScale, setPreviewScale] = useState(() => loadPreviewPrefs()?.scale ?? 1)
+  // 3×3 seamless-tiling mode: the frame repeated in a 3×3 grid so tile seams
+  // show while drawing (for floor/wall tiles).
+  const [tile, setTile] = useState(() => loadPreviewPrefs()?.tile ?? false)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<ImageData | null>(null)
@@ -64,6 +67,9 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
 
   const { w, h } = sprite
 
+  // The ImageData stays w×h; only the canvas grows in tiling mode — the same
+  // composite is stamped at all nine offsets.
+  const repeat = tile ? 3 : 1
   useEffect(() => {
     if (!open || !canvasRef.current) return
     const ctx = canvasRef.current.getContext('2d')!
@@ -71,13 +77,14 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
       imageRef.current = ctx.createImageData(w, h)
     }
     compositeFrame(sprite, frameIndex, imageRef.current)
-    ctx.putImageData(imageRef.current, 0, 0)
-  }, [sprite, frameIndex, w, h, open])
+    for (let iy = 0; iy < repeat; iy++)
+      for (let ix = 0; ix < repeat; ix++) ctx.putImageData(imageRef.current, ix * w, iy * h)
+  }, [sprite, frameIndex, w, h, open, repeat])
 
   if (!open) return null
 
   const persist = (overrides: Partial<PreviewPrefs> = {}) =>
-    savePreviewPrefs({ open, x: pos.x, y: pos.y, w: size.w, h: size.h, scale: previewScale, ...overrides })
+    savePreviewPrefs({ open, x: pos.x, y: pos.y, w: size.w, h: size.h, scale: previewScale, tile, ...overrides })
 
   const handleTitleDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('button')) return
@@ -124,11 +131,18 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
     onClose()
   }
 
+  // Modulo maps a click on any of the nine repeats back to sprite coordinates.
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current!.getBoundingClientRect()
-    const x = clamp(Math.floor(((e.clientX - rect.left) / rect.width) * w), 0, w - 1)
-    const y = clamp(Math.floor(((e.clientY - rect.top) / rect.height) * h), 0, h - 1)
-    onNavigate(x, y)
+    const x = clamp(Math.floor(((e.clientX - rect.left) / rect.width) * w * repeat), 0, w * repeat - 1)
+    const y = clamp(Math.floor(((e.clientY - rect.top) / rect.height) * h * repeat), 0, h * repeat - 1)
+    onNavigate(x % w, y % h)
+  }
+
+  const toggleTile = () => {
+    const next = !tile
+    setTile(next)
+    persist({ tile: next })
   }
 
   return (
@@ -152,10 +166,10 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
         <div className="beast-checker inline-block rounded border border-edge shrink-0">
           <canvas
             ref={canvasRef}
-            width={w}
-            height={h}
+            width={w * repeat}
+            height={h * repeat}
             onClick={handleCanvasClick}
-            style={{ width: w * previewScale, height: h * previewScale, imageRendering: 'pixelated', cursor: 'crosshair', display: 'block' }}
+            style={{ width: w * repeat * previewScale, height: h * repeat * previewScale, imageRendering: 'pixelated', cursor: 'crosshair', display: 'block' }}
           />
         </div>
       </div>
@@ -167,6 +181,13 @@ export default function PreviewWindow({ sprite, frameIndex, onNavigate, open, on
         <span className="text-text tabular-nums">{previewScale * 100}%</span>
         <button className="text-muted hover:text-ink" onClick={() => adjustScale(1)}>
           <ZoomIn size={12} />
+        </button>
+        <button
+          title="Tile 3×3"
+          className={tile ? 'text-accent-bright' : 'text-muted hover:text-ink'}
+          onClick={toggleTile}
+        >
+          <Grid3x3 size={12} />
         </button>
         <div className="flex-1" />
         <div

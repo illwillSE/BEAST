@@ -51,6 +51,7 @@ export interface CommandContext extends ShortcutContext {
   // Sprites.
   openNewSprite(): void
   openResizeCanvas(): void
+  duplicateSprite(): void
   removeSprite(): void
   // File.
   newProject(): void
@@ -58,8 +59,10 @@ export interface CommandContext extends ShortcutContext {
   exportPng(): void
   exportFramesZip(): void
   exportSpriteSheet(): void
+  exportTileset(): void
   openProject(): void
   importPng(): void
+  importTileset(): void
   importColors(): void
   importColorsFromCanvas(): void
   importPalette(): void
@@ -71,6 +74,7 @@ export interface CommandContext extends ShortcutContext {
   togglePlay(): void
   toggleOnionSkin(): void
   togglePreview(): void
+  toggleTilemap(): void
   toggleGradient(): void
   toggleGrid(): void
   setGridSpacing(n: number): void
@@ -245,6 +249,7 @@ export const commands: Command[] = [
 
   // Sprites
   { id: 'sprite-add', title: 'Add Sprite', category: 'Sprites', run: (c) => c.openNewSprite() },
+  { id: 'sprite-duplicate', title: 'Duplicate Sprite', category: 'Sprites', keywords: 'copy clone', run: (c) => c.duplicateSprite() },
   { id: 'sprite-remove', title: 'Delete Sprite', category: 'Sprites', enabled: (c) => c.spriteCount > 1, run: (c) => c.removeSprite() },
   { id: 'resize-canvas', title: 'Resize Canvas…', category: 'Sprites', keywords: 'crop stretch scale size width height', run: (c) => c.openResizeCanvas() },
 
@@ -254,6 +259,7 @@ export const commands: Command[] = [
   { id: 'mirror-h', title: 'Toggle Horizontal Mirror', category: 'View', keywords: 'symmetry axis', run: (c) => c.toggleMirrorH() },
   { id: 'onion', title: 'Toggle Onion Skin', category: 'View', keywords: 'ghost frame', run: (c) => c.toggleOnionSkin() },
   { id: 'preview', title: 'Toggle Preview Panel', category: 'View', run: (c) => c.togglePreview() },
+  { id: 'tilemap', title: 'Toggle Tilemap Panel', category: 'View', keywords: 'sandbox tiles place combine', run: (c) => c.toggleTilemap() },
   { id: 'gradient-panel', title: 'Toggle Gradient Panel', category: 'View', run: (c) => c.toggleGradient() },
   { id: 'grid', title: 'Toggle Grid Overlay', category: 'View', keywords: 'pixel lines align', run: (c) => c.toggleGrid() },
   {
@@ -276,8 +282,10 @@ export const commands: Command[] = [
   { id: 'export-png', title: 'Export Frame as PNG', category: 'File', keywords: 'download', run: (c) => c.exportPng() },
   { id: 'export-frames-zip', title: 'Export Frames as ZIP', category: 'File', keywords: 'download animation', run: (c) => c.exportFramesZip() },
   { id: 'export-sprite-sheet', title: 'Export Frames as Sprite Sheet', category: 'File', keywords: 'download animation grid', run: (c) => c.exportSpriteSheet() },
+  { id: 'export-tileset', title: 'Export Sprites as Tileset', category: 'File', keywords: 'download grid tiles all', run: (c) => c.exportTileset() },
   { id: 'open', title: 'Open Project…', category: 'File', keywords: 'load import zip', run: (c) => c.openProject() },
   { id: 'import-png', title: 'Import PNG as Sprite…', category: 'File', keywords: 'load image', run: (c) => c.importPng() },
+  { id: 'import-tileset', title: 'Import Tileset (slice into sprites)…', category: 'File', keywords: 'load image grid slice tiles', run: (c) => c.importTileset() },
   { id: 'import-colors', title: 'Import Colors from Image…', category: 'File', keywords: 'palette swatch', run: (c) => c.importColors() },
   { id: 'import-colors-canvas', title: 'Import Colors from Canvas', category: 'File', keywords: 'palette swatch sprite layer', run: (c) => c.importColorsFromCanvas() },
   { id: 'import-palette', title: 'Import Palette from Project…', category: 'File', keywords: 'swatch zip', run: (c) => c.importPalette() },

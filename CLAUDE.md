@@ -65,7 +65,7 @@ blocks, BEAST is a **layered + framed pixel document** edited with painting tool
   - **autosave** (localStorage + IndexedDB, content-addressed blobs),
   - **registry-driven extensibility** — BLAST's *block registry* becomes BEAST's **tool registry**
     (brush, eraser, fill, line, shapes, color picker, select…). One registry entry = one tool.
-- **Export targets:** PNG (with pixel-art upscaling 1×/2×/4×/8×), animated GIF (all frames), and
+- **Export targets:** PNG (current frame, 1× only) and
   sprite sheet (all frames in one PNG grid).
 - **Deploy:** gh-pages, Vite `base: '/BEAST/'` (same release path as BLAST).
 - **Canvas size:** common presets (16×16, 32×32, 64×64, 128×128) **+** custom W×H, **and**
